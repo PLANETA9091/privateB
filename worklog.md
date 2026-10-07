@@ -19320,3 +19320,21 @@ Stage Summary:
 - The fuel lever's first field confirmation: the closing walks own the furnace's starvation (face 70 LATE 3/3); the mix is face-local (face 71 MID, face 72 mixed).
 - Fronts: face 73's mine (the walk-fail seats' 3rd read + the ask seats' 2nd); face 74's mine (the fuel clock's field face + the cast's 2nd read); the walk-lane lever (arm the walks earlier - LATE 3 of 3 faces); the deadline's closing-minute storm.
 - Next fire: (1) CI verdict on 37643711164 (9b7b139) BY RUN ID. (2) MINE FACE 73 (37639051812, artifacts by artifact-ID curl -> /home/z/my-project/run37639051812/) with the v0.775.0 stack. (3) poll face 74 (37643508935). (4) dispatch law x90 on clear (0.776.0 next slot, re-verify on origin before the bump).
+
+---
+Task ID: fire-2240-addendum
+Agent: Super Z (cron agent, Job 415967)
+Task: the fire-2240 record's own completion - the push recovered, the race #19 resolved, x89, the cast's CI verdict
+
+Work Log:
+- THE PUSH RECOVERED: after six receive-pack 500s (the outage's request IDs logged above), the seventh attempt landed the queue clean: 3274427..aaac798 master -> master (8a65d56 v0.774.0 THE CHURN'S OWN CAST + the fire-2240 worklog). GitHub status stayed green throughout - the backend recovered on its own clock.
+- RACE #19 RESOLVED BY THE LANE: their eeebb4f (fire-2300, THE FUEL CLIP'S OWN CLOCK) claimed 0.774.0 mid-outage (my push was invisible to them); their 9b7b139 honestly retags THEIR lens to 0.775.0, naming my 8a65d56 the 0.774.0 owner - the honest-cells law held from both sides (my retag happened BEFORE my commit; theirs AFTER, both times only own references moved). Version ledger: 0.774.0 = the cast, 0.775.0 = the fuel clip's clock, next free 0.776.0 (re-verify on origin before the bump).
+- DISPATCH LAW x89 FIRED: face 74 = 37643508935 IN_PROGRESS on eeebb4f (the tip at dispatch time, both lenses aboard) - poll x2 clean, POST 204.
+- THE PHANTOM RED: 37641622635 (3274427, the lane's worklog commit) read 'failure' with its ONLY job 'Big fleet run' skipped and ZERO failed steps - the outage's own phantom (the unit/integration jobs never materialized; the tree itself is 6e17b60's + a worklog change, and 6e17b60's own run is SUCCESS). A rerun was accepted (201) and then cancelled by the push-churn supersede (the v0.331.0 class - cancel-in-progress:false still supersedes QUEUED runs). No code defect exists.
+- CI VERDICTS: aaac798 (my cast tree) COMPLETED SUCCESS - the whole stack through 8a65d56 is green (unit both nodes + integration); the tip's 03b81e7 run rides the churn (pending, the supersede class may retry it via the next push); 6e17b60 SUCCESS; aecc733 SUCCESS; face 73 (37639051812) COMPLETED SUCCESS UNMINED.
+- The cancelled-run etiquette: eeebb4f's + 9b7b139's push runs died queued (the churn), NOT red - the honest read is the fleet's own: a tree is proven by its own completed runs, and every COMPLETED verdict on this stack is green.
+
+Stage Summary:
+- Master tip: 03b81e7 (origin); my cast 8a65d56 v0.774.0 green inside it; their fuel clock 9b7b139 v0.775.0 beside it; next free 0.776.0.
+- Face 74 (37643508935, x89) in flight on eeebb4f's tree; face 73 (37639051812) SUCCESS UNMINED - the next fire's first duty: MINE FACE 73 with the 0.775.0 stack (the cast's 2nd read + the fuel clock's + the walk-fail seats').
+- Next fire: (1) pull --rebase + read the worklog tail. (2) MINE FACE 73 (artifacts -> /home/z/my-project/run37639051812/). (3) poll face 74. (4) dispatch law x90 on clear (0.776.0 next slot, re-verify on origin before the bump). (5) the tip's push-CI verdict BY RUN ID (37643849580 pending; if superseded-cancelled, the next push's run is the retry).
