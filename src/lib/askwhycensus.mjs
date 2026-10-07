@@ -278,3 +278,72 @@ export function askWhyCensus (lines) {
   for (const bot of [...govRun.keys()]) closeRun(bot)
   return out
 }
+
+// (v0.769.0) THE DRY ASK'S OWN VERDICT - the ask ladder's why book grows its
+// own seat. The v0.652.0 census priced the whys, the v0.653.0 skins priced
+// the decide's anatomy, the v0.655.0 sides priced the ladders - and no row
+// ever named WHICH class owns the dry ask (face 69's own read rode the mix
+// raw: 28 dry terminals, decide x22 beside ceiling x7 / timeout x4 / water
+// x1, with no verdict row). THE VERDICT LAW (the hop bleed's v0.760.0
+// precedent, the kick kinds' v0.763.0 seat - zero re-parsing, the cells are
+// the census's own): the owner under the strict-majority law on the WHY
+// ROWS (the re-ask is the repeat's own meter - the units' magnitudes ride
+// the ~Nu inflation margin); the priced dry joins as the second cell (the
+// dry the owner's own class priced - the 'last refusal wins' law's own
+// join); a tie owns nothing (the storm-has-no-seat precedent); junk never
+// invents a verdict (a missing or empty census, a non-finite or negative
+// count, a zero why book -> the honest silence).
+export const ASK_WHY_LEVERS = {
+  decide: 'the decider\'s own clock is the front (the crowded sky\'s own law - the v0.727.0 lane prices the starve)',
+  ceiling: 'the fleet\'s own goal budget is the front',
+  governor: 'the churn governor\'s own spiral is the front (the v0.658.0 lane prices the run)',
+  timeout: 'the walk budget is the front',
+  water: 'the water interlock is the front',
+  goalChanged: 'the scheduler\'s own churn is the front',
+  unnamed: 'the class\'s own detail is the front',
+}
+
+export function dryAskVerdict (census) {
+  if (!census || typeof census !== 'object') return null
+  const whys = census.whys && typeof census.whys === 'object' && !Array.isArray(census.whys) ? census.whys : {}
+  const dry = census.dryByWhy && typeof census.dryByWhy === 'object' && !Array.isArray(census.dryByWhy) ? census.dryByWhy : {}
+  let ofWhys = 0
+  let topUnits = 0
+  let topCls = null
+  for (const [cls, n] of Object.entries(whys)) {
+    if (!Number.isFinite(n) || n < 0) continue
+    ofWhys += n
+    if (n > topUnits) { topUnits = n; topCls = cls }
+  }
+  if (topCls === null || topUnits <= ofWhys - topUnits) return null
+  let dryPriced = 0
+  for (const n of Object.values(dry)) {
+    if (!Number.isFinite(n) || n < 0) continue
+    dryPriced += n
+  }
+  const dryUnits = Number.isFinite(dry[topCls]) && dry[topCls] >= 0 ? dry[topCls] : 0
+  return {
+    cls: topCls,
+    owns: topUnits,
+    ofWhys,
+    shareOfWhys: +(topUnits / ofWhys).toFixed(3),
+    dryUnits,
+    dryPriced,
+    shareOfDry: dryPriced > 0 ? +(dryUnits / dryPriced).toFixed(3) : 0,
+    lever: ASK_WHY_LEVERS[topCls] || 'the class\'s own detail is the front',
+  }
+}
+
+// (v0.769.0) the verdict's own row - the seat names WHICH class owns the
+// dry ask; the lever table's own front prices the cure (one table, the
+// fallback honest - the v0.760.0 levers' law). Junk never prints a seat.
+export function dryAskVerdictRow (v) {
+  if (!v || typeof v !== 'object') return null
+  const { cls, owns, ofWhys, shareOfWhys, dryUnits, dryPriced, shareOfDry, lever } = v
+  if (typeof cls !== 'string' || !cls ||
+      !Number.isFinite(owns) || owns <= 0 || !Number.isFinite(ofWhys) || ofWhys <= 0 || owns > ofWhys ||
+      !Number.isFinite(shareOfWhys) ||
+      !Number.isFinite(dryUnits) || dryUnits < 0 || !Number.isFinite(dryPriced) || dryPriced < 0 ||
+      dryUnits > dryPriced || !Number.isFinite(shareOfDry)) return null
+  return `the dry ask's own verdict (v0.769.0): ${cls} owns ${owns} of ${ofWhys} why row(s) (${(shareOfWhys * 100).toFixed(1)}%), the priced dry ${dryUnits} of ${dryPriced} unit(s) (${(shareOfDry * 100).toFixed(1)}%): ${lever}`
+}

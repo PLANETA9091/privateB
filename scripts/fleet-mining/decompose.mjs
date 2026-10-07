@@ -3,7 +3,7 @@
 import { readFileSync } from 'node:fs'
 import { rescueLedger, rescueEndSeconds, RESCUE_END_CLASSES } from '../../src/lib/rescue-ledger.mjs'
 import { orphanOwnerCensus } from '../../src/lib/orphanowner.mjs' // (v0.679.0) the orphan end's per-bot owner (the dead-client class names its bot)
-import { askWhyCensus } from '../../src/lib/askwhycensus.mjs' // (v0.652.0) THE ASK'S OWN WHY BOOK - the ask ladder's walk-failure whys joined to the dry terminals (the delivery side's v0.612.0 why-book law, the ask side's own seat)
+import { askWhyCensus, dryAskVerdict, dryAskVerdictRow } from '../../src/lib/askwhycensus.mjs' // (v0.652.0) THE ASK'S OWN WHY BOOK - the ask ladder's walk-failure whys joined to the dry terminals (the delivery side's v0.612.0 why-book law, the ask side's own seat); (v0.769.0) WHICH class owns the dry ask
 import { bankFlowCensus, bankYield } from '../../src/lib/bankcensus.mjs' // (v0.686.0) + the yield dial - the banked mass over the visit lane's own line count
 import { routeGateCensus, ROUTE_GATE_RIM_TRAP_REFUSALS } from '../../src/lib/routecensus.mjs' // (v0.388.0) the route gate's field read
 import { shooterCensus } from '../../src/lib/shootercensus.mjs' // (v0.390.0) the shooter band's field read
@@ -1567,6 +1567,12 @@ console.log('  fuel anchor:', count(/fuel anchor/), ' fuel commons:', count(/fue
   // filter's own byte-stability); the guard keeps older census shapes honest
   const runBits = Object.entries(aw.governorRuns || {}).filter(([, n]) => n > 0).map(([k, n]) => `${k} x${n}`)
   console.log(`  ask why census (governor runs): ${runBits.length ? runBits.join(', ') : 'no governor runs'}`)
+  // (v0.769.0) WHICH class owns the dry ask - one additive row beside the
+  // v0.652.0 census (the cells are the census's own, zero re-parsing; the
+  // old rows' bytes stay untouched); the tie and the junk read the honest
+  // silence
+  const dav = dryAskVerdict(aw)
+  if (dav) console.log(`  ${dryAskVerdictRow(dav)}`)
 }
 console.log('  iron lines:', count(/iron/))
 console.log('  ladder lead lines:', count(/ladder/))

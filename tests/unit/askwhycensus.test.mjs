@@ -5,7 +5,7 @@
 // riding NO census anywhere in the mining surface.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { askWhyCensus, askWhyClass, decideSkin, askSide, governorRunBucket, ASK_TERMINAL_RE, ASK_WHY_RE, ASK_WHY_CLASSES, DECIDE_SKIN_CLASSES, ASK_SIDES, GOVERNOR_RUN_BUCKETS } from '../../src/lib/askwhycensus.mjs'
+import { askWhyCensus, askWhyClass, decideSkin, askSide, governorRunBucket, dryAskVerdict, dryAskVerdictRow, ASK_TERMINAL_RE, ASK_WHY_RE, ASK_WHY_CLASSES, ASK_WHY_LEVERS, DECIDE_SKIN_CLASSES, ASK_SIDES, GOVERNOR_RUN_BUCKETS } from '../../src/lib/askwhycensus.mjs'
 
 test('THE ASK WHY CENSUS: the storm face re-priced byte-exact (the decide, the ceiling, the water, the dry terminals)', () => {
   // the v0.650.0 face's own shapes, verbatim (the tags, the parens, the prose)
@@ -486,4 +486,132 @@ test("THE GOVERNOR'S OWN RUNS: the consecutive-refusal anatomy (the two mob-stor
   // churns through the exclusion while the governor holds (the lever's own
   // price: a run of 3 means the exclude+next-chest answer fed the churn)
   assert.ok(true, 'the run-length distribution is the lever\'s data - wire NOTHING until a fresh face prices it (the price-before-wire law)')
+})
+
+// (v0.769.0) THE DRY ASK'S OWN VERDICT - the face-69 cell: the mine's own
+// 68 verbatim ask lines (37617643599, the held artifact, the log's own
+// order) - the decide class owns the dry ask under the strict-majority law
+// (22 of 34 why rows, the priced dry 31 of 41 units) with the crowded
+// sky's own lever. The census's own cells stay byte-untouched beside it.
+const FACE69_ASK_LINES = [
+  "F6 fuel commons: chest walk failed after the nudge (fleet goal ceiling: 30 goals fleet-wide in 5s - fuel commons walk @-132,405 (nudge retry) refused for 4s)",
+  "F6 fuel commons: budget spent (0/2 units)",
+  "F12 fuel commons: budget spent (0/2 units)",
+  "F8 fuel commons: chest walk failed after the nudge (Took to long to decide path to goal!)",
+  "F16 fuel commons: chest walk failed after the nudge (Took to long to decide path to goal!)",
+  "F16 fuel commons: budget spent (0/2 units)",
+  "F8 fuel commons: budget spent (0/2 units)",
+  "F3 fuel commons: budget spent (0/2 units)",
+  "F2 fuel commons: budget spent (0/2 units)",
+  "F1 fuel commons: chest walk failed after the nudge (Took to long to decide path to goal!)",
+  "F19 fuel commons: chest walk failed after the nudge (No path to the goal!)",
+  "F11 fuel commons: chest walk failed after the nudge (Took to long to decide path to goal!)",
+  "F1 fuel commons: budget spent (0/2 units)",
+  "F11 fuel commons: budget spent (0/2 units)",
+  "F19 fuel commons: budget spent (0/2 units)",
+  "F15 fuel commons: chest walk failed after the nudge (Took to long to decide path to goal!)",
+  "F15 fuel commons: budget spent (0/2 units)",
+  "F18 fuel commons: budget spent (0/2 units)",
+  "F7 fuel commons: chest walk failed after the nudge (Took to long to decide path to goal!)",
+  "F13 fuel commons: budget spent (0/2 units)",
+  "F7 fuel commons: budget spent (0/2 units)",
+  "F14 fuel commons: chest walk failed after the nudge (Took to long to decide path to goal!)",
+  "F5 fuel commons: budget spent (0/2 units)",
+  "F9 fuel commons: budget spent (0/2 units)",
+  "F17 fuel commons: chest walk failed after the nudge (Took to long to decide path to goal!)",
+  "F17 fuel commons: budget spent (0/2 units)",
+  "F14 fuel commons: budget spent (0/2 units)",
+  "F10 fuel commons: chest walk failed after the nudge (Took to long to decide path to goal!)",
+  "F10 fuel commons: budget spent (0/2 units)",
+  "F12 fuel commons: chest walk failed after the nudge (water rescue in progress (fuel commons walk @-143,389 (nudge retry) refused))",
+  "F12 fuel commons: budget spent (0/2 units)",
+  "F11 fuel commons: chest walk failed after the nudge (No path to the goal!)",
+  "F7 fuel commons: chest walk failed after the nudge (No path to the goal!)",
+  "F11 fuel commons: budget spent (0/2 units)",
+  "F7 fuel commons: budget spent (0/2 units)",
+  "F9 fuel commons: chest walk failed after the nudge (Took to long to decide path to goal!)",
+  "F9 fuel commons: budget spent (0/2 units)",
+  "F18 fuel commons: chest walk failed after the nudge (fuel commons walk @-107,411 (nudge retry): timeout after 12093ms)",
+  "F18 fuel commons: budget spent (0/2 units)",
+  "F10 fuel commons: chest walk failed after the nudge (No path to the goal!)",
+  "F11 iron commune: chest walk failed (iron commune walk @-147,409: timeout after 6716ms)",
+  "F10 iron commune: iron commune: chest walk failed after the nudge (No path to the goal!)",
+  "F10 iron commune: chest walk failed (No path to the goal!)",
+  "F10 iron commune: chest walk failed (No path to the goal!)",
+  "F10 iron commune: chest walk failed (iron commune walk @-128,389: timeout after 1358ms)",
+  "F5 fuel commons: chest walk failed after the nudge (Took to long to decide path to goal!)",
+  "F5 fuel commons: budget spent (0/2 units)",
+  "F9 fuel commons: chest walk failed after the nudge (fuel commons walk @-147,415 (nudge retry): timeout after 4096ms)",
+  "F9 fuel commons: budget spent (0/2 units)",
+  "F11 fuel commons: budget spent (0/2 units)",
+  "F1 iron commune: chest walk failed (goal brake: 6 goals in 5s - iron commune walk @-107,409 refused for 4s)",
+  "F1 food commons: chest walk failed (goal brake: 6 goals in 5s - food commons walk @-107,411 refused for 4s)",
+  "F1 food commons: chest walk failed (goal brake: 6 goals in 5s - food commons walk @-107,409 refused for 4s)",
+  "F1 food commons: chest walk failed (goal brake: 6 goals in 5s - food commons walk @-107,415 refused for 4s)",
+  "F18 fuel commons: chest walk failed after the nudge (Took to long to decide path to goal!)",
+  "F4 iron commune: chest walk failed (Took to long to decide path to goal!)",
+  "F4 iron commune: budget spent (0/3 units)",
+  "F16 fuel commons: budget spent (0/2 units)",
+  "F14 end-bank budget spent - smelt skipped",
+  "F5 smelt: 0 (raw_copper@blast_furnace: machine unreachable (visit budget spent (walk slice)))",
+  "F7 end-bank budget spent - smelt skipped",
+  "F1 end-bank budget spent - smelt skipped",
+  "F11 food commons: chest walk failed (Took to long to decide path to goal!)",
+  "F11 food commons: chest walk failed (Took to long to decide path to goal!)",
+  "F10 end-bank budget spent - smelt skipped",
+  "F11 food commons: chest walk failed (Took to long to decide path to goal!)",
+  "F7 food commons: chest walk failed (fleet goal ceiling: 30 goals fleet-wide in 5s - food commons walk @-126,389 refused for 5s)",
+  "F7 food commons: chest walk failed (fleet goal ceiling: 30 goals fleet-wide in 5s - food commons walk @-127,405 refused for 5s)",
+]
+
+test('v0.769.0 the face-69 verdict cell - the decide class owns the dry ask', () => {
+  const c = askWhyCensus(FACE69_ASK_LINES)
+  // the census's own cells byte-untouched (the decompose's own numbers)
+  assert.equal(c.terminals, 28)
+  assert.equal(c.unitsDry, 57)
+  // the verdict: decide owns 22 of 34 why rows, the priced dry 31 of 41
+  const v = dryAskVerdict(c)
+  assert.deepEqual(v, {
+    cls: 'decide', owns: 22, ofWhys: 34, shareOfWhys: 0.647,
+    dryUnits: 31, dryPriced: 41, shareOfDry: 0.756,
+    lever: ASK_WHY_LEVERS.decide,
+  })
+  assert.equal(dryAskVerdictRow(v), "the dry ask's own verdict (v0.769.0): decide owns 22 of 34 why row(s) (64.7%), the priced dry 31 of 41 unit(s) (75.6%): the decider's own clock is the front (the crowded sky's own law - the v0.727.0 lane prices the starve)")
+})
+
+test('v0.769.0 the verdict tie owns nothing + the zero book', () => {
+  // a tied spread seats no class (the storm-has-no-seat precedent)
+  const tie = askWhyCensus([
+    'F5 fuel commons: chest walk failed (Took to long to decide path to goal!)',
+    'F5 fuel commons: budget spent (0/1 units)',
+    'F9 fuel commons: chest walk failed (fleet goal ceiling: 30 goals fleet-wide in 5s - food commons walk @-132,405 refused for 4s)',
+    'F9 fuel commons: budget spent (0/1 units)',
+  ])
+  assert.equal(dryAskVerdict(tie), null)
+  // a zero why book never invents a verdict (terminals without whys)
+  const silent = askWhyCensus(['F5 fuel commons: budget spent (0/2 units)'])
+  assert.equal(dryAskVerdict(silent), null)
+})
+
+test('v0.769.0 the verdict junk battery', () => {
+  assert.equal(dryAskVerdict(null), null)
+  assert.equal(dryAskVerdict('junk'), null)
+  assert.equal(dryAskVerdict({ whys: null, dryByWhy: null }), null)
+  // junk counts are skipped, never priced (the census's own junk law)
+  const junk = dryAskVerdict({ whys: { decide: -1, ceiling: Number.NaN, governor: 3 }, dryByWhy: { decide: 5 } })
+  assert.equal(junk.cls, 'governor')
+  assert.equal(junk.owns, 3)
+  assert.equal(junk.dryUnits, 0) // the governor priced no dry
+  assert.equal(junk.dryPriced, 5)
+  // the row never prints a junk seat
+  assert.equal(dryAskVerdictRow(null), null)
+  assert.equal(dryAskVerdictRow({ cls: '', owns: 1, ofWhys: 2, shareOfWhys: 0.5, dryUnits: 0, dryPriced: 0, shareOfDry: 0, lever: 'x' }), null)
+  assert.equal(dryAskVerdictRow({ cls: 'decide', owns: 3, ofWhys: 2, shareOfWhys: 1.5, dryUnits: 0, dryPriced: 0, shareOfDry: 0, lever: 'x' }), null)
+})
+
+test('v0.769.0 the verdict rides the decompose mine (WIRING)', async () => {
+  const { readFileSync } = await import('node:fs')
+  const src = readFileSync(new URL('../../scripts/fleet-mining/decompose.mjs', import.meta.url), 'utf8')
+  assert.equal(src.includes('dryAskVerdictRow'), true)
+  assert.equal(src.includes("the dry ask's own verdict"), false) // the prose lives in the lib, never duplicated in the mine
 })
