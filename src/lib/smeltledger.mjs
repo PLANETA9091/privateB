@@ -67,6 +67,21 @@ export const SMELT_TOOK_RE = /^\[(F\d+)\] took (\d+) x ([a-z_]+) \((\d+)\/(\d+)\
 // the harvest); zero clips = the honest silence. The old fields stay
 // byte-stable beside it.
 
+// (v0.745.0) THE RE-SMELT SHADOW'S PAYBACK - the debt's own answer, read
+// in the SAME walk (no new parsing, one parser per shape). The clip
+// line's own promise - 'the rest re-smelts on the next chain' - stayed
+// unverified: does a later chain EVER re-announce the clipped batch? A
+// START line whose bot+item matches an outstanding clip debt IS the
+// promised return: paybackChains (the answering STARTs), paybackUnits
+// (the units they re-announced), clipDebtReannounced (the debt the
+// return answered); the debt no START ever answered is the shadow's own
+// remainder (clipDebtOpen). Invariant: clipDebt = clipDebtReannounced +
+// clipDebtOpen. The match is per bot+item - each bot runs its own
+// furnace loop, so another bot's chain (or another item's chain) never
+// pays the debt (the cross-credit speculation this lens refuses). A
+// START before any clip mints nothing (the order is the law). Honest
+// silence: zero clips, no row.
+
 /**
  * Read the smelt lane's own words into a ledger.
  * @param {string[]} lines one fleet-log, all lines
@@ -96,8 +111,14 @@ export function smeltLedger (lines) {
     clipDebtFuel: 0,
     clipDebtClock: 0,
     clipDebtItems: {},
+    clipDebtReannounced: 0, // (v0.745.0) the debt a later chain re-announced (the same bot+item's START after the clip)
+    clipDebtOpen: 0, // (v0.745.0) the debt no START ever answered - the shadow's own remainder
+    paybackChains: 0, // (v0.745.0) the START lines that answered a clipped batch (bot+item)
+    paybackUnits: 0, // (v0.745.0) the units the answering chains announced
     byBot: {}
   }
+  // (v0.745.0) the outstanding clip debt per bot|item, in walk order
+  const openDebt = {}
   const bot = (id) => {
     if (!ledger.byBot[id]) ledger.byBot[id] = { batches: 0, announced: 0, fuel: 0, refusals: 0, clips: 0, collected: 0, clipDebt: 0 }
     return ledger.byBot[id]
@@ -108,6 +129,15 @@ export function smeltLedger (lines) {
     if (s) {
       const n = Number(s[2])
       const fuelN = Number(s[5])
+      // (v0.745.0) the re-smelt shadow's payback - a START whose bot+item
+      // matches an outstanding clip debt IS the promised next chain
+      const pk = `${s[1]}|${s[3]}`
+      if (openDebt[pk] > 0) {
+        ledger.clipDebtReannounced += openDebt[pk]
+        openDebt[pk] = 0
+        ledger.paybackChains++
+        ledger.paybackUnits += n
+      }
       ledger.batches++
       ledger.announced += n
       ledger.items[s[3]] = (ledger.items[s[3]] || 0) + n
@@ -132,6 +162,8 @@ export function smeltLedger (lines) {
       ledger.clipDebtFuel += debt
       ledger.clipDebtItems[fc[6]] = (ledger.clipDebtItems[fc[6]] || 0) + debt
       bot(fc[1]).clipDebt += debt
+      const ok = `${fc[1]}|${fc[6]}`
+      openDebt[ok] = (openDebt[ok] || 0) + debt
       continue
     }
     const cc = line.match(SMELT_CLOCK_CLIP_RE)
@@ -146,6 +178,8 @@ export function smeltLedger (lines) {
       ledger.clipDebtClock += debt
       ledger.clipDebtItems[cc[5]] = (ledger.clipDebtItems[cc[5]] || 0) + debt
       bot(cc[1]).clipDebt += debt
+      const ok = `${cc[1]}|${cc[5]}`
+      openDebt[ok] = (openDebt[ok] || 0) + debt
       continue
     }
     const r = line.match(SMELT_REFUSAL_RE)
@@ -166,6 +200,8 @@ export function smeltLedger (lines) {
       bot(t[1]).collected += n
     }
   }
+  // (v0.745.0) the shadow's own remainder - the debt no START ever answered
+  for (const k in openDebt) ledger.clipDebtOpen += openDebt[k]
   return ledger
 }
 
@@ -176,4 +212,16 @@ export function clipDebtRow (ledger) {
   if (!ledger || !(ledger.clipDebt > 0)) return null
   const items = Object.entries(ledger.clipDebtItems || {}).sort((a, b) => b[1] - a[1]).slice(0, 2).map(([k, n]) => `${k} ${n}`).join(', ')
   return `the clip's own debt: the chains left ${ledger.clipDebt} unit(s) smelting (fuel ${ledger.clipDebtFuel} / clock ${ledger.clipDebtClock}${items ? `; ${items}` : ''}) - the furnace still owes the harvest`
+}
+
+// (v0.745.0) ONE verdict line, only when a debt stood at all (zero clips
+// = the honest silence). Two classes, exclusive: a chain returned (the
+// clip line's own promise kept) / none ever did (the IOU stands alone -
+// the furnace's mid-smelt units are the face's own leak into the void).
+export function clipPaybackRow (ledger) {
+  if (!ledger || !(ledger.clipDebt > 0)) return null
+  if (!(ledger.paybackChains > 0)) {
+    return `the re-smelt shadow's payback: no chain ever returned for the ${ledger.clipDebt} unit(s) the clips left smelting - the IOU stands alone`
+  }
+  return `the re-smelt shadow's payback: ${ledger.paybackChains} chain(s) returned for the clipped batches (${ledger.paybackUnits} unit(s) re-announced of ${ledger.clipDebt} owed) - ${ledger.clipDebtOpen} still unanswered`
 }

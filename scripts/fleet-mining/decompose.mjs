@@ -29,7 +29,7 @@ import { decideBook } from '../../src/lib/decidebook.mjs' // (v0.720.0) the deci
 import { dropWalkCensus } from '../../src/lib/dropwalk.mjs' // (v0.413.0) the vein sweep's per-fail drop-walk line
 import { mapTripCensus, parseWorldmapTail, mapTripGap, tripReceipt, tripVoice, pocketDrain, pocketDrainAttr, materialBalance, balanceReconcile, leakClock, RECEIPT_WINDOW_SAMPLES } from '../../src/lib/maptrip.mjs' // (v0.415.0) the materials plan's launch economics; (v0.445.0) the knowledge side + the gap composer; (v0.447.0) the delivery leg's yield; (v0.449.0) the window calibration; (v0.450.0) the voice roster; (v0.451.0) the pocket drain ledger; (v0.452.0) the drain attribution; (v0.453.0) the material balance; (v0.455.0) the lenses converge; (v0.458.0) the re-gather share; (v0.460.0) the no-leak's own name; (v0.472.0) the leak clock - the share's third split
 import { deficitsCensus } from '../../src/lib/deficitrow.mjs' // (v0.417.0) the plan's harvest side (the deficits row's clock)
-import { smeltLedger, clipDebtRow } from '../../src/lib/smeltledger.mjs' // (v0.461.0) the furnace lane's own words - the batches, the clips, the refusals; (v0.744.0) the clip's own debt - the units the chains left smelting
+import { smeltLedger, clipDebtRow, clipPaybackRow } from '../../src/lib/smeltledger.mjs' // (v0.461.0) the furnace lane's own words - the batches, the clips, the refusals; (v0.744.0) the clip's own debt - the units the chains left smelting; (v0.745.0) the re-smelt shadow's payback - did a later chain ever return
 import { furnacePut } from '../../src/lib/furnaceput.mjs' // (v0.664.0) THE FURNACE PUT'S OWN PAIR - the no-walk opens and the slot read-back's input x fuel pairing (the machine's own diet)
 import { fuelDiet, coalEquivalent } from '../../src/lib/fueldiet.mjs' // (v0.666.0) THE FUEL DIET'S OWN BILL - the intent side's fuel split by the emitter's own window law (metal vs junk) + the kindling bill + the coal touch + the plain-furnace mismatch
 import { fuelYieldOf } from '../../src/lib/smelting.mjs' // (v0.666.0) the vanilla yield table's own voice - the diet row's coal divisor, never a made constant
@@ -2371,6 +2371,12 @@ console.log('  plan lines:', count(/materials plan|plan progress/i))
     // clips reads the honest silence
     const debtRow = clipDebtRow(sl)
     if (debtRow) console.log(`  ${debtRow}`)
+    // (v0.745.0) the re-smelt shadow's payback - did a later chain ever
+    // re-announce the clipped batch (the clip line's own promise, now
+    // priced: the returned chains vs the IOU that stands alone); zero
+    // clips reads the honest silence
+    const paybackRow = clipPaybackRow(sl)
+    if (paybackRow) console.log(`  ${paybackRow}`)
     // (v0.462.0) THE HARVEST LEG - the join's both halves on one row: the
     // took lines (the machine's own output collection, the smelted
     // counter's emitter twin) beside the counter's smelted delta. NO gap

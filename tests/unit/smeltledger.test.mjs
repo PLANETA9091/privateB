@@ -6,7 +6,7 @@
 // split avoids). Junk judges nothing, non-array is null.
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { smeltLedger, clipDebtRow, SMELT_START_RE, SMELT_FUEL_CLIP_RE, SMELT_CLOCK_CLIP_RE, SMELT_REFUSAL_RE, SMELT_TOOK_RE } from '../../src/lib/smeltledger.mjs'
+import { smeltLedger, clipDebtRow, clipPaybackRow, SMELT_START_RE, SMELT_FUEL_CLIP_RE, SMELT_CLOCK_CLIP_RE, SMELT_REFUSAL_RE, SMELT_TOOK_RE } from '../../src/lib/smeltledger.mjs'
 
 test('smelt-ledger: the batches, the fuel and the per-bot/per-item split (live face 36/39 shapes)', () => {
   const lines = [
@@ -176,4 +176,101 @@ test('clip-debt: the honest silences and the junk fences', () => {
   assert.equal(bare.clockClips, 1)
   assert.equal(bare.clipDebt, 13)
   assert.equal(bare.byBot.F9.clipDebt, 13)
+})
+
+// ---- (v0.745.0) THE RE-SMELT SHADOW'S PAYBACK ----
+
+test('clip-payback: the 55th\'s own chain stands alone - no later chain ever re-announced the clipped batch', () => {
+  // the 55th's F4 chain byte-verbatim, and the face's own truth: the
+  // next chain never came for F4's raw_copper (the 49 units sat mid-smelt)
+  const lines = [
+    '[F4] smelting 33 x raw_copper in a furnace (fuel: 2 x coal)',
+    '[F4] fuel clips the batch: 2 x coal completes 16 of 33 x raw_copper (the rest re-smelts on the next chain)',
+    '[F4] the clock clips the batch: the 17s window completes ~1 of 33 x raw_copper (the rest re-smelts on the next chain)'
+  ]
+  const l = smeltLedger(lines)
+  assert.equal(l.clipDebt, 49)
+  assert.equal(l.clipDebtReannounced, 0)
+  assert.equal(l.clipDebtOpen, 49, 'the whole debt stands open - the IOU alone')
+  assert.equal(l.paybackChains, 0)
+  assert.equal(l.paybackUnits, 0)
+  const row = clipPaybackRow(l)
+  assert.ok(row)
+  assert.equal(row, "the re-smelt shadow's payback: no chain ever returned for the 49 unit(s) the clips left smelting - the IOU stands alone")
+})
+
+test('clip-payback: the promised return - a later START on the same bot+item answers the debt', () => {
+  const lines = [
+    '[F4] smelting 33 x raw_copper in a furnace (fuel: 2 x coal)',
+    '[F4] fuel clips the batch: 2 x coal completes 16 of 33 x raw_copper (the rest re-smelts on the next chain)',
+    '[F4] the clock clips the batch: the 17s window completes ~1 of 33 x raw_copper (the rest re-smelts on the next chain)',
+    '[F4] smelting 17 x raw_copper in a furnace (fuel: 2 x coal)'
+  ]
+  const l = smeltLedger(lines)
+  assert.equal(l.clipDebt, 49)
+  assert.equal(l.clipDebtReannounced, 49, 'the whole debt answered by the return')
+  assert.equal(l.clipDebtOpen, 0)
+  assert.equal(l.paybackChains, 1)
+  assert.equal(l.paybackUnits, 17, 'the return chain re-announced 17 units')
+  const row = clipPaybackRow(l)
+  assert.equal(row, "the re-smelt shadow's payback: 1 chain(s) returned for the clipped batches (17 unit(s) re-announced of 49 owed) - 0 still unanswered")
+  // the old batch fields byte-stable: both STARTs count as batches
+  assert.equal(l.batches, 2)
+  assert.equal(l.announced, 50)
+})
+
+test('clip-payback: the bot+item fences - the wrong bot and the wrong item never pay another\'s debt', () => {
+  const lines = [
+    '[F4] smelting 33 x raw_copper in a furnace (fuel: 2 x coal)',
+    '[F4] fuel clips the batch: 2 x coal completes 16 of 33 x raw_copper (the rest re-smelts on the next chain)',
+    '[F5] smelting 20 x raw_copper in a furnace (fuel: 2 x coal)', // another bot's chain - not F4's return
+    '[F4] smelting 10 x oak_log in a furnace (fuel: 1 x coal)', // another item's chain - not raw_copper's
+    '[F4] smelting 8 x raw_copper in a furnace (fuel: 2 x coal)' // THE return - bot+item both match
+  ]
+  const l = smeltLedger(lines)
+  assert.equal(l.paybackChains, 1, 'only the bot+item match answers')
+  assert.equal(l.paybackUnits, 8)
+  assert.equal(l.clipDebtReannounced, 17)
+  assert.equal(l.clipDebtOpen, 0)
+  // the debt bookkeeping untouched by the answer (STARTs mint no debt)
+  assert.equal(l.byBot.F4.clipDebt, 17)
+})
+
+test('clip-payback: the mixed face - one chain answered, one stands alone', () => {
+  const lines = [
+    '[F6] fuel clips the batch: 2 x oak_log completes 3 of 4 x oak_log (the rest re-smelts on the next chain)',
+    '[F2] the clock clips the batch: the 21s window completes ~1 of 14 x raw_copper (the rest re-smelts on the next chain)',
+    '[F6] smelting 4 x oak_log in a furnace (fuel: 2 x oak_log)' // F6's return - F2's debt stays open
+  ]
+  const l = smeltLedger(lines)
+  assert.equal(l.clipDebt, 14, '1 (F6 oak_log, fuel 3 of 4) + 13 (F2 raw_copper, clock ~1 of 14)')
+  assert.equal(l.clipDebtReannounced, 1)
+  assert.equal(l.clipDebtOpen, 13)
+  assert.equal(l.paybackChains, 1)
+  assert.equal(l.paybackUnits, 4)
+  const row = clipPaybackRow(l)
+  assert.equal(row, "the re-smelt shadow's payback: 1 chain(s) returned for the clipped batches (4 unit(s) re-announced of 14 owed) - 13 still unanswered")
+})
+
+test('clip-payback: the honest silences, the order law and the junk fences', () => {
+  const quiet = smeltLedger(['[F2] smelting 3 x cobblestone in a furnace (fuel: 1 x coal)'])
+  assert.equal(quiet.clipDebt, 0)
+  assert.equal(quiet.clipDebtReannounced, 0)
+  assert.equal(quiet.clipDebtOpen, 0)
+  assert.equal(quiet.paybackChains, 0)
+  assert.equal(clipPaybackRow(quiet), null, 'zero clips = no row')
+  assert.equal(clipPaybackRow(null), null)
+  assert.equal(clipPaybackRow({}), null)
+  // a START before any clip never mints a payback (the order is the law)
+  const early = smeltLedger([
+    '[F4] smelting 33 x raw_copper in a furnace (fuel: 2 x coal)',
+    '[F4] fuel clips the batch: 2 x coal completes 16 of 33 x raw_copper (the rest re-smelts on the next chain)'
+  ])
+  assert.equal(early.paybackChains, 0)
+  assert.equal(early.clipDebtOpen, 17)
+  // junk rows never mint debts, never answer them
+  const junked = smeltLedger([null, 42, 'smelting 3 x raw_copper in a furnace (fuel: 1 x coal)', '[F4] fuel clips the batch: junk'])
+  assert.equal(junked.clipDebt, 0)
+  assert.equal(junked.clipDebtOpen, 0)
+  assert.equal(junked.paybackChains, 0)
 })
