@@ -142,7 +142,7 @@ test('the honest silences: null shapes and the midnight carry', () => {
   assert.deepEqual(wrap.bursts.list[0], { bot: 'F7', n: 3, spanS: 40, first: '23:59:50', last: '00:00:30', gaps: [20, 20], medianGapS: 20, periodic: false }, 'the midnight wrap never prices a negative gap')
 })
 
-test("the unseen loss's own column (v0.733.0): the 51st face's delta names its bots", () => {
+test("the unseen loss's own column (v0.734.0): the 51st face's delta names its bots", () => {
   // run 37543519356, byte-verbatim from the mine: the server's clock owns
   // 18 duplicate losses (F16=6 F18=4 F9=3 F2=2 F13=1 F17=1 F8=1); the
   // fleet's dup-kick census printed 14 (F16=5 F18=4 F9=2 F2=2 F8=1) -

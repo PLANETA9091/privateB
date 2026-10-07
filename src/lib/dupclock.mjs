@@ -150,7 +150,7 @@ export function dupClock (lines) {
   }
 }
 
-// (v0.733.0) THE UNSEEN LOSS'S OWN COLUMN - the 51st face (run 37543519356)
+// (v0.734.0) THE UNSEEN LOSS'S OWN COLUMN - the 51st face (run 37543519356)
 // grew the delta the fleet lens never names: the server's clock owns 18
 // duplicate losses, the fleet printed 14 kicked lines - 4 losses the fleet
 // NEVER SAW, and the delta line counts them without naming WHO. An unseen
