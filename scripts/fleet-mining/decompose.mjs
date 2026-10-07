@@ -71,7 +71,7 @@ import { bridgeRefusalCensus, bridgeRefusalRow } from '../../src/lib/climbbridge
 import { planTopCensus } from '../../src/lib/plantop.mjs' // (v0.440.0) the named board - the stuck slot's own name
 import { sentryCensus } from '../../src/lib/sentry.mjs' // (v0.422.0) the drowning sentry's per-pass read (the water lane's first census)
 import { rescueClockCensus } from '../../src/lib/rescueclock.mjs' // (v0.431.0) the rescue lane's price leg (durations + the frozen blindness)
-import { swirlBill, criedWolf } from '../../src/lib/swirlbill.mjs' // (v0.726.0) the instant churn's own bill - the rescue lane's zero-close loop (the trigger's drowning, the lane's surface-safe, the same breath); (v0.735.0) the cried-wolf join - the churn's verdict bot that died the trigger-blind death
+import { swirlBill, criedWolf } from '../../src/lib/swirlbill.mjs' // (v0.726.0) the instant churn's own bill - the rescue lane's zero-close loop (the trigger's drowning, the lane's surface-safe, the same breath); (v0.736.0) the cried-wolf join - the churn's verdict bot that died the trigger-blind death
 import { skyWalk } from '../../src/lib/skywalk.mjs' // (v0.727.0) the crowded sky's own walk - the decide starve's own hand on the walk refusals (the one-parser join: walkfail + decideweather)
 import { frozenCensus } from '../../src/lib/frozencensus.mjs' // (v0.426.0) the freeze family's census (the F10 frozen-while-head-wet class's read)
 import { transitCensus, targetCadence, TRANSIT_POCKET_DEPTH } from '../../src/lib/transitcensus.mjs' // (v0.427.0) the rescue swim's launch lane (the toward-known-land read); (v0.435.0) the stall depth split; (v0.446.0) the launch cadence verdict
@@ -440,7 +440,7 @@ console.log('  per-bot ends:', Object.entries(ledger.perBot).map(([b, r]) => `${
 // The 47th's F13 rode it 78 times of 83 starts and died of drown anyway -
 // the churn priced, the concentration verdict names the bot (the pinbill
 // law: the bars never invent, the minority close stays out).
-// (v0.735.0) sw is HOISTED out of the block - the cried-wolf join (the o2
+// (v0.736.0) sw is HOISTED out of the block - the cried-wolf join (the o2
 // census's section) reads the same verdicts; one swirlBill call per face.
 const sw = swirlBill(lines)
 {
@@ -603,7 +603,7 @@ const o2g = o2Gap(lines)
 if (o2g && o2g.deaths > 0) {
   const o2Bits = Object.entries(o2g.perBot).map(([bot, v]) => `${bot} [last pass ${v.lastPass ? `${v.lastPass.head} o2=${v.lastPass.o2.kind === 'value' ? v.lastPass.o2.value : v.lastPass.o2.kind}` : 'none'}, rescue ${v.rescueKind === 'stale' ? `${v.rescueAgo}s ago` : v.rescueKind}, ${v.wetKind === 'unknown' ? 'wet unknown' : `wet ${v.wetS}s${v.wetKind === 'atLast' ? '@last' : ''}`}]`).join(' ')
   console.log(`  rescue relation split (v0.477.0): live ${o2g.rescue.live} (the lane was flying) / stale ${o2g.rescue.stale} (Ns ago - the lane completed, the bot re-drowned) / never ${o2g.rescue.never} - wet at-last ${o2g.wet.atLast}, live ${o2g.wet.live}, unknown ${o2g.wet.unknown} - last-pass join ${o2g.lastPass.seen}/${o2g.deaths}${o2Bits ? ` (${o2Bits})` : ''}`)
-  // (v0.735.0) THE CRIED-WOLF DEATH - the churn's own aftermath join (the
+  // (v0.736.0) THE CRIED-WOLF DEATH - the churn's own aftermath join (the
   // skywalk law: two lenses, one read, no re-parsing). A bot whose trigger
   // cried drowning past the churn's own bars AND died the real drowning
   // with the trigger silent (o2Gap's 'never' class) reads the fable's own
@@ -611,7 +611,7 @@ if (o2g && o2g.deaths > 0) {
   // The other relations stay other cells' subjects (live = the lane flew,
   // stale = the re-entry class, no death = the churn alone).
   for (const cwv of criedWolf(sw.verdicts, o2g.perBot)) {
-    console.log(`  the cried-wolf's own verdict (v0.735.0): ${cwv.bot} cried drowning ${cwv.instant} time(s) (${(cwv.share * 100).toFixed(1)}% of ${cwv.of}) and the real death heard NOTHING (rescue never) - the false alarms owned the churn, the silence owned the death`)
+    console.log(`  the cried-wolf's own verdict (v0.736.0): ${cwv.bot} cried drowning ${cwv.instant} time(s) (${(cwv.share * 100).toFixed(1)}% of ${cwv.of}) and the real death heard NOTHING (rescue never) - the false alarms owned the churn, the silence owned the death`)
   }
 }
 // (v0.479.0) THE RE-ENTRY PRICE - the sight-loss wiring's price read (the

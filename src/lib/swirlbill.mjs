@@ -27,7 +27,7 @@
  *   - the honest silence: zero instant closes reads instant 0 and empty
  *     verdicts - the caller prints the none-form or stays silent.
  *
- * (v0.735.0) THE CRIED-WOLF DEATH - the churn's own aftermath join (the
+ * (v0.736.0) THE CRIED-WOLF DEATH - the churn's own aftermath join (the
  * skywalk law: two lenses, one read, no re-parsing - the swirl verdicts and
  * the o2 gap's per-bot deaths are the inputs, both already parsed).
  *
@@ -114,7 +114,7 @@ export function swirlBill (lines) {
 }
 
 /**
- * (v0.735.0) criedWolf(verdicts, o2PerBot) - the churn's own aftermath join.
+ * (v0.736.0) criedWolf(verdicts, o2PerBot) - the churn's own aftermath join.
  *
  * @param {Array<{bot: string, instant: number, of: number, share: number}>} verdicts
  *   the swirl bill's own concentration verdicts (the bars already held)

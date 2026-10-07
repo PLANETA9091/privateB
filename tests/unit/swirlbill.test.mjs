@@ -109,7 +109,7 @@ test('junk never invents - the honest silences and the blob skin', () => {
   assert.equal(junk.starts, 0)
 })
 
-// ---- (v0.735.0) THE CRIED-WOLF DEATH - the churn's own aftermath join ----
+// ---- (v0.736.0) THE CRIED-WOLF DEATH - the churn's own aftermath join ----
 
 // THE 52ND'S OWN BYTES (run 37549177806, the v0.733.0 tree's face): F6 rode
 // 44 rescue starts, closed 43 in 0.0s (97.7% - the era's biggest false-alarm
