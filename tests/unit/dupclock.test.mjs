@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { dupClock, DUP_BURST_MIN, DUP_BURST_WINDOW_S, DUP_METRO_MIN, DUP_METRO_SPREAD } from '../../src/lib/dupclock.mjs'
+import { dupClock, unseenLosses, DUP_BURST_MIN, DUP_BURST_WINDOW_S, DUP_METRO_MIN, DUP_METRO_SPREAD } from '../../src/lib/dupclock.mjs'
 
 // The 48th face's server log (run 37530997515) - the duplicate churn's
 // own clock, byte-verbatim. The fleet lens printed 9 kicked lines; the
@@ -140,4 +140,27 @@ test('the honest silences: null shapes and the midnight carry', () => {
     '[00:00:30] [Server thread/INFO]: F7 lost connection: You logged in from another location'
   ])
   assert.deepEqual(wrap.bursts.list[0], { bot: 'F7', n: 3, spanS: 40, first: '23:59:50', last: '00:00:30', gaps: [20, 20], medianGapS: 20, periodic: false }, 'the midnight wrap never prices a negative gap')
+})
+
+test("the unseen loss's own column (v0.733.0): the 51st face's delta names its bots", () => {
+  // run 37543519356, byte-verbatim from the mine: the server's clock owns
+  // 18 duplicate losses (F16=6 F18=4 F9=3 F2=2 F13=1 F17=1 F8=1); the
+  // fleet's dup-kick census printed 14 (F16=5 F18=4 F9=2 F2=2 F8=1) -
+  // FOUR losses the fleet never saw, one per blind bot.
+  const un = unseenLosses(
+    { F16: 6, F18: 4, F9: 3, F2: 2, F13: 1, F17: 1, F8: 1 },
+    { F16: 5, F18: 4, F9: 2, F2: 2, F8: 1 }
+  )
+  assert.deepEqual(un, { n: 4, byBot: { F16: 1, F9: 1, F13: 1, F17: 1 } },
+    'the 51st: 4 unseen across 4 bots - the dead clients and the mid-relog deaths own the column')
+  // the full-coverage face (the 49th's reconcile holds: 1 kick, 1 loss) -
+  // the column never invents rows.
+  assert.equal(unseenLosses({ F10: 1 }, { F10: 1 }), null, 'every loss seen - the honest silence')
+  // the physics' own bound: a fleet count above the server's clamps at
+  // zero (a kick implies a loss - never negative).
+  assert.deepEqual(
+    unseenLosses({ F5: 2 }, { F5: 3 }),
+    null,
+    'fleet 3 vs server 2 clamps at zero - the bound holds')
+  assert.equal(unseenLosses(null, null), null, 'empty maps - the silence')
 })

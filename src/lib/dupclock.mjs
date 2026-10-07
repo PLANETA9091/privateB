@@ -149,3 +149,28 @@ export function dupClock (lines) {
     otherLosses
   }
 }
+
+// (v0.733.0) THE UNSEEN LOSS'S OWN COLUMN - the 51st face (run 37543519356)
+// grew the delta the fleet lens never names: the server's clock owns 18
+// duplicate losses, the fleet printed 14 kicked lines - 4 losses the fleet
+// NEVER SAW, and the delta line counts them without naming WHO. An unseen
+// loss is the churn's own blind spot: the kick packet never reached a
+// living client (the dead-client class) or the session died mid-relog -
+// the bot the fleet's own census is blind to is the cure's blind spot too.
+// unseenLosses(serverByBot, fleetByBot) joins the server clock's per-bot
+// loss map against the fleet lens's dup-kick per-bot map (frozenCensus's
+// own dupKicks.byBot - the dup class only): the per-bot delta is the bot's
+// unseen column. A bot the fleet counted fully never enters; a fleet count
+// above the server's own clamps at zero (a kick implies a loss - the
+// physics' own bound, never negative). Zero unseen reads the honest
+// silence (null - the lens saw every loss, the column never invents rows).
+export function unseenLosses (serverByBot, fleetByBot) {
+  const fleet = fleetByBot || {}
+  const byBot = {}
+  let n = 0
+  for (const [bot, sv] of Object.entries(serverByBot || {})) {
+    const d = sv - (fleet[bot] || 0)
+    if (d > 0) { byBot[bot] = d; n += d }
+  }
+  return n > 0 ? { n, byBot } : null
+}
