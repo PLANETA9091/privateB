@@ -318,7 +318,7 @@ export function bankFlowCensus(lines) {
     sharePct: num(crM[1]), banked: num(crM[2]), mass: num(crM[3]), tail: crM[4],
   } : null
 
-  return { loot, pocket, surplus, flow, budgets, budgetAgg, attribution, writeOff, writeOffWhys, doom, deliverable, crater }
+  return { loot, pocket, surplus, flow, budgets, budgetAgg, attribution, writeOff, writeOffWhys, doom, deliverable, crater, seatSplit: craterSeatSplit({ crater, loot, writeOff, flow }) } // (v0.758.0) seatSplit rides additively - the crater's own seats
 }
 
 // (v0.686.0) THE BANK YIELD DIAL - the flip's own number. The bank front
@@ -337,4 +337,63 @@ export function bankYield (bankedUnits, visitLines) {
   if (visitLines <= 0) return null
   const rateUPerVisit = Math.round((bankedUnits / visitLines) * 10) / 10
   return { banked: bankedUnits, visits: visitLines, rateUPerVisit, silent: bankedUnits === 0 }
+}
+
+// (v0.758.0) THE CRATER'S OWN SEATS - the crater's class leg, priced from
+// the census's own cells (the v0.757.0 additive-return precedent: zero
+// re-parsing, zero new regexes). Three faces deepened the crater (75.5% ->
+// 36.6% -> 28.9%) and the share never said WHICH seat owns the unbanked
+// mass - face 63's own decode named the chains while its write-off rows
+// carried 905u of the 1216u unbanked mass (the walks' own tax, night 612u
+// of the 905u, the fleet's own why tail agreed at 67.6%). THE SEAT LAW
+// (units only, the seconds never mix into the split): the write-off mass
+// rides against the unbanked mass at the 2/3 bar (the thirds' own law) -
+// 'failed-walks' (the bank lane carried and failed the mass: aim the whys,
+// not the chains) / 'open-pocket' (the mass mostly never attempted: the
+// chains are the lever). The top why-class rides beside the seat under the
+// strict-majority law (a tie owns nothing - the storm-has-no-seat
+// precedent). Junk never invents a seat: a missing crater/loot cell, a
+// non-finite or negative pair, an unbanked that reads zero -> null (the
+// body-guard law: the healthy share reads its own silence); a real crater
+// with zero write-off mass is 'open-pocket' by shape (nothing failed
+// because nothing left).
+export function craterSeatSplit (census) {
+  if (!census || typeof census !== 'object') return null
+  const c = census.crater
+  const loot = census.loot
+  if (!c || !loot) return null
+  const mass = c.mass
+  const banked = c.banked
+  if (!Number.isFinite(mass) || !Number.isFinite(banked) || mass < 0 || banked < 0) return null
+  const unbanked = mass - banked
+  if (unbanked <= 0) return null
+  const rows = Array.isArray(census.writeOff) ? census.writeOff : []
+  let sum = 0
+  const whys = {}
+  let counted = 0
+  let badRows = 0
+  for (const r of rows) {
+    if (!r || typeof r !== 'object' || !Number.isFinite(r.units) || r.units < 0) { badRows++; continue }
+    sum += r.units
+    counted++
+    const cls = typeof r.why === 'string' && r.why !== '' ? r.why : 'unclassed'
+    whys[cls] = (whys[cls] || 0) + r.units
+  }
+  let topUnits = 0
+  let topCls = null
+  for (const [cls, u] of Object.entries(whys)) {
+    if (u > topUnits) { topUnits = u; topCls = cls }
+  }
+  const topWhy = topCls !== null && topUnits > sum - topUnits
+    ? { cls: topCls, units: topUnits, shareOfWriteOff: +(topUnits / sum).toFixed(3) }
+    : null
+  return {
+    unbanked,
+    heldPocket: Number.isFinite(loot.pocketUnits) ? loot.pocketUnits : null,
+    writeOff: { sum, rows: counted, badRows, whys },
+    writeOffShare: +(sum / unbanked).toFixed(3),
+    cls: sum / unbanked >= 2 / 3 ? 'failed-walks' : 'open-pocket',
+    topWhy,
+    deadlineSeconds: census.flow && Number.isFinite(census.flow.secondsPastDeadline) ? census.flow.secondsPastDeadline : null,
+  }
 }

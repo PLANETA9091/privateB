@@ -712,6 +712,12 @@ if (bankCensus.loot) console.log(`  loot ledger: mined ${bankCensus.loot.mined} 
 // banked share; the mining lens carries the verdict beside the numbers it
 // always read (the bank silence's NAME, not just its ledger row).
 if (bankCensus.crater) console.log(`  banked crater: ${bankCensus.crater.sharePct}% of the endgame loot reached chests (banked ${bankCensus.crater.banked} of ${bankCensus.crater.mass}u) - ${bankCensus.crater.tail}`)
+// (v0.758.0) THE CRATER'S OWN SEAT - the crater's class leg (the share said
+// HOW MUCH, the arc asked WHICH SEAT): the write-off mass against the
+// unbanked mass at the 2/3 bar, the top why beside it under the
+// strict-majority law. One additive row beside the v0.682.0 crater line -
+// the cells are the census's own, zero re-parsing.
+if (bankCensus.seatSplit) console.log(`  the crater's own seat (v0.758.0): unbanked ${bankCensus.seatSplit.unbanked}u - the write-off carried ${bankCensus.seatSplit.writeOff.sum}u (${(bankCensus.seatSplit.writeOffShare * 100).toFixed(1)}% of the unbanked mass, ${bankCensus.seatSplit.cls === 'failed-walks' ? 'THE FAILED WALKS OWN THE CRATER: aim the whys, not the chains' : 'THE OPEN POCKET: the chains never came'})${bankCensus.seatSplit.topWhy ? ` - ${bankCensus.seatSplit.topWhy.cls} owns the failed mass ${bankCensus.seatSplit.topWhy.units}u (${(bankCensus.seatSplit.topWhy.shareOfWriteOff * 100).toFixed(1)}%)` : ' - no single why owns the failed mass'}${bankCensus.seatSplit.deadlineSeconds !== null ? `; the chains asked ${bankCensus.seatSplit.deadlineSeconds}s past the deadline` : ''}`)
 if (bankCensus.pocket) console.log(`  pocket anatomy: ${bankCensus.pocket.holders} holders, top ${bankCensus.pocket.topBot} ${bankCensus.pocket.topUnits}u (${bankCensus.pocket.topPct}%) - ${bankCensus.pocket.tail}`)
 if (bankCensus.surplus) console.log(`  surplus face: crafted-class ${bankCensus.surplus.craftedUnits}u of ${bankCensus.surplus.pocketUnits}u (${bankCensus.surplus.craftedPct}%), top ${bankCensus.surplus.top.map((t) => `${t.item} ${t.units}u`).join(', ') || 'none'}`)
 if (bankCensus.flow) console.log(`  bank flow: ${bankCensus.flow.rateUPerS}u/s (+${bankCensus.flow.bankedDelta}u over ${bankCensus.flow.windowS}s) - the ${bankCensus.flow.pocketUnits}u pocket needs ${bankCensus.flow.secondsPastDeadline}s past the deadline`)

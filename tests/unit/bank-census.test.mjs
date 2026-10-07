@@ -3,7 +3,7 @@
 // byte. Tests feed the face-19 (36802577873) verbatim lines, the junk
 // battery, and the missing-block tolerance (a FATAL face truncates the end
 // phase - the v0.358.0 lesson).
-import { bankFlowCensus, parseSurplusItems, parseStranded, parseWriteOff, parseDoomWhy, parseDeliverable, parsePrePositionCensus } from '../../src/lib/bankcensus.mjs'
+import { bankFlowCensus, parseSurplusItems, parseStranded, parseWriteOff, parseDoomWhy, parseDeliverable, parsePrePositionCensus, craterSeatSplit } from '../../src/lib/bankcensus.mjs'
 import assert from 'node:assert'
 import { test } from 'node:test'
 
@@ -432,3 +432,84 @@ test('WIRING: the decompose prints the bank yield row beside the visit count', (
 })
 
 import fs from 'node:fs'
+
+// (v0.758.0) THE CRATER'S OWN SEATS - face 63's own cell: the write-off
+// carried 905u of the 1216u unbanked mass (the 2/3 bar crossed -> the
+// failed-walks seat), night owns the failed mass under the strict-majority
+// law, the fleet's own why tail agreed (67.6%).
+test('v0.758.0 the crater seat: face 63\'s own cell (the failed walks own the crater, night owns the failed mass)', () => {
+  const FACE63 = [
+    'loot ledger: mined=1558 banked=494 smelted=18 pocket=1216u/224s accounted=1728 unaccounted=0 surplus=170u conversion=110.9%',
+    'banked crater decode: crater: 28.9% of the endgame loot reached chests (banked 494 of 1710u) - the bank chains are the bottleneck, the mines are not',
+    'final write-off: F9 177u/16s night, F16 166u/14s timeout, F15 140u/14s night, F6 127u/10s wet-sentinel, F3 113u/15s night, F18 99u/16s night, F12 83u/16s night (the deadline pocket rode unbanked)',
+    'bank flow: 1.7u/s (banked +482u over 288s) - the 1216u pocket needs 727s past the deadline',
+  ]
+  const c = bankFlowCensus(FACE63)
+  const s = craterSeatSplit(c)
+  assert.equal(s.unbanked, 1216)
+  assert.equal(s.writeOff.sum, 905)
+  assert.equal(s.writeOff.rows, 7)
+  assert.equal(s.writeOffShare, 0.744)
+  assert.equal(s.cls, 'failed-walks')
+  assert.deepEqual(s.topWhy, { cls: 'night', units: 612, shareOfWriteOff: 0.676 })
+  assert.equal(s.heldPocket, 1216)
+  assert.equal(s.deadlineSeconds, 727)
+})
+
+// (v0.758.0) the WIRING assert: bankFlowCensus computes seatSplit with the
+// same one truth; face 64's own read is the honest silence (no crater
+// decode line rode the log - banked 1224 of 2423, the decode held it).
+test('v0.758.0 the seat rides the census return additively (WIRING) + face 64\'s honest silence', () => {
+  const FACE63 = [
+    'loot ledger: mined=1558 banked=494 smelted=18 pocket=1216u/224s accounted=1728 unaccounted=0 surplus=170u conversion=110.9%',
+    'banked crater decode: crater: 28.9% of the endgame loot reached chests (banked 494 of 1710u) - the bank chains are the bottleneck, the mines are not',
+    'final write-off: F9 177u/16s night, F16 166u/14s timeout (the deadline pocket rode unbanked)',
+  ]
+  const c = bankFlowCensus(FACE63)
+  assert.deepEqual(c.seatSplit, craterSeatSplit(c))
+  const FACE64 = [
+    'loot ledger: mined=2423 banked=1224 smelted=55 pocket=1115u/218s accounted=2394 unaccounted=29 surplus=0u conversion=98.8%',
+    'bank flow: 3.8u/s (banked +1087u over 285s) - the 1115u pocket needs 293s past the deadline',
+  ]
+  const c64 = bankFlowCensus(FACE64)
+  assert.equal(c64.crater, null)
+  assert.equal(c64.seatSplit, null)
+})
+
+// (v0.758.0) the open-pocket seat (the mass mostly never attempted) + the
+// tie law (a tie owns nothing - the storm-has-no-seat precedent).
+test('v0.758.0 the open-pocket seat + the tie owns nothing', () => {
+  const LINES = [
+    'loot ledger: mined=1000 banked=200 smelted=0 pocket=800u/50s accounted=1000 unaccounted=0 surplus=0u conversion=100.0%',
+    'banked crater decode: crater: 20.0% of the endgame loot reached chests (banked 200 of 1000u) - the chains never came',
+    'final write-off: F1 50u/10s night, F2 50u/10s timeout (the deadline pocket rode unbanked)',
+  ]
+  const s = craterSeatSplit(bankFlowCensus(LINES))
+  assert.equal(s.cls, 'open-pocket')
+  assert.equal(s.topWhy, null)
+  assert.equal(s.deadlineSeconds, null)
+})
+
+// (v0.758.0) the junk battery: the seats never invent from junk, the junk
+// write-off rows are counted and skipped (never priced, never dropped
+// silently at the seat read).
+test('v0.758.0 the seat junk battery', () => {
+  assert.equal(craterSeatSplit(null), null)
+  assert.equal(craterSeatSplit('junk'), null)
+  assert.equal(craterSeatSplit({}), null)
+  assert.equal(craterSeatSplit({ crater: { sharePct: 28.9, banked: 494, mass: 1710 } }), null)
+  assert.equal(craterSeatSplit({ crater: { banked: 1710, mass: 1710 }, loot: { pocketUnits: 0 } }), null)
+  assert.equal(craterSeatSplit({ crater: { banked: -1, mass: 1710 }, loot: {} }), null)
+  assert.equal(craterSeatSplit({ crater: { banked: 494, mass: 'x' }, loot: {} }), null)
+  const s = craterSeatSplit({
+    crater: { sharePct: 20, banked: 200, mass: 1000 },
+    loot: { pocketUnits: 800 },
+    flow: { secondsPastDeadline: Number.NaN },
+    writeOff: [{ bot: 'F1', units: 700, why: 'night' }, { bot: 'F2', units: Number.NaN }, null, 'junk', { bot: 'F3', units: -5 }],
+  })
+  assert.equal(s.writeOff.sum, 700)
+  assert.equal(s.writeOff.rows, 1)
+  assert.equal(s.writeOff.badRows, 4)
+  assert.equal(s.cls, 'failed-walks')
+  assert.equal(s.deadlineSeconds, null)
+})
