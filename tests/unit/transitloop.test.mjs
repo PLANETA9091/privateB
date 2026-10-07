@@ -121,3 +121,97 @@ test('WIRING: the decompose prints the loop ledger row', () => {
   assert.match(src, /loop ledger \(v0\.692\.0\): \$\{w\.bot\} spent \$\{w\.launches\} launch/, "the whale's account prints beside the transit block")
   assert.match(src, /THE WHALE'S LEDGER: the loop bought no ground/, 'the verdict rides the row')
 })
+
+// ---------------------------------------------------------------------------
+// (v0.753.0) THE WHALE'S OWN ROTATION - the seat split's verdict. The 62nd
+// face (37586368766) is the rotation's own field read: F14 spent 145
+// launches across THREE pinned seats (65/44/36), every seat flat by the
+// cadence's own law (8..7 = 12% closed, 5..5 and 14..14 = 0%), 4 paired
+// stalls gained 0.0 ground - the seat-hopping was the wall's own disguise.
+// ---------------------------------------------------------------------------
+import { whaleRotationRow, WHALE_ROTATION_SEATS } from '../../src/lib/transitloop.mjs'
+
+// Face 62's live shapes verbatim: the whale's three seats, the d's riding
+// the census row's own read (d flat 8..7 / 5..5 / 14..14), the stalls
+// pairing their most recent launch at the same d (gain 0 - the 62nd's own
+// paired-stall law)
+const face62 = () => {
+  const lines = []
+  // seat 1: [-122,394] x65, d flat 8..7 (max 8 min 7, closed 12% - walls)
+  for (let i = 0; i < 65; i++) {
+    const d = i % 2 === 0 ? 8 : 7
+    lines.push(`F14 [F14] water: transit toward known land (oak_log) at [-122,394] d=${d}`)
+    if (i === 16 || i === 32 || i === 48 || i === 64) lines.push(`F14 [F14] water: transit stalled (d=${d} after ${12 + i} passes - the walls own this swim; the release takes over)`)
+  }
+  // seat 2: [-117,398] x44, d flat 5..5 (0% - walls)
+  for (let i = 0; i < 44; i++) lines.push(`F14 [F14] water: transit toward known land (oak_log) at [-117,398] d=5`)
+  // seat 3: [-128,389] x36, d flat 14..14 (0% - walls)
+  for (let i = 0; i < 36; i++) lines.push(`F14 [F14] water: transit toward known land (sand) at [-128,389] d=14`)
+  return lines
+}
+
+test('whaleRotationRow reads face 62 byte-exact: three seats, every one a wall - THE ROTATION WAS THE WALL\'S OWN DISGUISE', () => {
+  assert.equal(WHALE_ROTATION_SEATS, 2) // the rotation's own bar, exported for the fence reads
+  const row = whaleRotationRow(face62())
+  assert.equal(row, 'the whale\'s own rotation: 3 seat(s) held the 145 launch(es) (per-seat walls: [-122,394] x65 d=8..7, [-117,398] x44 d=5..5, [-128,389] x36 d=14..14) - the loop changed seats and every seat was the same wall (the ground never moved) - the rotation was the wall\'s own disguise')
+  // the array-or-blob law: the raw text blob reads the same row
+  assert.equal(whaleRotationRow(face62().join('\n')), row)
+})
+
+test('whaleRotationRow honest forks: the single seat, the approaching seat, the thin seat, the paying loop - and the 24th\'s own silence', () => {
+  // (1) the single-seat whale: the pinned seat's own subject (the v0.446
+  // cadence + the v0.722 pinbill own it) - the rotation never fires
+  const single = []
+  for (let i = 0; i < 60; i++) single.push('F9 [F9] water: transit toward known land (oak_log) at [-100,390] d=11')
+  single.push('F9 [F9] water: transit stalled (d=11 after 14 passes - the walls own this swim; the release takes over)')
+  single.push('F9 [F9] water: transit stalled (d=11 after 14 passes - the walls own this swim; the release takes over)')
+  assert.equal(whaleRotationRow(single), null)
+
+  // (2) the whale whose second seat was APPROACHING (d 20..5 = 75% closed):
+  // the rotation was trying a seat that could pay - the honest silence
+  const mixed = []
+  for (let i = 0; i < 60; i++) {
+    mixed.push('F11 [F11] water: transit toward known land (gravel) at [-90,380] d=40')
+    if (i === 20 || i === 40) mixed.push('F11 [F11] water: transit stalled (d=40 after 16 passes - the walls own this swim; the release takes over)')
+  }
+  for (let i = 0; i < 10; i++) {
+    const d = 20 - Math.floor(i * 1.5) // 20 down to 5 - closed 75%
+    mixed.push(`F11 [F11] water: transit toward known land (sand) at [-85,385] d=${d}`)
+  }
+  assert.equal(whaleRotationRow(mixed), null)
+
+  // (3) the thin seat: a seat below the cadence's own evidence bar (< 5
+  // launches) stays unjudged - one thin seat can never fake the rotation
+  const thin = []
+  for (let i = 0; i < 60; i++) thin.push('F12 [F12] water: transit toward known land (gravel) at [-90,380] d=10')
+  thin.push('F12 [F12] water: transit stalled (d=10 after 16 passes - the walls own this swim; the release takes over)')
+  for (let i = 0; i < 3; i++) thin.push('F12 [F12] water: transit toward known land (sand) at [-85,385] d=9')
+  assert.equal(whaleRotationRow(thin), null)
+
+  // (4) the paying loop: a positive gain is never a rotation (the whale
+  // gate's own fence, inherited)
+  const paying = []
+  for (let i = 0; i < 60; i++) {
+    paying.push('F13 [F13] water: transit toward known land (clay) at [-70,370] d=12')
+    paying.push('F13 [F13] water: transit stalled (d=6 after 8 passes - the walls own this swim; the release takes over)')
+  }
+  assert.equal(whaleRotationRow(paying), null)
+
+  // (5) the 24th's own whale stays silent: its top seat was APPROACHING
+  // (d 6..3, closed 50%) and its tail seat is thin (n=1) - the loop ledger
+  // names the whale, the rotation names nothing (both fences held)
+  assert.equal(whaleRotationRow(face24()), null)
+})
+
+test('whaleRotationRow junk battery + WIRING: null on non-input, the decompose prints the rotation row', () => {
+  assert.equal(whaleRotationRow(null), null)
+  assert.equal(whaleRotationRow(undefined), null)
+  assert.equal(whaleRotationRow(42), null)
+  assert.equal(whaleRotationRow({}), null)
+  assert.equal(whaleRotationRow([]), null) // the launch-free face: no whale, no row
+  assert.equal(whaleRotationRow(['garbage', 42, null]), null) // junk lines dropped, never invented
+  // the WIRING: the row rides beside the water bill in the whale block
+  const src = fs.readFileSync(new URL('../../scripts/fleet-mining/decompose.mjs', import.meta.url), 'utf8')
+  assert.match(src, /whaleRotationRow\(lines\)/, 'the rotation reads the same face the ledger reads')
+  assert.match(src, /the whale's own rotation \(v0\.753\.0\)/, 'the row prints with its own version')
+})

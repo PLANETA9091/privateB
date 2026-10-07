@@ -80,6 +80,7 @@ import { transitCensus, targetCadence, TRANSIT_POCKET_DEPTH } from '../../src/li
 import { rearmCensus } from '../../src/lib/rearm.mjs' // (v0.443.0) the same-target re-arm brake's family row
 import { transitLoopLedger } from '../../src/lib/transitloop.mjs' // (v0.692.0) the per-bot swim loop's own account (the whale's ledger)
 import { whaleWaterBill } from '../../src/lib/whalewater.mjs' // (v0.698.0) the whale's water bill - the zero-gain loop's rescue-side account
+import { whaleRotationRow } from '../../src/lib/transitloop.mjs' // (v0.753.0) the whale's own rotation - the seat split's verdict (the rotation was the wall's own disguise)
 import { calmRescueParadox } from '../../src/lib/calmrescue.mjs' // (v0.701.0) the calm paradox - the death-free face's full-speed water lane
 import { bankDocket, doorstepStormCensus } from '../../src/lib/bankdocket.mjs' // (v0.700.0) the bank's docket - the silent bank's own anatomy (the door leg vs the empty-pocket leg); (v0.706.0) + the doorstep storm's census (the three lanes' doors folded into one toll)
 import { walkoutWitnessCensus } from '../../src/lib/walkoutcensus.mjs' // (v0.437.0) the walk-out witness's own numbers (the window/displacement/unmeasured read)
@@ -2997,6 +2998,13 @@ console.log('  plan lines:', count(/materials plan|plan progress/i))
         console.log(`  the whale's water bill (v0.698.0): ${b.bot}'s ${b.launches}-launch loop rode 0 rescue start(s) - THE DRY WHALE (the loop bought no ground and never called the rescue)`)
       }
     }
+    // (v0.753.0) THE WHALE'S OWN ROTATION - the seat split's verdict: the
+    // loop "tried different targets" and every seat was the same wall (the
+    // cadence's own law per seat, the whale's own gate). No whale, no row
+    // (inherited); a single seat or any approaching seat reads the honest
+    // silence (the rotation was trying a seat that could pay).
+    const rot = whaleRotationRow(lines)
+    if (rot) console.log(`  the whale's own rotation (v0.753.0): ${rot.slice('the whale\'s own rotation: '.length)}`)
   }
 }
 
