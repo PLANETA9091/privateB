@@ -134,7 +134,9 @@ export function climbOutCensus (lines) {
     gains: { n: 0, sum: 0, max: 0 },
     dug: { n: 0, sum: 0, max: 0 },
     secs: { n: 0, sum: 0, max: 0 },
-    stages: { n: 0, max: 0 },
+    // (v0.781.0) byStage joins the ladder's cell - the same fail events
+    // that priced n/max now tally per stage (the seat's own raw split).
+    stages: { n: 0, max: 0, byStage: {} },
     retries: { plans: 0, noRetry: 0, byWhy: {} },
     doomRetargets: { n: 0, byWhy: {} },
     unparsed: 0,
@@ -160,7 +162,7 @@ export function climbOutCensus (lines) {
       out.attempts++
       if (e.verdict === 'failed') out.failed++; else out.retryFailed++
       bump(out.byWhy, e.whyClass)
-      if (e.stage !== null) { out.stages.n++; if (e.stage > out.stages.max) out.stages.max = e.stage }
+      if (e.stage !== null) { out.stages.n++; if (e.stage > out.stages.max) out.stages.max = e.stage; bump(out.stages.byStage, e.stage) }
       continue
     }
     if (e.verdict === 'retry-plan') { out.retries.plans++; bump(out.retries.byWhy, 'retry'); continue }
@@ -257,4 +259,99 @@ export function climbFailRidersRow (r) {
       !Number.isFinite(ofFails) || ofFails <= 0 || !Number.isFinite(pairOwns) || pairOwns > ofFails ||
       !Number.isFinite(shareOfFails)) return null
   return `the climb fail's own riders (v0.779.0): no solo why owns the majority - ${leader} x${leaderOwns} + ${runner} x${runnerOwns} own ${pairOwns} of ${ofFails} fail(s) (${(shareOfFails * 100).toFixed(1)}%) - THE DOOM'S OWN MIX: the bill's tie law held, the mix is the shape - the climb's own crowd prices the ladder the solo law refused to name`
+}
+
+// (v0.781.0) THE CLIMB FAIL'S OWN STAGE - the stage ladder's own seat.
+// The v0.420.0 census priced the ladder's DEPTH (n) and its max rung -
+// no row ever named WHICH stage owns the climb fail book (face 74's
+// own why-verdict named the stall; the stall's rung rode raw in the
+// same events' [stage N] tails). THE SEAT LAW (the census's own
+// stages.byStage cell only, zero re-parsing - the v0.779.0 verdict's
+// own precedent, the cell instead of the event): the top stage owns
+// the book under the strict-majority law (a tie owns nothing - the
+// storm-has-no-seat precedent). Junk never invents a seat: a missing
+// or empty tally, a non-integer or non-positive stage, a non-finite
+// or non-positive count, or a tied spread reads the honest silence
+// (null - the decompose's own guard skips the row). The tally's own
+// keys are the emitter's own rungs - '[stage N]'s N, stringified by
+// the tally, re-numbered here (the ladder's own numeric order).
+export function climbStageBill (byStage) {
+  const mix = (byStage && typeof byStage === 'object' && !Array.isArray(byStage)) ? byStage : {}
+  const tallies = {}
+  let total = 0
+  for (const [stage, n] of Object.entries(mix)) {
+    const s = Number(stage)
+    if (stage === '' || !Number.isInteger(s) || s <= 0 ||
+        !Number.isFinite(n) || n <= 0) continue
+    total += n
+    tallies[s] = (tallies[s] || 0) + n
+  }
+  let topUnits = 0
+  let topStage = null
+  for (const [stage, n] of Object.entries(tallies)) {
+    if (n > topUnits) { topUnits = n; topStage = Number(stage) }
+  }
+  if (topStage === null || topUnits <= total - topUnits) return null
+  return { stage: topStage, owns: topUnits, ofFails: total, shareOfFails: +(topUnits / total).toFixed(3) }
+}
+
+// (v0.781.0) the stage bill's own row - THE LADDER'S OWN SEAT: the seat
+// names WHICH rung owns the climb book; the rung's own depth prices the
+// stall's cure (a deep rung's stall is the ladder's own fatigue, a
+// shallow one the approach's). Junk never prints a seat (the honest
+// silence's own row law).
+export function climbStageBillRow (bill) {
+  if (!bill || typeof bill !== 'object') return null
+  const { stage, owns, ofFails, shareOfFails } = bill
+  if (!Number.isInteger(stage) || stage <= 0 ||
+      !Number.isFinite(owns) || owns <= 0 ||
+      !Number.isFinite(ofFails) || ofFails <= 0 || owns > ofFails ||
+      !Number.isFinite(shareOfFails)) return null
+  return `the climb fail's own stage (v0.781.0): stage ${stage} owns ${owns} of ${ofFails} staged fail(s) (${(shareOfFails * 100).toFixed(1)}%) - THE LADDER'S OWN SEAT: one rung's own climbs own the ladder's doom - the rung's own front prices the stall the raw depth rode unnamed`
+}
+
+// (v0.781.0) THE CLIMB FAIL'S OWN STAGE RIDERS - the stage verdict's
+// own silence's companion. The seat names the solo rung under the
+// strict-majority law; a no-majority rung mix rode raw with no row
+// naming the shape. THE RIDER LAW (the census's own stages.byStage
+// cell only, zero re-parsing - the verdict's own precedent): a
+// MEASURE, never a verdict-owner - the top two rungs' concentration
+// prices the shape the solo law refused to name (the seat's owner case
+// leaves the companion unprinted - the decompose's own branch law).
+// Junk never invents a shape: a missing or empty tally, a non-integer
+// or non-positive stage, a non-finite or non-positive count, or fewer
+// than two rungs reads the honest silence (null). The order is
+// deterministic (count desc, then the rung's own numeric asc - the
+// ladder's own order, never the byte-wise '10' < '2' trap).
+export function climbStageRiders (byStage) {
+  const mix = (byStage && typeof byStage === 'object' && !Array.isArray(byStage)) ? byStage : {}
+  const tallies = {}
+  let total = 0
+  for (const [stage, n] of Object.entries(mix)) {
+    const s = Number(stage)
+    if (stage === '' || !Number.isInteger(s) || s <= 0 ||
+        !Number.isFinite(n) || n <= 0) continue
+    total += n
+    tallies[s] = (tallies[s] || 0) + n
+  }
+  const ranked = Object.entries(tallies).sort((a, b) => b[1] - a[1] || (Number(a[0]) < Number(b[0]) ? -1 : 1))
+  if (total <= 0 || ranked.length < 2) return null
+  const [leader, leaderOwns] = ranked[0]
+  const [runner, runnerOwns] = ranked[1]
+  const pairOwns = leaderOwns + runnerOwns
+  return { leader: Number(leader), leaderOwns, runner: Number(runner), runnerOwns, ofFails: total, pairOwns, shareOfFails: +(pairOwns / total).toFixed(3), duet: leaderOwns === runnerOwns }
+}
+
+// (v0.781.0) the stage riders' own row - THE LADDER'S OWN MIX: a
+// measure of the shape, never a named owner (the seat's tie law
+// holds); the pair prices the concentration the solo law refused to
+// seat. Junk never prints a shape (the honest silence's own row law).
+export function climbStageRidersRow (r) {
+  if (!r || typeof r !== 'object') return null
+  const { leader, leaderOwns, runner, runnerOwns, ofFails, pairOwns, shareOfFails } = r
+  if (!Number.isInteger(leader) || leader <= 0 || !Number.isInteger(runner) || runner <= 0 ||
+      !Number.isFinite(leaderOwns) || leaderOwns <= 0 || !Number.isFinite(runnerOwns) || runnerOwns <= 0 ||
+      !Number.isFinite(ofFails) || ofFails <= 0 || !Number.isFinite(pairOwns) || pairOwns > ofFails ||
+      !Number.isFinite(shareOfFails)) return null
+  return `the climb fail's own stage riders (v0.781.0): no solo stage owns the majority - stage ${leader} x${leaderOwns} + stage ${runner} x${runnerOwns} own ${pairOwns} of ${ofFails} staged fail(s) (${(shareOfFails * 100).toFixed(1)}%) - THE LADDER'S OWN MIX: the seat's tie law held, the mix is the shape - the climb's own crowd prices the rungs the solo law refused to name`
 }

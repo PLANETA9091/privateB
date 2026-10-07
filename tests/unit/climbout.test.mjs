@@ -7,7 +7,7 @@
 
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { parseClimbOut, climbOutCensus, classifyClimbWhy, climbFailVerdict, climbFailVerdictRow, climbFailRiders, climbFailRidersRow } from '../../src/lib/climbout.mjs'
+import { parseClimbOut, climbOutCensus, classifyClimbWhy, climbFailVerdict, climbFailVerdictRow, climbFailRiders, climbFailRidersRow, climbStageBill, climbStageBillRow, climbStageRiders, climbStageRidersRow } from '../../src/lib/climbout.mjs'
 
 test('the OK verbatims (face 27): gained/steps/dug/secs read whole; the arm rides', () => {
   const a = parseClimbOut('F8 climb out (pre-position): OK +11 levels (10 steps, 23 dug, 26s)')
@@ -189,7 +189,7 @@ test('the honest zeros: empty input and non-array read the empty row shape', () 
     assert.equal(hs.ok, 0)
     assert.equal(hs.failed, 0)
     assert.deepEqual(hs.gains, { n: 0, sum: 0, max: 0 })
-    assert.deepEqual(hs.stages, { n: 0, max: 0 })
+    assert.deepEqual(hs.stages, { n: 0, max: 0, byStage: {} })
     assert.equal(hs.unparsed, 0)
   }
 })
@@ -258,4 +258,91 @@ test('WIRING: decompose seats the climb fail book beside the fail-whys read', as
   // anchors are the full row tails, not any bare substring
   assert.ok(!src.includes("THE DOOM'S OWN SEAT"), 'the verdict row prose must stay in the lib')
   assert.ok(!src.includes("THE DOOM'S OWN MIX"), 'the riders row prose must stay in the lib')
+})
+
+// (v0.781.0) THE CLIMB FAIL'S OWN STAGE - the ladder's own seat. The
+// verbatims are the held logs' own shapes (face 74 = run 37643508935:
+// 'stage ladder depth 3 (max [stage 1])' - the three staged fails all on
+// the shallow rung; faces 73/75 carried no [stage N] tail at all - the
+// honest silence held there, no row rode).
+
+test('the stage seat: the face-74 staged book owns the shallow rung (the mine\'s own distribution as the agreeing witness)', () => {
+  // face 74's own staged census, byte-true: three staged fails, all stage 1
+  const bill = climbStageBill({ '1': 3 })
+  assert.deepEqual(bill, { stage: 1, owns: 3, ofFails: 3, shareOfFails: 1 })
+  assert.equal(
+    climbStageBillRow(bill),
+    "the climb fail's own stage (v0.781.0): stage 1 owns 3 of 3 staged fail(s) (100.0%) - THE LADDER'S OWN SEAT: one rung's own climbs own the ladder's doom - the rung's own front prices the stall the raw depth rode unnamed"
+  )
+  // a wider designed ladder: the deep rungs split, the shallow one holds the strict majority
+  const wide = climbStageBill({ '1': 5, '2': 3, '3': 1 })
+  assert.deepEqual(wide, { stage: 1, owns: 5, ofFails: 9, shareOfFails: 0.556 })
+  // the census tallies the same events the n/max cell prices - the fail
+  // stream's [stage N] tails land in byStage, the other cells byte-untouched
+  const hs = climbOutCensus([
+    'F9 climb out (trip): failed - stalled [stage 2]',
+    'F9 climb out (pre-position): failed - stalled [stage 1]',
+    'F9 climb out (pre-position): failed - timeout (traversed 11)',
+    'F8 climb out (pre-position): OK +11 levels (10 steps, 23 dug, 26s)'
+  ])
+  assert.deepEqual(hs.stages, { n: 2, max: 2, byStage: { '1': 1, '2': 1 } })
+  assert.deepEqual(hs.byWhy, { stalled: 2, timeout: 1 })
+  assert.equal(hs.ok, 1)
+})
+
+test('the stage seat\'s tie law and the ladder\'s own numeric order', () => {
+  // a tie owns nothing - the storm-has-no-seat precedent
+  assert.equal(climbStageBill({ '1': 3, '2': 3 }), null)
+  // a no-majority spread reads the honest silence
+  assert.equal(climbStageBill({ '1': 4, '2': 3, '3': 2 }), null)
+  // the riders measure the shape the seat refused to name (the same spread)
+  const spread = climbStageRiders({ '1': 4, '2': 3, '3': 2 })
+  assert.deepEqual(spread, { leader: 1, leaderOwns: 4, runner: 2, runnerOwns: 3, ofFails: 9, pairOwns: 7, shareOfFails: 0.778, duet: false })
+  // the numeric order pin: the ladder's own order, never the byte-wise '10' < '2' trap
+  const tenVtwo = climbStageRiders({ '10': 3, '2': 3 })
+  assert.equal(tenVtwo.leader, 2)
+  assert.equal(tenVtwo.runner, 10)
+  assert.equal(tenVtwo.duet, true)
+  // a single rung seats but the riders need two
+  assert.deepEqual(climbStageBill({ '2': 6 }), { stage: 2, owns: 6, ofFails: 6, shareOfFails: 1 })
+  assert.equal(climbStageRiders({ '2': 6 }), null)
+  // no staged fails at all (faces 73/75's own shape): every door reads the silence
+  assert.equal(climbStageBill({}), null)
+  assert.equal(climbStageRiders({}), null)
+})
+
+test('the stage rows are byte-exact and the junk battery never invents a seat or a shape', () => {
+  const riders = climbStageRiders({ '1': 3, '2': 2 })
+  assert.deepEqual(riders, { leader: 1, leaderOwns: 3, runner: 2, runnerOwns: 2, ofFails: 5, pairOwns: 5, shareOfFails: 1, duet: false })
+  assert.equal(
+    climbStageRidersRow(riders),
+    "the climb fail's own stage riders (v0.781.0): no solo stage owns the majority - stage 1 x3 + stage 2 x2 own 5 of 5 staged fail(s) (100.0%) - THE LADDER'S OWN MIX: the seat's tie law held, the mix is the shape - the climb's own crowd prices the rungs the solo law refused to name"
+  )
+  for (const junk of [undefined, null, 42, 'str', [], {}]) {
+    assert.equal(climbStageBill(junk), null, `seat must stay silent on ${JSON.stringify(junk)}`)
+    assert.equal(climbStageRiders(junk), null, `riders must stay silent on ${JSON.stringify(junk)}`)
+    assert.equal(climbStageBillRow(junk), null)
+    assert.equal(climbStageRidersRow(junk), null)
+  }
+  // the emitter's rungs are positive integers - anything else is skipped, never priced
+  const skewed = climbStageBill({ '0': 5, '-1': 2, '1.5': 3, '': 1, '2': 7, x: 4 })
+  assert.deepEqual(skewed, { stage: 2, owns: 7, ofFails: 7, shareOfFails: 1 })
+  // a junk-silent seat feeds no row
+  assert.equal(climbStageBillRow({ stage: 3, owns: 50, ofFails: 30, shareOfFails: 1.667 }), null)
+  assert.equal(climbStageRidersRow({ leader: 1, leaderOwns: 4, runner: 2, runnerOwns: 3, ofFails: 9, pairOwns: 99, shareOfFails: 11 }), null)
+})
+
+test('WIRING: decompose seats the climb stage beside the why seat', async () => {
+  const { readFileSync } = await import('node:fs')
+  const src = readFileSync(new URL('../../scripts/fleet-mining/decompose.mjs', import.meta.url), 'utf8')
+  // the stage branch rides the census's own stages.byStage cell - a
+  // different axis than the v0.779.0 why seat (both rows ride when each
+  // earns its own print)
+  assert.ok(src.includes('climbStageBill(c.stages.byStage)'), 'the seat must read the census\'s own byStage cell')
+  assert.ok(src.includes('climbStageRiders(c.stages.byStage)'), 'the riders must read the census\'s own byStage cell')
+  assert.ok(src.includes('climbStageRidersRow'), 'the riders row must ride the import tail')
+  // the row prose lives only in the lib (the v0.767.0 wiring law) - the
+  // anchors are the full row tails, not any bare substring
+  assert.ok(!src.includes("THE LADDER'S OWN SEAT"), 'the seat row prose must stay in the lib')
+  assert.ok(!src.includes("THE LADDER'S OWN MIX"), 'the riders row prose must stay in the lib')
 })
