@@ -82,6 +82,24 @@ export const SMELT_TOOK_RE = /^\[(F\d+)\] took (\d+) x ([a-z_]+) \((\d+)\/(\d+)\
 // START before any clip mints nothing (the order is the law). Honest
 // silence: zero clips, no row.
 
+// (v0.747.0) THE CLIP'S OWN DIET - the fuel side's own worth, priced at
+// the clip moment. The fuel clip line carries its own fuel verbatim
+// ('2 x coal completes 16 of 33 x raw_copper': fc[2] x fc[3] were matched
+// and dropped before) - and the vanilla yield table (fuelYieldOf, the
+// v0.666.0 law: never a made constant) prices what that fuel could ever
+// complete: capacity = fuel-units x fuelYieldOf(item). The join prices
+// the clip's own diet: delivered / capacity. At 100% the fuel died at
+// its own capacity - the batch's ask was the constraint (the 55th's F4:
+// 2 coal = capacity 16, delivered 16 - the plan underfueled the batch,
+// the fuel was innocent). Below 100% the capacity's own tail went
+// unpaid - the window (or the stall) took it while the fuel still had
+// worth (the 53rd's F2: 3 stick = capacity 1.5, delivered 1). The read
+// rides the SAME SMELT_FUEL_CLIP_RE match (one parser per shape), the
+// clock side stays its own class. Honest silences: zero fuel clips, no
+// row; an unknown fuel's capacity is the honest gap, never a guess.
+
+import { fuelYieldOf } from './smelting.mjs' // (v0.747.0) the vanilla yield table's own voice - the diet row's capacity bar, never a made constant (the fueldiet.mjs precedent; smelting never imports smeltledger - no cycle)
+
 /**
  * Read the smelt lane's own words into a ledger.
  * @param {string[]} lines one fleet-log, all lines
@@ -115,6 +133,9 @@ export function smeltLedger (lines) {
     clipDebtOpen: 0, // (v0.745.0) the debt no START ever answered - the shadow's own remainder
     paybackChains: 0, // (v0.745.0) the START lines that answered a clipped batch (bot+item)
     paybackUnits: 0, // (v0.745.0) the units the answering chains announced
+    fuelClipFuel: 0, // (v0.747.0) the fuel units the fuel clip lines name (fc[2] - matched and dropped before)
+    fuelClipFuelItems: {}, // (v0.747.0) the clip fuel by item (fc[3])
+    fuelClipCapacity: 0, // (v0.747.0) the vanilla capacity that fuel carried (sum fc[2] x fuelYieldOf(fc[3]))
     byBot: {}
   }
   // (v0.745.0) the outstanding clip debt per bot|item, in walk order
@@ -164,6 +185,11 @@ export function smeltLedger (lines) {
       bot(fc[1]).clipDebt += debt
       const ok = `${fc[1]}|${fc[6]}`
       openDebt[ok] = (openDebt[ok] || 0) + debt
+      // (v0.747.0) the clip's own diet - the fuel side's own worth
+      const fuelN = Number(fc[2])
+      ledger.fuelClipFuel += fuelN
+      ledger.fuelClipFuelItems[fc[3]] = (ledger.fuelClipFuelItems[fc[3]] || 0) + fuelN
+      ledger.fuelClipCapacity += fuelN * fuelYieldOf(fc[3])
       continue
     }
     const cc = line.match(SMELT_CLOCK_CLIP_RE)
@@ -224,4 +250,24 @@ export function clipPaybackRow (ledger) {
     return `the re-smelt shadow's payback: no chain ever returned for the ${ledger.clipDebt} unit(s) the clips left smelting - the IOU stands alone`
   }
   return `the re-smelt shadow's payback: ${ledger.paybackChains} chain(s) returned for the clipped batches (${ledger.paybackUnits} unit(s) re-announced of ${ledger.clipDebt} owed) - ${ledger.clipDebtOpen} still unanswered`
+}
+
+// (v0.747.0) ONE verdict line, only when a fuel clip stood at all (the
+// diet is the fuel side's own read - clock-only faces read the honest
+// silence). The join: delivered vs the vanilla capacity the clip fuel
+// carried (fuelYieldOf's own table, never a made constant). Two classes,
+// exclusive: paid in full (the fuel died at its own capacity - the ask's
+// own price) / a tail unpaid (the window's own tax rode the same chain).
+// An unknown fuel's capacity is the honest gap, never a guess.
+export function clipDietRow (ledger) {
+  if (!ledger || !(ledger.fuelClips > 0)) return null
+  const items = Object.entries(ledger.fuelClipFuelItems || {}).sort((a, b) => b[1] - a[1]).slice(0, 2).map(([k, n]) => `${k} ${n}`).join(', ')
+  if (!(ledger.fuelClipCapacity > 0)) {
+    return `the clip's own diet: the fuel clips burned ${ledger.fuelClipFuel} fuel-unit(s) (${items}) for ${ledger.fuelClipCompleted} completed unit(s) - the vanilla capacity unreadable (unknown fuel) - the honest gap`
+  }
+  const pct = Math.round(100 * ledger.fuelClipCompleted / ledger.fuelClipCapacity)
+  const verdict = pct >= 100
+    ? 'the fuel died at its own capacity - the ask\'s own price'
+    : 'the capacity\'s own tail unpaid - the window\'s own tax rode the same chain'
+  return `the clip's own diet: the fuel clips burned ${ledger.fuelClipFuel} fuel-unit(s) (${items}) for ${ledger.fuelClipCompleted} completed unit(s) - the vanilla capacity ${ledger.fuelClipCapacity} paid ${pct}% (${verdict})`
 }

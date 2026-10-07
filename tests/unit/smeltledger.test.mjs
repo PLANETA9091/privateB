@@ -6,7 +6,7 @@
 // split avoids). Junk judges nothing, non-array is null.
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { smeltLedger, clipDebtRow, clipPaybackRow, SMELT_START_RE, SMELT_FUEL_CLIP_RE, SMELT_CLOCK_CLIP_RE, SMELT_REFUSAL_RE, SMELT_TOOK_RE } from '../../src/lib/smeltledger.mjs'
+import { smeltLedger, clipDebtRow, clipPaybackRow, clipDietRow, SMELT_START_RE, SMELT_FUEL_CLIP_RE, SMELT_CLOCK_CLIP_RE, SMELT_REFUSAL_RE, SMELT_TOOK_RE } from '../../src/lib/smeltledger.mjs'
 
 test('smelt-ledger: the batches, the fuel and the per-bot/per-item split (live face 36/39 shapes)', () => {
   const lines = [
@@ -273,4 +273,70 @@ test('clip-payback: the honest silences, the order law and the junk fences', () 
   assert.equal(junked.clipDebt, 0)
   assert.equal(junked.clipDebtOpen, 0)
   assert.equal(junked.paybackChains, 0)
+})
+
+// ---- (v0.747.0) THE CLIP'S OWN DIET ----
+
+test('clip-diet: the 55th\'s own fuel clip paid in full - 2 coal, capacity 16, delivered 16 (the ask\'s own price)', () => {
+  const lines = [
+    '[F4] smelting 33 x raw_copper in a furnace (fuel: 2 x coal)',
+    '[F4] fuel clips the batch: 2 x coal completes 16 of 33 x raw_copper (the rest re-smelts on the next chain)',
+    '[F4] the clock clips the batch: the 17s window completes ~1 of 33 x raw_copper (the rest re-smelts on the next chain)'
+  ]
+  const l = smeltLedger(lines)
+  // the old fields byte-stable beside the diet
+  assert.equal(l.fuelClipCompleted, 16)
+  assert.equal(l.fuelClipAsked, 33)
+  // the diet's own read
+  assert.equal(l.fuelClipFuel, 2)
+  assert.deepEqual(l.fuelClipFuelItems, { coal: 2 })
+  assert.equal(l.fuelClipCapacity, 16, '2 x fuelYieldOf(coal)=8 - the vanilla bar, never a made constant')
+  const row = clipDietRow(l)
+  assert.ok(row)
+  assert.equal(row, "the clip's own diet: the fuel clips burned 2 fuel-unit(s) (coal 2) for 16 completed unit(s) - the vanilla capacity 16 paid 100% (the fuel died at its own capacity - the ask's own price)")
+})
+
+test('clip-diet: the 53rd\'s junk diet - two fuels, the tail unpaid (the window\'s own tax)', () => {
+  const lines = [
+    '[F6] fuel clips the batch: 2 x oak_log completes 3 of 4 x oak_log (the rest re-smelts on the next chain)',
+    '[F2] fuel clips the batch: 3 x stick completes 1 of 2 x oak_log (the rest re-smelts on the next chain)'
+  ]
+  const l = smeltLedger(lines)
+  assert.equal(l.fuelClipFuel, 5)
+  assert.deepEqual(l.fuelClipFuelItems, { oak_log: 2, stick: 3 })
+  assert.equal(l.fuelClipCapacity, 4.5, '2 x 1.5 + 3 x 0.5 - the vanilla bar')
+  const row = clipDietRow(l)
+  assert.equal(row, "the clip's own diet: the fuel clips burned 5 fuel-unit(s) (stick 3, oak_log 2) for 4 completed unit(s) - the vanilla capacity 4.5 paid 89% (the capacity's own tail unpaid - the window's own tax rode the same chain)")
+})
+
+test('clip-diet: face 39\'s own chain - 5 oak_log for 7 of 14 (the 93% tail)', () => {
+  const lines = [
+    '[F8] smelting 1 x raw_copper in a furnace (fuel: 5 x oak_log)',
+    '[F8] fuel clips the batch: 5 x oak_log completes 7 of 14 x raw_copper (the rest re-smelts on the next chain)',
+    '[F8] the clock clips the batch: the 21s window completes ~1 of 14 x raw_copper (the rest re-smelts on the next chain)'
+  ]
+  const l = smeltLedger(lines)
+  assert.equal(l.fuelClipFuel, 5)
+  assert.equal(l.fuelClipCapacity, 7.5)
+  const row = clipDietRow(l)
+  assert.equal(row, "the clip's own diet: the fuel clips burned 5 fuel-unit(s) (oak_log 5) for 7 completed unit(s) - the vanilla capacity 7.5 paid 93% (the capacity's own tail unpaid - the window's own tax rode the same chain)")
+})
+
+test('clip-diet: the honest silences, the unknown-fuel gap and the junk fences', () => {
+  // clock-only faces read the honest silence (the diet is the fuel side)
+  const clockOnly = smeltLedger(['[F9] the clock clips the batch: the 21s window completes ~1 of 14 x raw_copper'])
+  assert.equal(clockOnly.fuelClips, 0)
+  assert.equal(clockOnly.fuelClipFuel, 0)
+  assert.equal(clipDietRow(clockOnly), null, 'zero fuel clips = no row')
+  assert.equal(clipDietRow(null), null)
+  assert.equal(clipDietRow({}), null)
+  // an unknown fuel's capacity is the honest gap, never a guess
+  const unknown = smeltLedger(['[F7] fuel clips the batch: 4 x mystery_fuel completes 2 of 9 x raw_copper (the rest re-smelts on the next chain)'])
+  assert.equal(unknown.fuelClipFuel, 4)
+  assert.equal(unknown.fuelClipCapacity, 0)
+  assert.equal(clipDietRow(unknown), "the clip's own diet: the fuel clips burned 4 fuel-unit(s) (mystery_fuel 4) for 2 completed unit(s) - the vanilla capacity unreadable (unknown fuel) - the honest gap")
+  // junk rows never mint a diet
+  const junked = smeltLedger([null, 42, 'fuel clips the batch: 2 x coal completes 16 of 33 x raw_copper'])
+  assert.equal(junked.fuelClips, 0)
+  assert.equal(junked.fuelClipFuel, 0)
 })
