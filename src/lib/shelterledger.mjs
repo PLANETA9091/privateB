@@ -239,3 +239,98 @@ export function shelterLedger (lines) {
 }
 
 function oBots (o) { o.bots.sort() }
+
+// (v0.795.0) THE VERDICT BOOK'S OWN SEAT - WHICH outcome class owns the
+// shelter ledger's death book. The class split row ('sheltered: 2 (2u) |
+// flee: 9 (449u) | ...') counts the deaths per verdict class and the
+// price's answer names the biggest PRICED mass, but no row ever said
+// WHICH verdict's own deaths own the COUNT book - the raw split rode
+// unnamed. THE SEAT LAW (the census's own outcomes cells only, zero
+// re-parsing - the v0.784.0 kind-seat precedent, the v0.793.0 ground
+// seat's own shape): the strict-majority law - a solo class owns the book
+// only above half (a tie owns nothing - the v0.784.0 seat's own law); the
+// names are the census's own vocabulary bytes ('sheltered' <
+// 'shelter-attempt' is NOT the byte order - '-' (0x2d) < 'e' (0x65), so
+// 'shelter-attempt' < 'sheltered' - the byte law's own trap); junk never
+// invents a verdict (a missing or non-object ledger, a cell without a
+// finite positive count, or no counted death reads the honest silence -
+// null, the decompose's own guard skips the row). The class name is the
+// census's own display key - the classRow's own words.
+function outcomeTally (sl) {
+  if (!sl || typeof sl !== 'object' || Array.isArray(sl)) return null
+  if (!sl.outcomes || typeof sl.outcomes !== 'object' || Array.isArray(sl.outcomes)) return null
+  const tallies = {}
+  let total = 0
+  for (const [cls, o] of Object.entries(sl.outcomes)) {
+    if (!o || typeof o !== 'object') continue
+    const n = o.n
+    if (!Number.isFinite(n) || n <= 0) continue
+    total += n
+    tallies[cls] = (tallies[cls] || 0) + n
+  }
+  return total > 0 ? { tallies, total } : null
+}
+
+export function shelterOutcomeBill (sl) {
+  const t = outcomeTally(sl)
+  if (!t) return null
+  let topOwns = 0
+  let topClass = null
+  for (const [cls, n] of Object.entries(t.tallies)) {
+    if (n > topOwns) { topOwns = n; topClass = cls }
+  }
+  if (topClass === null || topOwns <= t.total - topOwns) return null
+  return { outcome: topClass, owns: topOwns, ofDeaths: t.total, shareOfDeaths: +(topOwns / t.total).toFixed(3) }
+}
+
+// (v0.795.0) the verdict seat's own row - THE VERDICT'S OWN SEAT: the seat
+// names WHICH class's own deaths own the ledger's count book; the class's
+// own front prices the cure fork (a solo flee seat is the disengage leak's
+// own count-side signature - the price's answer's own companion). Junk
+// never prints a seat (the honest silence's own row law).
+export function shelterOutcomeBillRow (bill) {
+  if (!bill || typeof bill !== 'object') return null
+  const { outcome, owns, ofDeaths, shareOfDeaths } = bill
+  if (typeof outcome !== 'string' || !outcome ||
+      !Number.isFinite(owns) || owns <= 0 ||
+      !Number.isFinite(ofDeaths) || ofDeaths <= 0 || owns > ofDeaths ||
+      !Number.isFinite(shareOfDeaths)) return null
+  return `the verdict book's own seat (v0.795.0): ${outcome} owns ${owns} of ${ofDeaths} combat death(s) (${(shareOfDeaths * 100).toFixed(1)}%) - THE VERDICT'S OWN SEAT: one verdict's own deaths own the ledger - the class's own front prices the book the raw split rode unnamed`
+}
+
+// (v0.795.0) THE VERDICT BOOK'S OWN RIDERS - the verdict seat's own
+// silence's companion. The seat names the solo class under the
+// strict-majority law; a no-majority class mix rode raw with no row naming
+// the shape. THE RIDER LAW (the census's own outcomes cells only, zero
+// re-parsing - the seat's own precedent): a MEASURE, never a verdict-owner
+// - the top two classes' concentration prices the shape the solo law
+// refused to name (the seat's owner case leaves the companion unprinted -
+// the decompose's own branch law). Junk never invents a shape: a missing
+// or non-object ledger, a cell without a finite positive count, or fewer
+// than two counted classes reads the honest silence (null). The order is
+// deterministic (count desc, then the class's own byte: the name's own
+// lexicographic law - 'fight' < 'flee' < 'other').
+export function shelterOutcomeRiders (sl) {
+  const t = outcomeTally(sl)
+  if (!t) return null
+  const ranked = Object.entries(t.tallies).sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1))
+  if (ranked.length < 2) return null
+  const [leader, leaderOwns] = ranked[0]
+  const [runner, runnerOwns] = ranked[1]
+  const pairOwns = leaderOwns + runnerOwns
+  return { leader, leaderOwns, runner, runnerOwns, ofDeaths: t.total, pairOwns, shareOfDeaths: +(pairOwns / t.total).toFixed(3), duet: leaderOwns === runnerOwns }
+}
+
+// (v0.795.0) the verdict riders' own row - THE VERDICT'S OWN MIX: a
+// measure of the shape, never a named owner (the seat's tie law holds);
+// the pair prices the concentration the solo law refused to seat. Junk
+// never prints a shape (the honest silence's own row law).
+export function shelterOutcomeRidersRow (r) {
+  if (!r || typeof r !== 'object') return null
+  const { leader, leaderOwns, runner, runnerOwns, ofDeaths, pairOwns, shareOfDeaths } = r
+  if (typeof leader !== 'string' || !leader || typeof runner !== 'string' || !runner ||
+      !Number.isFinite(leaderOwns) || leaderOwns <= 0 || !Number.isFinite(runnerOwns) || runnerOwns <= 0 ||
+      !Number.isFinite(ofDeaths) || ofDeaths <= 0 || !Number.isFinite(pairOwns) || pairOwns > ofDeaths ||
+      !Number.isFinite(shareOfDeaths)) return null
+  return `the verdict book's own riders (v0.795.0): no solo verdict owns the majority - ${leader} x${leaderOwns} + ${runner} x${runnerOwns} own ${pairOwns} of ${ofDeaths} combat death(s) (${(shareOfDeaths * 100).toFixed(1)}%) - THE VERDICT'S OWN MIX: the seat's tie law held, the mix is the shape - the classes' own spread prices the book the solo law refused to seat`
+}

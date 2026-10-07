@@ -5,7 +5,8 @@
 // the verb vocabulary breaks these loudly (the sibling-shape law).
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { shelterLedger, OUTCOME_OF_VERB, OUTCOME_CLASSES, distBand, KILL_DIST_RE } from '../../src/lib/shelterledger.mjs'
+import fs from 'node:fs'
+import { shelterLedger, OUTCOME_OF_VERB, OUTCOME_CLASSES, distBand, KILL_DIST_RE, shelterOutcomeBill, shelterOutcomeBillRow, shelterOutcomeRiders, shelterOutcomeRidersRow } from '../../src/lib/shelterledger.mjs'
 
 test('shelterLedger: the hand-counted join - the last verdict before each combat death names the class, the adjacent drop prices it', () => {
   const lines = [
@@ -182,4 +183,139 @@ test('shelterLedger: the authority law - the inferred NAME is never read, the ki
   assert.deepEqual([distBand(4), distBand(4.01), distBand(8), distBand(8.01), distBand(0), distBand(null), distBand(undefined), distBand(NaN)], ['close', 'mid', 'mid', 'far', 'close', null, null, null])
   assert.equal(KILL_DIST_RE.exec('inferred: skeleton@7.6 (0s before death at [-154,64,415])')[1], '7.6')
   assert.equal(KILL_DIST_RE.exec('inferred: fall/env (0s before death at [0,0,0])'), null, 'the blind shape carries no ruler')
+})
+
+// (v0.795.0) THE VERDICT BOOK'S OWN SEAT - WHICH outcome class owns the
+// ledger's count book. The class split row counts the deaths per verdict
+// and the price's answer names the biggest PRICED mass, but the count book
+// itself rode unnamed. THE SEAT LAW (the census's own outcomes cells only,
+// zero re-parsing): the strict-majority law - a solo class owns the book
+// only above half, a tie owns nothing; junk never invents a verdict.
+test("the verdict book's own seat - the face-82 cell through the seat law with the byte-exact row + the crowd's measure-not-owner law", () => {
+  // face 82's own shape: flee 4 + sheltered 1 of 5 - the solo seat fires
+  const lines = [
+    'F1 [F1] combat: fleeing skeleton@3.1',
+    'F1 [F1] died - respawning (cause: server: was shot by Skeleton [kind=mob by Skeleton] | inferred: skeleton@1.0 (0s before death at [-154,64,415]))',
+    'F1 [F1] death drop: ~30u lost at [-154,64,415]',
+    'F14 [F14] combat: verdict flipped to flee skeleton@2.0',
+    'F14 [F14] died - respawning (cause: server: was shot by Skeleton [kind=mob by Skeleton] | inferred: skeleton@1.5 (0s before death at [-150,64,410]))',
+    'F14 [F14] death drop: ~25u lost at [-150,64,410]',
+    'F7 [F7] combat: fleeing zombie@2.0',
+    'F7 [F7] died - respawning (cause: server: was slain by Zombie [kind=mob by Zombie] | inferred: zombie@1.2 (0s before death at [-130,60,400]))',
+    'F7 [F7] death drop: ~28u lost at [-130,60,400]',
+    'F8 [F8] combat: flee bearing rotated drowned@1.0',
+    'F8 [F8] died - respawning (cause: server: was slain by Drowned [kind=mob by Drowned] | inferred: drowned@1.1 (0s before death at [-128,60,402]))',
+    'F8 [F8] death drop: ~21u lost at [-128,60,402]',
+    'F12 [F12] combat: sheltering from skeleton (arrow wall, cells 6/8, proximity re-verdict)',
+    'F12 [F12] died - respawning (cause: server: was shot by Skeleton [kind=mob by Skeleton] | inferred: skeleton@4.0 (0s before death at [-150,64,410]))',
+    'F12 [F12] death drop: ~19u lost at [-150,64,410]'
+  ]
+  const sl = shelterLedger(lines)
+  assert.equal(sl.combatDeaths, 5)
+  const seat = shelterOutcomeBill(sl)
+  assert.deepEqual(seat, { outcome: 'flee', owns: 4, ofDeaths: 5, shareOfDeaths: 0.8 })
+  assert.equal(
+    shelterOutcomeBillRow(seat),
+    "the verdict book's own seat (v0.795.0): flee owns 4 of 5 combat death(s) (80.0%) - THE VERDICT'S OWN SEAT: one verdict's own deaths own the ledger - the class's own front prices the book the raw split rode unnamed"
+  )
+  // the crowd shape (face 37643508935's own cells): fight 2 + flee 2 +
+  // sheltered 1 + shelter-attempt 1 + other 1 of 7 - no solo seat, the
+  // riders measure the shape; the count tie breaks on the class's own
+  // byte ('fight' < 'flee' - the lexicographic law's own pin)
+  const crowd = shelterOutcomeBill({ outcomes: { fight: { n: 2 }, flee: { n: 2 }, sheltered: { n: 1 }, 'shelter-attempt': { n: 1 }, other: { n: 1 }, ranged: { n: 0 }, ambushed: { n: 0 } } })
+  assert.equal(crowd, null, 'the top at 2 of 7 is below half - no solo seat')
+  const cr = shelterOutcomeRiders({ outcomes: { fight: { n: 2 }, flee: { n: 2 }, sheltered: { n: 1 }, 'shelter-attempt': { n: 1 }, other: { n: 1 }, ranged: { n: 0 }, ambushed: { n: 0 } } })
+  assert.deepEqual(cr, { leader: 'fight', leaderOwns: 2, runner: 'flee', runnerOwns: 2, ofDeaths: 7, pairOwns: 4, shareOfDeaths: 0.571, duet: true })
+  assert.equal(
+    shelterOutcomeRidersRow(cr),
+    "the verdict book's own riders (v0.795.0): no solo verdict owns the majority - fight x2 + flee x2 own 4 of 7 combat death(s) (57.1%) - THE VERDICT'S OWN MIX: the seat's tie law held, the mix is the shape - the classes' own spread prices the book the solo law refused to seat"
+  )
+})
+
+test("the tie law - a tie owns nothing - and the duet byte pin 'flee' < 'other' + the exact-half fence", () => {
+  // face 37649886742's own cells: flee 2 + other 2 + fight 1 of 5 - the
+  // top tie owns nothing, the duet prices the shape ('flee' < 'other' -
+  // the byte order's own pin)
+  const cells = { outcomes: { flee: { n: 2 }, other: { n: 2 }, fight: { n: 1 }, sheltered: { n: 0 }, 'shelter-attempt': { n: 0 }, ranged: { n: 0 }, ambushed: { n: 0 } } }
+  assert.equal(shelterOutcomeBill(cells), null, 'the tie owns nothing - the seat stays silent')
+  const r = shelterOutcomeRiders(cells)
+  assert.deepEqual(r, { leader: 'flee', leaderOwns: 2, runner: 'other', runnerOwns: 2, ofDeaths: 5, pairOwns: 4, shareOfDeaths: 0.8, duet: true })
+  assert.equal(
+    shelterOutcomeRidersRow(r),
+    "the verdict book's own riders (v0.795.0): no solo verdict owns the majority - flee x2 + other x2 own 4 of 5 combat death(s) (80.0%) - THE VERDICT'S OWN MIX: the seat's tie law held, the mix is the shape - the classes' own spread prices the book the solo law refused to seat"
+  )
+  // the exact-half fence: the top at exactly half reads no solo seat
+  const half = { outcomes: { flee: { n: 2 }, sheltered: { n: 2 }, other: { n: 0 } } }
+  assert.equal(shelterOutcomeBill(half), null)
+  const rh = shelterOutcomeRiders(half)
+  assert.equal(rh.leader, 'flee', "'flee' < 'sheltered' - the byte law's own order")
+  assert.equal(rh.runner, 'sheltered')
+  assert.equal(rh.duet, true)
+  // the below-half plurality fence: the top class under half never seats
+  const plural = { outcomes: { flee: { n: 3 }, sheltered: { n: 2 }, fight: { n: 2 } } }
+  assert.equal(shelterOutcomeBill(plural), null, '3 of 7 is below half - the plurality stays unseated')
+  // the byte law's own trap pinned: 'shelter-attempt' < 'sheltered'
+  // ('-' 0x2d < 'e' 0x65 - the hyphen sorts before the letter)
+  const trap = { outcomes: { sheltered: { n: 1 }, 'shelter-attempt': { n: 1 }, fight: { n: 0 } } }
+  const tr = shelterOutcomeRiders(trap)
+  assert.equal(tr.leader, 'shelter-attempt', "the hyphen sorts before the letter - 'shelter-attempt' < 'sheltered'")
+  assert.equal(tr.runner, 'sheltered')
+})
+
+test("the cells' own sum law + the single-class fence + the zero-book silence", () => {
+  // the census's own counting law: the seat reads the outcomes cells' own
+  // sum, never the ledger's combatDeaths counter (a junk census may trail
+  // the counter - the cell keeps its own)
+  const census = { combatDeaths: 99, outcomes: { flee: { n: 2 }, sheltered: { n: 1 }, other: { n: 0 } } }
+  const s = shelterOutcomeBill(census)
+  assert.equal(s.ofDeaths, 3)
+  assert.equal(s.owns, 2)
+  assert.equal(
+    shelterOutcomeBillRow(s),
+    "the verdict book's own seat (v0.795.0): flee owns 2 of 3 combat death(s) (66.7%) - THE VERDICT'S OWN SEAT: one verdict's own deaths own the ledger - the class's own front prices the book the raw split rode unnamed"
+  )
+  // a junk cell is skipped honest, the real cells beside it still tally
+  const mixed = { outcomes: { flee: { n: 2 }, sheltered: null, fight: { n: 'x' }, other: { n: -1 } } }
+  const ms = shelterOutcomeBill(mixed)
+  assert.deepEqual(ms, { outcome: 'flee', owns: 2, ofDeaths: 2, shareOfDeaths: 1 })
+  // the single-class fence: one counted class reads a seat but no riders
+  // (fewer than two cells - the honest silence's companion law; face
+  // 37639051812's own shape)
+  const solo = { outcomes: { flee: { n: 2 }, other: { n: 0 } } }
+  assert.deepEqual(shelterOutcomeBill(solo), { outcome: 'flee', owns: 2, ofDeaths: 2, shareOfDeaths: 1 })
+  assert.equal(shelterOutcomeRiders(solo), null)
+  // the zero-book face reads the honest silence both ways
+  const zero = { outcomes: { flee: { n: 0 }, other: { n: 0 } } }
+  assert.equal(shelterOutcomeBill(zero), null)
+  assert.equal(shelterOutcomeRiders(zero), null)
+  assert.deepEqual(shelterOutcomeBill(shelterLedger([])), null)
+})
+
+test('the junk battery + the WIRING assert - the decompose branch rides the cell, the prose lives only in the lib', () => {
+  // the junk battery: junk never invents a verdict (the honest silence)
+  assert.equal(shelterOutcomeBill(null), null)
+  assert.equal(shelterOutcomeBill(undefined), null)
+  assert.equal(shelterOutcomeBill(42), null)
+  assert.equal(shelterOutcomeBill([1, 2]), null)
+  assert.equal(shelterOutcomeBill({}), null)
+  assert.equal(shelterOutcomeBill({ outcomes: [] }), null)
+  assert.equal(shelterOutcomeBill({ outcomes: 'nope' }), null)
+  assert.equal(shelterOutcomeBill({ outcomes: { flee: { n: 0 } } }), null)
+  assert.equal(shelterOutcomeBill({ outcomes: { flee: { n: NaN } } }), null)
+  assert.equal(shelterOutcomeBill({ outcomes: { flee: null } }), null)
+  assert.equal(shelterOutcomeBillRow(null), null)
+  assert.equal(shelterOutcomeBillRow({ outcome: '', owns: 1, ofDeaths: 1, shareOfDeaths: 1 }), null)
+  assert.equal(shelterOutcomeBillRow({ outcome: 'flee', owns: 2, ofDeaths: 1, shareOfDeaths: 2 }), null)
+  assert.equal(shelterOutcomeRiders(null), null)
+  assert.equal(shelterOutcomeRiders({}), null)
+  assert.equal(shelterOutcomeRidersRow(null), null)
+  assert.equal(shelterOutcomeRidersRow({ leader: 'flee', leaderOwns: 0, runner: 'other', runnerOwns: 1, ofDeaths: 2, pairOwns: 1, shareOfDeaths: 0.5 }), null)
+  // the WIRING assert - the decompose branch rides the price's answer, the
+  // prose lives only in the lib
+  const src = fs.readFileSync(new URL('../../scripts/fleet-mining/decompose.mjs', import.meta.url), 'utf8')
+  assert.ok(src.includes('const sob = shelterOutcomeBill(sl)'), 'the seat rides the census cell')
+  assert.ok(src.includes('if (sob) console.log(`  ${shelterOutcomeBillRow(sob)}`)'), 'the owner row rides the branch')
+  assert.ok(src.includes('const sor = shelterOutcomeRiders(sl)'), 'the riders ride the same branch law')
+  assert.ok(!src.includes("THE VERDICT'S OWN SEAT"), 'the prose stays in the lib')
+  assert.ok(!src.includes("THE VERDICT'S OWN MIX"), 'the mix prose stays in the lib')
 })

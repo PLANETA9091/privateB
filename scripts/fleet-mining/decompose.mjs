@@ -7,7 +7,7 @@ import { askWhyCensus, dryAskVerdict, dryAskVerdictRow, dryAskBotBill, dryAskBot
 import { bankFlowCensus, bankYield, writeOffBill, writeOffBillRow, writeOffRiders, writeOffRidersRow } from '../../src/lib/bankcensus.mjs' // (v0.686.0) + the yield dial - the banked mass over the visit lane's own line count; (v0.777.0) + the write-off's own cast - the book's bot-level seat
 import { routeGateCensus, ROUTE_GATE_RIM_TRAP_REFUSALS } from '../../src/lib/routecensus.mjs' // (v0.388.0) the route gate's field read
 import { shooterCensus, shooterAttackerBill, shooterAttackerBillRow, shooterAttackerRiders, shooterAttackerRidersRow } from '../../src/lib/shootercensus.mjs' // (v0.390.0) the shooter band's field read; (v0.792.0) WHICH attacker owns the combat pressure
-import { shelterLedger, OUTCOME_CLASSES } from '../../src/lib/shelterledger.mjs' // (v0.457.0) the combat verdict's price - the outcome join; (v0.466.0) the class vocabulary for the flee-ground cross-read
+import { shelterLedger, OUTCOME_CLASSES, shelterOutcomeBill, shelterOutcomeBillRow, shelterOutcomeRiders, shelterOutcomeRidersRow } from '../../src/lib/shelterledger.mjs' // (v0.457.0) the combat verdict's price - the outcome join; (v0.466.0) the class vocabulary for the flee-ground cross-read; (v0.795.0) WHICH verdict owns the shelter book
 import { deathSweep } from '../../src/lib/deathsweep.mjs' // (v0.389.0) the honest death sweep's field read
 import { sealDeathCensus, strandedPiles, BIG_PILE_U, thirdsVerdict } from '../../src/lib/sealdeath.mjs' // (v0.403.0) the seal economy's death leg; (v0.476.0) the stranded piles - the sweep-reach wire's price; (v0.755.0) the thirds' own verdict
 import { sealCensus, SEAL_FAMILIES } from '../../src/lib/sealcensus.mjs' // (v0.397.0) the keep families' field read
@@ -961,6 +961,16 @@ if (shooter.total > 0) {
               ? 'the ESCAPE fails - the disengage is the leak'
               : 'the class split stays open - read the rows'
     console.log(`  the price's answer: ${top[0]} carries ${top[1].u}u/${top[1].n} death(s) - ${why}`)
+    // (v0.795.0) WHICH verdict owns the shelter ledger's death book - the
+    // seat + the riders, one row never both (the branch law; the owner
+    // case leaves the companion unprinted; a zero-combat face reads the
+    // honest silence - the alive gate above is the branch's own fence).
+    const sob = shelterOutcomeBill(sl)
+    if (sob) console.log(`  ${shelterOutcomeBillRow(sob)}`)
+    else {
+      const sor = shelterOutcomeRiders(sl)
+      if (sor) console.log(`  ${shelterOutcomeRidersRow(sor)}`)
+    }
   } else {
     console.log(`  ${sl.combatDeaths === 0 ? 'no combat deaths this face - the pricing waits (the water lane is not this ledger\'s subject)' : 'the rows read zero - the honest zero'}`)
   }
