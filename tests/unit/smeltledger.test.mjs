@@ -6,7 +6,7 @@
 // split avoids). Junk judges nothing, non-array is null.
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { smeltLedger, clipDebtRow, clipPaybackRow, clipDietRow, clockWindowRow, SMELT_START_RE, SMELT_FUEL_CLIP_RE, SMELT_CLOCK_CLIP_RE, SMELT_REFUSAL_RE, SMELT_TOOK_RE } from '../../src/lib/smeltledger.mjs'
+import { smeltLedger, clipDebtRow, clipPaybackRow, clipDietRow, clockWindowRow, clockAskRow, SMELT_START_RE, SMELT_FUEL_CLIP_RE, SMELT_CLOCK_CLIP_RE, SMELT_REFUSAL_RE, SMELT_TOOK_RE } from '../../src/lib/smeltledger.mjs'
 
 test('smelt-ledger: the batches, the fuel and the per-bot/per-item split (live face 36/39 shapes)', () => {
   const lines = [
@@ -396,4 +396,39 @@ test('clock-window: the honest silences and the junk fences', () => {
   const junked = smeltLedger([null, 42, 'the clock clips the batch: the 21s window completes ~1 of 14 x raw_copper'])
   assert.equal(junked.clockClips, 0)
   assert.equal(junked.clockClipWindowSec, 0)
+})
+
+// ---- (v0.749.0) THE CLOCK ASK'S OWN SCALE ----
+
+test('clock-ask: the 58th\'s own scale - the windows\' whole worth 19 = 14% of the 137 asked (the batch\'s own size owned the debt)', () => {
+  const lines = [
+    '[F1] the clock clips the batch: the 83s window completes ~7 of 36 x raw_copper (the rest re-smelts on the next chain)',
+    '[F1] the clock clips the batch: the 47s window completes ~4 of 29 x raw_copper (the rest re-smelts on the next chain)',
+    '[F1] the clock clips the batch: the 24s window completes ~2 of 25 x raw_copper (the rest re-smelts on the next chain)',
+    '[F14] the clock clips the batch: the 18s window completes ~1 of 2 x cobblestone (the rest re-smelts on the next chain)',
+    '[F1] the clock clips the batch: the 13s window completes ~1 of 23 x raw_copper (the rest re-smelts on the next chain)',
+    '[F1] the clock clips the batch: the 5s window completes ~1 of 22 x raw_copper (the rest re-smelts on the next chain)'
+  ]
+  const l = smeltLedger(lines)
+  // the v0.748.0 fields byte-stable beside the ask row
+  assert.equal(l.clockClips, 6)
+  assert.equal(l.clockClipWindowSec, 190)
+  assert.equal(l.clockClipAsked, 137)
+  const row = clockAskRow(l)
+  assert.ok(row)
+  assert.equal(row, "the clock ask's own scale: the windows' vanilla worth 19 = 14% of the 137 asked unit(s) - the batch's own size owned the debt (the windows could never have paid it)")
+})
+
+test('clock-ask: the covered ask reads the honest silence (the metronome\'s own side, the v0.748.0 row\'s read)', () => {
+  // capacity 12 covers the 9 asked - the batch WAS finishable, the debt
+  // is the chains' own pace: not this row's read
+  const covered = smeltLedger(['[F2] the clock clips the batch: the 120s window completes ~5 of 9 x raw_copper (the rest re-smelts on the next chain)'])
+  assert.equal(covered.clockClipWindowSec, 120)
+  assert.equal(clockAskRow(covered), null, 'capacity >= asked = no row')
+  assert.equal(clockAskRow(null), null)
+  assert.equal(clockAskRow({}), null)
+  // junk rows never mint an ask row
+  const junked = smeltLedger([null, 42, 'the clock clips the batch: the 83s window completes ~7 of 36 x raw_copper'])
+  assert.equal(junked.clockClips, 0)
+  assert.equal(clockAskRow(junked), null)
 })

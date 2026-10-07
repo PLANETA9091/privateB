@@ -314,3 +314,24 @@ export function clockWindowRow (ledger) {
     : 'the furnace idled inside the window - the idle\'s own tax rode the same windows'
   return `the clock's own window: the clock clips burned ${ledger.clockClipWindowSec}s of window for ${ledger.clockClipCompleted} completed unit(s) - the vanilla capacity ${cap} paid ${pct}% (${verdict})`
 }
+
+// (v0.749.0) THE CLOCK ASK'S OWN SCALE - the batch's own size, priced
+// against the windows' whole vanilla worth. The v0.748.0 window row
+// priced the furnace's own beat (completed vs capacity): the 58th idled
+// to 84% - but a 3-unit idle shortfall cannot own a 121-unit clock debt.
+// The ask's own side stayed unpriced: the windows' ENTIRE worth was 19
+// units against 137 asked - the batch was never finishable, the debt was
+// the plan's own scale before the furnace ever idled. ONE verdict line,
+// only when a clock clip stood AND the windows' vanilla worth could not
+// have paid the ask (capacity >= asked reads the honest silence - the
+// metronome's own side owns that face, the v0.748.0 row already reads
+// it). The join rides the v0.748.0 cells (clockClipWindowSec, the field;
+// SMELT_SECONDS_PER_ITEM, the import) - one read, no re-parsing, the
+// skywalk law.
+export function clockAskRow (ledger) {
+  if (!ledger || !(ledger.clockClips > 0)) return null
+  const cap = ledger.clockClipWindowSec / SMELT_SECONDS_PER_ITEM
+  if (!(cap < ledger.clockClipAsked)) return null
+  const pct = Math.round(100 * cap / ledger.clockClipAsked)
+  return `the clock ask's own scale: the windows' vanilla worth ${cap} = ${pct}% of the ${ledger.clockClipAsked} asked unit(s) - the batch's own size owned the debt (the windows could never have paid it)`
+}
