@@ -227,3 +227,83 @@ test('vein ledger: the junk battery and the honest zero', () => {
     'F12 [F12] vein sweep: ore tier guard - 11 copper_ore left for a stone pick (have wooden_pickaxe)')[2],
   '11 copper_ore')
 })
+
+// (v0.768.0) THE TIER GUARD'S OWN BILL - unit pins (the kickkinds v0.761.0
+// verdict test shape). The battery is VERBATIM from face 69
+// (37617643599): F7's seven re-asks beside F3/F18/F11/F14's singles, and
+// the promise's own verdicts off the defer/upgrade lines' real shapes.
+import { tierGuardBill } from '../../src/lib/veinledger.mjs'
+
+// face-69 verbatims (the guard's rows, in the live order)
+const GUARD_ROWS = [
+  'F3 [F3] vein sweep: ore tier guard - 6 copper_ore left for a stone pick (have wooden_pickaxe)',
+  'F7 [F7] vein sweep: ore tier guard - 2 iron_ore left for a stone pick (have wooden_pickaxe)',
+  'F18 [F18] vein sweep: ore tier guard - 8 copper_ore left for a stone pick (have wooden_pickaxe)',
+  'F7 [F7] vein sweep: ore tier guard - 1 iron_ore left for a stone pick (have wooden_pickaxe)',
+  'F7 [F7] vein sweep: ore tier guard - 1 iron_ore left for a stone pick (have wooden_pickaxe)',
+  'F11 [F11] vein sweep: ore tier guard - 5 copper_ore left for a stone pick (have wooden_pickaxe)',
+  'F7 [F7] vein sweep: ore tier guard - 1 copper_ore left for a stone pick (have wooden_pickaxe)',
+  'F7 [F7] vein sweep: ore tier guard - 1 copper_ore left for a stone pick (have wooden_pickaxe)',
+  'F14 [F14] vein sweep: ore tier guard - 7 copper_ore, 2 iron_ore left for a stone pick (have wooden_pickaxe)',
+  'F7 [F7] vein sweep: ore tier guard - 1 copper_ore left for a stone pick (have wooden_pickaxe)',
+  'F7 [F7] vein sweep: ore tier guard - 1 copper_ore left for a stone pick (have wooden_pickaxe)'
+]
+// the promise's real shapes: the defer line (tierdefer.mjs's emitter) and
+// the upgrade line (upgradecensus.mjs's emitter)
+const DEFER = (bot, ore) => `${bot} steer tier defer: ${ore} deferred - the pick cannot harvest the drops`
+const UPGRADE = (bot, tool) => `${bot} [toolupgrade] [upgrade] upgraded: ${tool}`
+
+test('tier guard bill: the face-69 cell - F7 owns the re-asks, the promise kept the option', () => {
+  const row = tierGuardBill([
+    ...GUARD_ROWS,
+    DEFER('F7', 'copper_ore'),
+    DEFER('F11', 'copper_ore'),
+    DEFER('F18', 'copper_ore'),
+    DEFER('F3', 'copper_ore'),
+    DEFER('F14', 'copper_ore')
+  ])
+  assert.equal(row, "the tier guard's own bill: F7 owns 7 of 11 refusal(s) (63.6%), 8 of 36 unit(s) left in the ground - the repeat guard: the same bot re-asked the wall - the promise's verdict: kept - the option held, the rung never came")
+})
+
+test('tier guard bill: the promise forks name the cure\'s own state', () => {
+  const tookAfter = tierGuardBill([
+    'F5 [F5] vein sweep: ore tier guard - 4 copper_ore left for a stone pick (have wooden_pickaxe)',
+    DEFER('F5', 'copper_ore'),
+    UPGRADE('F5', 'stone_pickaxe,wooden_shovel')
+  ])
+  assert.equal(tookAfter, "the tier guard's own bill: F5 owns 1 of 1 refusal(s) (100%), 4 of 4 unit(s) left in the ground - the repeat guard: the same bot re-asked the wall - the promise's verdict: took-after - the rung came after the re-asks (the promise's live pass)")
+  const tookBefore = tierGuardBill([
+    'F6 [F6] vein sweep: ore tier guard - 3 iron_ore left for a stone pick (have wooden_pickaxe)',
+    UPGRADE('F6', 'wooden_pickaxe'),
+    DEFER('F6', 'iron_ore')
+  ])
+  assert.equal(tookBefore, "the tier guard's own bill: F6 owns 1 of 1 refusal(s) (100%), 3 of 3 unit(s) left in the ground - the repeat guard: the same bot re-asked the wall - the promise's verdict: took-before-only - the rung came before and the wall stood anyway")
+  const noDefer = tierGuardBill([
+    'F8 [F8] vein sweep: ore tier guard - 2 copper_ore left for a stone pick (have wooden_pickaxe)'
+  ])
+  assert.equal(noDefer, "the tier guard's own bill: F8 owns 1 of 1 refusal(s) (100%), 2 of 2 unit(s) left in the ground - the repeat guard: the same bot re-asked the wall - the promise's roll never named the owner")
+})
+
+test('tier guard bill: a tie owns nothing, zero rows read the silence', () => {
+  const tie = tierGuardBill([
+    'F9 [F9] vein sweep: ore tier guard - 1 copper_ore left for a stone pick (have wooden_pickaxe)',
+    'F10 [F10] vein sweep: ore tier guard - 6 copper_ore left for a stone pick (have wooden_pickaxe)'
+  ])
+  assert.equal(tie, null, 'the storm-has-no-seat precedent - the tie owns nothing')
+  const zero = tierGuardBill([
+    'F11 [F11] vein sweep: 8 drop(s) in reach (19 dug)',
+    'F12 [F12] vein sweep: ore tier guard - 4 copper_ore left for a stone pick (have wooden_pickaxe)'
+  ])
+  assert.notEqual(zero, null, 'the lone rider owns the bill outright')
+  const none = tierGuardBill(['F13 [F13] vein sweep: 8 drop(s) in reach (19 dug)'])
+  assert.equal(none, null, 'zero guard rows - the honest silence')
+})
+
+test('tier guard bill: the junk battery + the WIRING assert', async () => {
+  for (const junk of [null, undefined, 42, {}, 'junk text']) {
+    assert.equal(tierGuardBill(junk), null, `junk ${typeof junk} judges nothing`)
+  }
+  const src = await import('node:fs').then(fs => fs.readFileSync(new URL('./../../scripts/fleet-mining/decompose.mjs', import.meta.url), 'utf8'))
+  assert.match(src, /tierGuardBill\(lines\)/, 'the mine wires the bill')
+  assert.match(src, /the tier guard's own bill \(v0\.768\.0\)/, 'the mine prints the version prefix')
+})

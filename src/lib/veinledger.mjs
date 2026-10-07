@@ -63,6 +63,7 @@
 // All REs accept BOTH prefix skins: 'F9 [F9] vein sweep:' and the
 // gallery's bare 'F9 vein sweep:'. The bot capture is group 1 - the
 // backreference \1 pins the [F9] tag to the same name.
+import { deferPromise } from './upgradecensus.mjs' // (v0.768.0) the promise's own verdicts - the bill's cure-side join
 const P = '^(\\S+)(?: \\[\\1\\])? vein sweep: '
 
 // 'F9 [F9] vein sweep: 8 drop(s) in reach (19 dug)'
@@ -329,4 +330,46 @@ export function veinLedger (lines) {
     totals.veinBots[b.total] = (totals.veinBots[b.total] ?? 0) + 1
   }
   return { bots, totals }
+}
+
+// (v0.768.0) THE TIER GUARD'S OWN BILL - the guard's tax names its repeat
+// rider. The v0.501.0 ledger priced the guard's raw economy (the rows, the
+// units, the ore names) and the v0.467.0 promise priced the upgrade rung's
+// own answer - but the guard's PER-BOT seat never spoke: face 69
+// (37617643599) rode F7's seven re-asks ('1 copper_ore left for a stone
+// pick (have wooden_pickaxe)' x7) beside F18's single 8-unit vein, and no
+// row named the walker who kept re-asking a wall the rung could cure.
+// THE BILL LAW (the kickkinds v0.761.0 verdict precedent, zero new
+// regexes - the cells are the veinLedger's own per-bot tierGuards/
+// tierGuardOres and the deferPromise's own verdicts): the owner under the
+// strict-majority law on the ROWS (the re-ask is the repeat's own meter -
+// the units' magnitudes ride the ~Nu pricing's inflation margin); a tie
+// owns nothing (the storm-has-no-seat precedent); the promise's verdict
+// names the cure's own state (kept = the option held, the rung never
+// came; took-after = the rung came after the re-asks; took-before-only =
+// the rung came before and the wall stood anyway; no defer line = the
+// roll never named the owner); junk never invents a bill (a null ledger,
+// zero guard rows, a tied spread -> the honest silence).
+// @param {string[]|string} [lines] one fleet-log (array or blob)
+// @returns {null|string} the bill row without the mine's version prefix,
+//   null for the honest silences
+export function tierGuardBill (lines) {
+  const vl = veinLedger(lines)
+  if (!vl) return null
+  const riders = Object.entries(vl.bots)
+    .map(([bot, b]) => ({ bot, rows: b.tierGuards, units: b.tierGuardOres }))
+    .filter(r => r.rows > 0)
+  if (!riders.length) return null
+  riders.sort((a, b) => b.rows - a.rows || a.bot.localeCompare(b.bot))
+  const top = riders[0]
+  if (riders.length > 1 && riders[1].rows === top.rows) return null
+  const pct = Math.round(1000 * top.rows / vl.totals.tierGuards) / 10
+  const promise = deferPromise(lines)
+  const verdict = promise ? promise.perBot[top.bot] : undefined
+  let clause
+  if (verdict === 'kept') clause = 'the promise\'s verdict: kept - the option held, the rung never came'
+  else if (verdict === 'took-after') clause = 'the promise\'s verdict: took-after - the rung came after the re-asks (the promise\'s live pass)'
+  else if (verdict === 'took-before-only') clause = 'the promise\'s verdict: took-before-only - the rung came before and the wall stood anyway'
+  else clause = 'the promise\'s roll never named the owner'
+  return `the tier guard's own bill: ${top.bot} owns ${top.rows} of ${vl.totals.tierGuards} refusal(s) (${pct}%), ${top.units} of ${vl.totals.tierGuardOres} unit(s) left in the ground - the repeat guard: the same bot re-asked the wall - ${clause}`
 }

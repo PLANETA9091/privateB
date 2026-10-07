@@ -64,7 +64,7 @@ import { campBuild } from '../../src/lib/campbuild.mjs' // (v0.497.0) the camp b
 import { pounceBook } from '../../src/lib/pouncebook.mjs' // (v0.498.0) the pounce book - the well pounce's decline probe anatomy and the attempt verdicts
 import { assistLedger } from '../../src/lib/assistledger.mjs' // (v0.499.0) the assist ledger - the pounce handoff's aftermath (the ownership claim priced: rose vs died at the climb boundary)
 import { torchBook } from '../../src/lib/torchbook.mjs' // (v0.500.0) the torch ledger - the light supply's floors, rungs, asks and yield
-import { veinLedger } from '../../src/lib/veinledger.mjs' // (v0.501.0) the vein ledger - the sweep's terminals, walk yield, gallery digs, refusals and the tier guard
+import { veinLedger, tierGuardBill } from '../../src/lib/veinledger.mjs' // (v0.501.0) the vein ledger - the sweep's terminals, walk yield, gallery digs, refusals and the tier guard; (v0.768.0) the tier guard's own bill - the repeat rider's own seat
 import { commonsLedger } from '../../src/lib/commonsledger.mjs' // (v0.502.0) the commons ledger - the ask's answer: the sweeps, the walk anatomy, the deliveries
 import { droughtTimeline, droughtTimelineRow } from '../../src/lib/droughttimeline.mjs' // (v0.738.0) the pump's own timeline - the tithe's banks vs the dry reads' positions
 import { reachRadius, reachRadiusRow, reachClock, reachClockRow } from '../../src/lib/reachmap.mjs' // (v0.740.0) the reach's own radius - the last mile's refused distances; (v0.742.0) the last mile's own clock - the refused walks' elapsed ms (the raw walk's own rent)
@@ -3401,6 +3401,8 @@ console.log('  plan lines:', count(/materials plan|plan progress/i))
     console.log(`  walk triage: above-plane ${t.aboveTimeouts} (${t.aboveWalks} walks) / below-plane ${t.belowFails} (${t.belowWalks}); picked-nothing ${t.pickedNothings} (delta ${t.pickedDelta}); dig-downs ${t.digDowns}; stance ${t.stanceArmed} armed / ${t.stanceLanded} landed (+${t.stanceWalked}u)`)
     const tg = Object.entries(t.tierGuardNames).map(([o, n]) => `${o} ${n}`).join(' + ') || 'none'
     console.log(`  tier guard: ${t.tierGuards} rows refusing ${t.tierGuardOres} ore units (${tg})`)
+    const bill = tierGuardBill(lines) // (v0.768.0) the guard's tax names its repeat rider
+    if (bill) console.log(`  the tier guard's own bill (v0.768.0): ${bill.slice("the tier guard's own bill: ".length)}`)
     const rows = Object.entries(vl.bots).sort((a, b) => b[1].total - a[1].total).slice(0, 6)
     if (rows.length) console.log(`  bots heaviest-first: ${rows.map(([b, r]) => `${b} ${r.total}`).join(' ')}`)
   }
