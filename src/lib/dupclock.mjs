@@ -52,8 +52,28 @@ export const DUP_BURST_WINDOW_S = 60
 export const DUP_METRO_MIN = 8
 export const DUP_METRO_SPREAD = 2.5
 
+// (v0.741.0) THE SHUTDOWN'S OWN FENCE - the server log's non-dup loss class
+// (the graceful 'Disconnected' byte) is NOT one thing: mid-run it is the
+// freeze-relog lane's own server-side echo (the 55th face: F1 relogged
+// three times and the server owned exactly three Disconnected bytes for
+// F1, F2 3/3 the same) - but at the deadline the fleet stops and EVERY
+// bot drops at once (the 55th: 18 bots in one second, F13's drain byte a
+// second later), a mass the churn never touched. The fence arms on SHAPE:
+// a wall-clock second carrying ECHO_SHUTDOWN_MIN or more DISTINCT bots'
+// non-dup losses is the shutdown's own mass, and once armed the fence
+// stays armed - every later loss is the stop's own drain (the mass is
+// monotone, nothing meaningful follows it). The bytes before the mass are
+// the relog lane's own echo, priced per bot against the fleet's freeze
+// relogs (the join in decompose's print - the skywalk law, the lib stays
+// pure on the server log's own bytes).
+export const ECHO_SHUTDOWN_MIN = 5
+
 const DUP_LOSS_RE = /^\[(\d{2}):(\d{2}):(\d{2})\] \[Server thread\/INFO\]: (\S+) lost connection: You logged in from another location$/
 const OTHER_LOSS_RE = /^\[\d{2}:\d{2}:\d{2}\] \[Server thread\/INFO\]: \S+ lost connection:/
+// (v0.741.0) the echo's who-byte - the same loss-line shape, the NON-dup
+// reason clause (the negative lookahead keeps the dup class out; one
+// parser per shape - the dup parser owns its clause, this owns the rest)
+const OTHER_LOSS_WHO_RE = /^\[(\d{2}):(\d{2}):(\d{2})\] \[Server thread\/INFO\]: (\S+) lost connection: (?!You logged in from another location).+$/
 
 function mkBurst (bot, run) {
   const gaps = []
@@ -85,11 +105,17 @@ function mkBurst (bot, run) {
  *   first: string, last: string, gaps: number[], medianGapS: number,
  *   periodic: boolean}>},
  *   storm: {n: number, bots: number, first: string, last: string},
- *   otherLosses: number}} the clock (null on a loss-free log)
+ *   otherLosses: number,
+ *   echo: {n: number, byBot: Object<string, number>, midrunN: number,
+ *   midrunByBot: Object<string, number>, shutdownN: number,
+ *   shutdownByBot: Object<string, number>}}} the clock (null on a
+ *   loss-free log; echo is the v0.741.0 additive tail - the non-dup
+ *   losses' own fold, zero-shaped when the class never rode)
  */
 export function dupClock (lines) {
   if (!Array.isArray(lines)) return null
   const losses = []
+  const others = [] // (v0.741.0) the echo's own bytes, collected in the same walk
   let otherLosses = 0
   let carry = 0
   let prevS = -1
@@ -97,7 +123,12 @@ export function dupClock (lines) {
     const line = typeof l === 'string' ? l : ''
     if (!OTHER_LOSS_RE.test(line)) continue
     const m = DUP_LOSS_RE.exec(line)
-    if (!m) { otherLosses++; continue }
+    if (!m) {
+      otherLosses++
+      const om = OTHER_LOSS_WHO_RE.exec(line)
+      if (om) others.push({ bot: om[4], at: `${om[1]}:${om[2]}:${om[3]}`, monoS: Number(om[1]) * 3600 + Number(om[2]) * 60 + Number(om[3]) + carry })
+      continue
+    }
     const s = Number(m[1]) * 3600 + Number(m[2]) * 60 + Number(m[3])
     if (prevS >= 0 && s < prevS) carry += 86400
     prevS = s
@@ -142,11 +173,46 @@ export function dupClock (lines) {
       storm = { n, bots: bots.size, first: losses[i].at, last: losses[j].at }
     }
   }
+  // (v0.741.0) THE RELOG'S OWN ECHO - the non-dup losses' own fold, split
+  // by the shutdown's fence (ECHO_SHUTDOWN_MIN distinct bots in one second
+  // arms it; once armed every later loss is the stop's own drain). The
+  // mid-run bytes are the freeze-relog lane's server-side echo; the mass
+  // is the deadline's own. Additive tail - the clock's older fields stay
+  // byte-stable beside it.
+  const echoByBot = {}
+  for (const o of others) echoByBot[o.bot] = (echoByBot[o.bot] || 0) + 1
+  const bySecond = new Map()
+  for (const o of others) {
+    const cells = bySecond.get(o.monoS)
+    if (cells) cells.push(o.bot)
+    else bySecond.set(o.monoS, [o.bot])
+  }
+  const midrunBots = []
+  const shutdownBots = []
+  let armed = false
+  for (const monoS of [...bySecond.keys()].sort((a, b) => a - b)) {
+    const cells = bySecond.get(monoS)
+    if (!armed && new Set(cells).size >= ECHO_SHUTDOWN_MIN) armed = true
+    ;(armed ? shutdownBots : midrunBots).push(...cells)
+  }
+  const fold = (arr) => {
+    const map = {}
+    for (const b of arr) map[b] = (map[b] || 0) + 1
+    return map
+  }
   return {
     losses: { n: losses.length, byBot, first: losses[0].at, last: losses[losses.length - 1].at, cadence },
     bursts: { n: burstList.length, list: burstList },
     storm,
-    otherLosses
+    otherLosses,
+    echo: {
+      n: others.length,
+      byBot: echoByBot,
+      midrunN: midrunBots.length,
+      midrunByBot: fold(midrunBots),
+      shutdownN: shutdownBots.length,
+      shutdownByBot: fold(shutdownBots)
+    }
   }
 }
 

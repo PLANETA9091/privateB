@@ -1389,6 +1389,38 @@ console.log('  hazard memorized:', count(/hazard memorized/))
     }
     if (dc.storm) console.log(`  the fleet's own storm: ${dc.storm.n} loss(es) across ${dc.storm.bots} bot(s) (${dc.storm.first}..${dc.storm.last}, the 60s window)`)
     if (dc.otherLosses > 0) console.log(`  other losses (not the duplicate class): ${dc.otherLosses}`)
+    // (v0.741.0) THE RELOG'S OWN ECHO - the other losses' own split: the
+    // mid-run bytes are the freeze-relog lane's server-side echo (the
+    // 55th: F1 relogged 3, the server owned 3 Disconnected bytes for F1),
+    // the mass is the deadline's own stop and fences out (ECHO_SHUTDOWN_MIN
+    // distinct bots in one second arms the fence, the drain follows). The
+    // join prices the echo per bot against the fleet census's OWN relog
+    // map (the skywalk law - two already-parsed streams, no re-parsing);
+    // the metronome's own lane read names which churn lane fed the timer.
+    const ec = dc.echo
+    if (ec && ec.n > 0) {
+      const fcEcho = frozenCensus(lines)
+      const relogByBot = (fcEcho.relogs && fcEcho.relogs.byBot) || {}
+      const riders = Object.keys(relogByBot).sort()
+      const orphans = Object.keys(ec.midrunByBot).filter((b) => !relogByBot[b]).sort()
+      const joinTail = riders.length
+        ? ` - the join: ${riders.map((b) => `${b} ${ec.midrunByBot[b] || 0}/${relogByBot[b]}`).join(' ')} (echo/relog, ${riders.filter((b) => (ec.midrunByBot[b] || 0) === relogByBot[b]).length} of ${riders.length} rider(s) exact)`
+        : ''
+      const orphanTail = orphans.length
+        ? ` - the orphan: ${orphans.map((b) => `${b} ${ec.midrunByBot[b]}`).join(' ')} (no relog rode it)`
+        : ''
+      console.log(`  the relog's own echo (v0.741.0): the server owned ${ec.midrunN} mid-run loss(es) of ${ec.n} other loss(es)${joinTail}${orphanTail}`)
+      if (ec.shutdownN > 0) console.log(`  the deadline's own mass (v0.741.0): ${ec.shutdownN} loss(es) across ${Object.keys(ec.shutdownByBot).length} bot(s) fenced as the shutdown's own - the churn never touched them`)
+      const doorEcho = burstDoor(dc.bursts.list)
+      const metroBots = [...new Set([
+        ...dc.bursts.list.filter((b) => b.periodic).map((b) => b.bot),
+        ...((doorEcho && doorEcho.list) || []).map((b) => b.bot)
+      ])].sort()
+      const laneReads = metroBots.map((b) => (ec.midrunByBot[b] || 0) > 0
+        ? `${b} rode the echo ${ec.midrunByBot[b]} - the relog lane fed that timer`
+        : `${b} rode none of the echo - the kick lane fed that timer`)
+      if (laneReads.length) console.log(`  the metronome's own lane (v0.741.0): ${laneReads.join('; ')}`)
+    }
   }
 }
 console.log('--- NUDGE FAMILY FIELD LEGS ---')

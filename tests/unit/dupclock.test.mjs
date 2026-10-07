@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { dupClock, unseenLosses, surplusKicks, burstDoor, DUP_BURST_MIN, DUP_BURST_WINDOW_S, DUP_METRO_MIN, DUP_METRO_SPREAD } from '../../src/lib/dupclock.mjs'
+import { dupClock, unseenLosses, surplusKicks, burstDoor, DUP_BURST_MIN, DUP_BURST_WINDOW_S, DUP_METRO_MIN, DUP_METRO_SPREAD, ECHO_SHUTDOWN_MIN } from '../../src/lib/dupclock.mjs'
 
 // The 48th face's server log (run 37530997515) - the duplicate churn's
 // own clock, byte-verbatim. The fleet lens printed 9 kicked lines; the
@@ -302,4 +302,122 @@ test("the surplus kick's own side (v0.735.0): the 52nd face's mirror names its b
   // the bound holds mirrored: a server count above the fleet's clamps.
   assert.equal(surplusKicks({ F5: 2 }, { F5: 3 }), null, 'server 3 vs fleet 2 clamps at zero')
   assert.equal(surplusKicks(null, null), null, 'empty maps - the silence')
+})
+
+// ---------------------------------------------------------------------------
+// (v0.741.0) THE RELOG'S OWN ECHO - the 55th face (run 37561465650), the
+// server log's non-dup loss class split by the shutdown's own fence.
+// Byte-verbatim from the mine: the fleet's freeze relogs were F1=3 F2=3
+// F15=2, and the server's mid-run Disconnected bytes echo them (F1 3, F2 3,
+// F15 1 - the session the kick already killed needs no second byte); the
+// deadline's own stop dropped 18 bots in one second and F13's drain byte a
+// second later - a mass the churn never touched. F13 (the metronome's own
+// bot, 11 dup losses at a fixed 12s period) rode NONE of the mid-run echo:
+// the kick lane fed that timer.
+
+const ECHO_55 = [
+  '[02:33:36] [Server thread/INFO]: YardSurvey lost connection: Disconnected',
+  '[02:36:41] [Server thread/INFO]: F1 lost connection: Disconnected',
+  '[02:36:44] [Server thread/INFO]: F13 lost connection: You logged in from another location',
+  '[02:37:40] [Server thread/INFO]: F2 lost connection: Disconnected',
+  '[02:38:01] [Server thread/INFO]: F1 lost connection: Disconnected',
+  '[02:38:34] [Server thread/INFO]: F1 lost connection: Disconnected',
+  '[02:39:26] [Server thread/INFO]: F2 lost connection: Disconnected',
+  '[02:41:10] [Server thread/INFO]: F15 lost connection: Disconnected',
+  '[02:42:37] [Server thread/INFO]: F2 lost connection: Disconnected',
+  '[02:50:01] [Server thread/INFO]: F3 lost connection: Disconnected',
+  '[02:50:01] [Server thread/INFO]: F4 lost connection: Disconnected',
+  '[02:50:01] [Server thread/INFO]: F5 lost connection: Disconnected',
+  '[02:50:01] [Server thread/INFO]: F6 lost connection: Disconnected',
+  '[02:50:01] [Server thread/INFO]: F8 lost connection: Disconnected',
+  '[02:50:01] [Server thread/INFO]: F9 lost connection: Disconnected',
+  '[02:50:01] [Server thread/INFO]: F10 lost connection: Disconnected',
+  '[02:50:01] [Server thread/INFO]: F11 lost connection: Disconnected',
+  '[02:50:01] [Server thread/INFO]: F12 lost connection: Disconnected',
+  '[02:50:01] [Server thread/INFO]: F14 lost connection: Disconnected',
+  '[02:50:01] [Server thread/INFO]: F16 lost connection: Disconnected',
+  '[02:50:01] [Server thread/INFO]: F17 lost connection: Disconnected',
+  '[02:50:01] [Server thread/INFO]: F19 lost connection: Disconnected',
+  '[02:50:01] [Server thread/INFO]: F1 lost connection: Disconnected',
+  '[02:50:01] [Server thread/INFO]: F18 lost connection: Disconnected',
+  '[02:50:01] [Server thread/INFO]: F7 lost connection: Disconnected',
+  '[02:50:01] [Server thread/INFO]: F2 lost connection: Disconnected',
+  '[02:50:01] [Server thread/INFO]: F15 lost connection: Disconnected',
+  '[02:50:02] [Server thread/INFO]: F13 lost connection: Disconnected'
+]
+
+test("the relog's own echo (v0.741.0): the 55th's mid-run echo, the mass fenced", () => {
+  assert.equal(ECHO_SHUTDOWN_MIN, 5, 'the fence arms at five distinct bots in one second')
+  const d = dupClock(ECHO_55)
+  assert.ok(d, 'the clock opens (one dup byte rides the fixture)')
+  assert.equal(d.otherLosses, 27, 'the other class counted as before - the byte-stable field')
+  assert.equal(d.echo.n, 27)
+  assert.equal(d.echo.midrunN, 8, 'the bytes before the mass are the relog lane echo')
+  assert.deepEqual(d.echo.midrunByBot, { YardSurvey: 1, F1: 3, F2: 3, F15: 1 },
+    'F1 3/3 and F2 3/3 exact against the fleet relogs; F15 1/2 - the kick already killed that session')
+  assert.equal(d.echo.shutdownN, 19, '18 bots in the mass second + the drain byte the next second')
+  assert.deepEqual(d.echo.shutdownByBot, {
+    F1: 1, F2: 1, F3: 1, F4: 1, F5: 1, F6: 1, F7: 1, F8: 1, F9: 1, F10: 1,
+    F11: 1, F12: 1, F13: 1, F14: 1, F15: 1, F16: 1, F17: 1, F18: 1, F19: 1
+  }, 'the mass names every bot once - the stop is the stop')
+  assert.equal(d.echo.byBot.F1, 4, 'the whole-class fold keeps both lanes (3 echo + 1 stop)')
+})
+
+test("the shutdown fence's own edges: four bots stay mid-run, five arm, the drain follows, the mass is monotone", () => {
+  // four distinct bots in one second - the churn's own crowd, no fence
+  const four = dupClock([
+    '[05:00:00] [Server thread/INFO]: F1 lost connection: You logged in from another location',
+    '[05:09:59] [Server thread/INFO]: F1 lost connection: Disconnected',
+    '[05:09:59] [Server thread/INFO]: F2 lost connection: Disconnected',
+    '[05:09:59] [Server thread/INFO]: F3 lost connection: Disconnected',
+    '[05:09:59] [Server thread/INFO]: F4 lost connection: Disconnected'
+  ])
+  assert.equal(four.echo.shutdownN, 0, 'four distinct bots never arm the fence')
+  assert.equal(four.echo.midrunN, 4)
+  // five arms; the drain byte the next second follows; a byte 10s after
+  // the mass fences too (the mass is monotone - nothing meaningful follows)
+  const armed = dupClock([
+    '[05:00:00] [Server thread/INFO]: F1 lost connection: You logged in from another location',
+    '[05:09:59] [Server thread/INFO]: F1 lost connection: Disconnected',
+    '[05:09:59] [Server thread/INFO]: F2 lost connection: Disconnected',
+    '[05:09:59] [Server thread/INFO]: F3 lost connection: Disconnected',
+    '[05:09:59] [Server thread/INFO]: F4 lost connection: Disconnected',
+    '[05:09:59] [Server thread/INFO]: F5 lost connection: Disconnected',
+    '[05:10:00] [Server thread/INFO]: F6 lost connection: Disconnected',
+    '[05:10:09] [Server thread/INFO]: F7 lost connection: Disconnected'
+  ])
+  assert.equal(armed.echo.shutdownN, 7, 'the mass second, its drain tail and the after-byte all fence')
+  assert.equal(armed.echo.midrunN, 0)
+  // same bot five times in one second is NOT a mass - distinct is the bar
+  const sameBot = dupClock([
+    '[05:00:00] [Server thread/INFO]: F1 lost connection: You logged in from another location',
+    '[05:09:59] [Server thread/INFO]: F1 lost connection: Disconnected',
+    '[05:09:59] [Server thread/INFO]: F1 lost connection: Disconnected',
+    '[05:09:59] [Server thread/INFO]: F1 lost connection: Disconnected',
+    '[05:09:59] [Server thread/INFO]: F1 lost connection: Disconnected',
+    '[05:09:59] [Server thread/INFO]: F1 lost connection: Disconnected'
+  ])
+  assert.equal(sameBot.echo.shutdownN, 0, 'five bytes from one bot is the churn, never the stop')
+  assert.equal(sameBot.echo.midrunN, 5)
+})
+
+test("the echo's honest silences: a dup-only log rides zero-shaped, a loss-free log stays null, junk never counts", () => {
+  const dupOnly = dupClock([
+    '[10:00:00] [Server thread/INFO]: F5 lost connection: You logged in from another location',
+    '[10:00:10] [Server thread/INFO]: F5 lost connection: You logged in from another location'
+  ])
+  assert.deepEqual(dupOnly.echo, { n: 0, byBot: {}, midrunN: 0, midrunByBot: {}, shutdownN: 0, shutdownByBot: {} },
+    'no other bytes - the echo rides zero-shaped, the clock\'s older fields untouched')
+  assert.equal(dupClock([]), null, 'the loss-free log keeps the null contract')
+  assert.equal(dupClock(null), null)
+  assert.equal(dupClock(['not a loss line', '[10:00:00] KICKED: F5 something']), null,
+    'junk lines never open the clock')
+  // the byte-stability fence on the 48th's own fixture: the two graceful
+  // Disconnected bytes ride the echo mid-run, the older fields unchanged
+  const era = dupClock(ERA)
+  assert.equal(era.echo.n, 2, 'the 48th carried two other bytes (YardSurvey + F9)')
+  assert.deepEqual(era.echo.midrunByBot, { YardSurvey: 1, F9: 1 })
+  assert.equal(era.echo.shutdownN, 0, 'no mass second - the churn stayed honest to the fence')
+  assert.equal(era.otherLosses, 2, 'the v0.729.0 field keeps its own count')
+  assert.equal(era.losses.n, 12, 'the clock\'s own loss fold untouched')
 })
