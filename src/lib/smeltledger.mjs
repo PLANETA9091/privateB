@@ -141,7 +141,7 @@ export const SMELT_TOOK_RE = /^\[(F\d+)\] took (\d+) x ([a-z_]+) \((\d+)\/(\d+)\
 // reverse: the put outlives the window and the harvest lands late).
 
 import { fuelYieldOf, SMELT_SECONDS_PER_ITEM } from './smelting.mjs' // (v0.747.0) the vanilla yield table's own voice - the diet row's capacity bar, never a made constant (the fueldiet.mjs precedent; smelting never imports smeltledger - no cycle); (v0.748.0) SMELT_SECONDS_PER_ITEM - the clock window's own vanilla bar (200 ticks / 20 tps)
-import { parsePulseAnchor } from './opendeaf.mjs' // (v0.774.0) the pulse rail's own anchor - the fuel clip's clock brackets against it (opendeaf imports only hopcensus - no cycle)
+import { parsePulseAnchor } from './opendeaf.mjs' // (v0.775.0) the pulse rail's own anchor - the fuel clip's clock brackets against it (opendeaf imports only hopcensus - no cycle)
 
 /**
  * Read the smelt lane's own words into a ledger.
@@ -181,7 +181,7 @@ export function smeltLedger (lines) {
     fuelClipCapacity: 0, // (v0.747.0) the vanilla capacity that fuel carried (sum fc[2] x fuelYieldOf(fc[3]))
     clockClipWindowSec: 0, // (v0.748.0) the window seconds the clock clip lines carried verbatim (cc[2] - matched and dropped before); kept INTEGER here, the capacity's division lives once at the row (the accumulation's own float drift is the trap)
     clockClipIdleSec: 0, // (v0.750.0) the machine's own unpaid seconds inside the plan's windows (per clip max(0, W - 10 x cap); the plan's own 11s bar is the cause, never a fuel/input gap - the emitter caps the put at floor(W/11) BEFORE the put)
-    fuelClipClock: null, // (v0.774.0) the fuel clips' own phase book - assigned after the walk (the pulse rail's own anchors bracket each clip; the zeroclock's own law)
+    fuelClipClock: null, // (v0.775.0) the fuel clips' own phase book - assigned after the walk (the pulse rail's own anchors bracket each clip; the zeroclock's own law)
     byBot: {}
   }
   // (v0.745.0) the outstanding clip debt per bot|item, in walk order
@@ -190,7 +190,7 @@ export function smeltLedger (lines) {
     if (!ledger.byBot[id]) ledger.byBot[id] = { batches: 0, announced: 0, fuel: 0, refusals: 0, clips: 0, collected: 0, clipDebt: 0 }
     return ledger.byBot[id]
   }
-  // (v0.774.0) the clock's own rail: the pulse anchors and the fuel clips'
+  // (v0.775.0) the clock's own rail: the pulse anchors and the fuel clips'
   // line indexes ride the SAME walk (one scan - the phases bracket against
   // the anchors after the walk, the zeroclock's own two-phase structure)
   const anchors = []
@@ -294,7 +294,7 @@ export function smeltLedger (lines) {
   }
   // (v0.745.0) the shadow's own remainder - the debt no START ever answered
   for (const k in openDebt) ledger.clipDebtOpen += openDebt[k]
-  // (v0.774.0) THE FUEL CLIP'S OWN CLOCK - the fuel clips' phase book
+  // (v0.775.0) THE FUEL CLIP'S OWN CLOCK - the fuel clips' phase book
   // against the pulse rail (the zeroclock's own bracket law: lo = the last
   // anchor before the line, hi = the first after, the MIDPOINT classifies
   // into the clock's thirds; a missing end reads 'unplaced' - counted,
@@ -437,7 +437,7 @@ export function clockAskRow (ledger) {
   return `the clock ask's own scale: the windows' vanilla worth ${cap} = ${pct}% of the ${ledger.clockClipAsked} asked unit(s) - the batch's own size owned the debt (the windows could never have paid it)`
 }
 
-// (v0.774.0) THE FUEL CLIP'S OWN CLOCK - the verdict. The v0.764.0 seat
+// (v0.775.0) THE FUEL CLIP'S OWN CLOCK - the verdict. The v0.764.0 seat
 // priced WHICH class owns the clip debt (the fuel's five consecutive
 // faces), never WHEN the starvation rides - the fuel lever's own standing
 // claim ('re-prime the fuel before the walk') stayed untested in the
@@ -459,7 +459,7 @@ export function fuelClipClockVerdict (ledger) {
   return null
 }
 
-// (v0.774.0) the clock's own row - the verdict's own clause names the
+// (v0.775.0) the clock's own row - the verdict's own clause names the
 // lever; the anchor density rides so the reader judges the midpoint law
 // (the zeroclock's own honesty: a sparse-anchor face judges the thirds
 // loosely). Junk never prints a clock (the honest silence's own row law).
@@ -472,7 +472,7 @@ export function fuelClipClockRow (v) {
   const { early, mid, late, unplaced } = byPhase
   for (const x of [early, mid, late, unplaced]) if (!Number.isFinite(x) || x < 0) return null
   const book = `early ${early} / mid ${mid} / late ${late} / unplaced ${unplaced}, ${wide} wide of ${anchors} anchor(s)`
-  if (verdict === 'late') return `the fuel clip's own clock (v0.774.0): the fuel clips rode LATE-dominant (${late} of ${n}; ${book}) - the deadline's own signature: the furnace starves on the closing walks - re-prime the fuel before the walk`
-  if (verdict === 'mid') return `the fuel clip's own clock (v0.774.0): the fuel clips rode MID-dominant (${mid} of ${n}; ${book}) - the mid-run churn is the lever - the batch's own pace prices the priming`
-  return `the fuel clip's own clock (v0.774.0): the fuel clips rode EARLY-dominant (${early} of ${n}; ${book}) - the opening's own defect: the priming is the front - the first chains starve the batch`
+  if (verdict === 'late') return `the fuel clip's own clock (v0.775.0): the fuel clips rode LATE-dominant (${late} of ${n}; ${book}) - the deadline's own signature: the furnace starves on the closing walks - re-prime the fuel before the walk`
+  if (verdict === 'mid') return `the fuel clip's own clock (v0.775.0): the fuel clips rode MID-dominant (${mid} of ${n}; ${book}) - the mid-run churn is the lever - the batch's own pace prices the priming`
+  return `the fuel clip's own clock (v0.775.0): the fuel clips rode EARLY-dominant (${early} of ${n}; ${book}) - the opening's own defect: the priming is the front - the first chains starve the batch`
 }
