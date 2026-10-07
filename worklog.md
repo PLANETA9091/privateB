@@ -18630,3 +18630,24 @@ Stage Summary:
 - The trigger's own gap is named: F6's class (fits + never) is the saveable death - the lane's window analysis and the relation split joined on one bot. The serial patient's arc: the 52nd's cried-wolf (43 false alarms, silent at the real drowning), the 56th's real drowning (the window fit, the trigger never fired).
 - Fronts: the saveable death's 2nd read on face 57; the crowded sky's worsening arc (24.4 -> 48.7 -> 47.4 -> 63.6); the echo's exactness streak (2/3 -> 3/3).
 - Next fire: (1) poll face 57 (37569577638) - SUCCESS -> mine with the v0.743.0 stack (the saveable death's 2nd read). (2) push-CI verdict on fb2b533 (#2457). (3) dispatch law x70 on clear (0.744.0 next slot).
+
+---
+Task ID: cron30-20261007-1130
+Agent: cron-agent (PLANETA9091)
+Task: standard cron fire 1130 - the clip's own debt (v0.744.0), the furnace front's own IOU, dispatch law x70 on clear
+
+Work Log:
+- Sandbox survived. CI lineage green at open: 37566980457 (7bdfa9c, v0.742.0) SUCCESS (confirmed mid-fire), 37567287178 (b27b170) success. Face 56 (37566249493) still in flight at open.
+- ONE ATOMIC IMPROVEMENT: v0.744.0 THE CLIP'S OWN DEBT (c949ac8) - the furnace front's own IOU. smeltledger.mjs priced the clip lines' ASK/COMPLETION split (v0.461.0) but dropped the deficit itself - the units the chain left IN THE FURNACE ('the rest re-smelts on the next chain'). The heal rides the SAME SMELT_FUEL_CLIP_RE / SMELT_CLOCK_CLIP_RE matches: debt = asked - completed -> clipDebt + clipDebtFuel/clipDebtClock + clipDebtItems (the item's own debt - fc[6]/cc[5] were captured and dropped before) + byBot.clipDebt; the old fields byte-stable. clipDebtRow: 'the clip's own debt: the chains left N unit(s) smelting (fuel F / clock C; items) - the furnace still owes the harvest'; zero clips = the honest silence.
+- THE MAIDEN READS (byte-exact, live-verified through decompose on both cached logs): the 55th - 'the chains left 49 unit(s) smelting (fuel 17 / clock 32; raw_copper 49)' (F4's chain: 2 coal finished 16 of 33, the 17s window ~1 of 33); the 53rd - '4 unit(s) (fuel 2 / clock 2; oak_log 2, raw_copper 2)' (the junk diet's own clips: F6 3 of 4, F2 1 of 2 on sticks, F4's 88s window 7 of 9). The re-smelt shadow's own unit count, priced per face now.
+- Tests: smeltledger 8/8 (+3: the 55th's byte-verbatim two-clip chain + the old fields' stability fence, the 53rd's junk-diet join on the item, the honest silences + junk + the bracketed-shape gate); neighbors green (entrywindow + reachmap - the lane's cells untouched); unit 298/298 files, syntax 530 0-broken, integration 2/2 (productivity 2 pass; smelting 1 pass DIRECT after the wrapper's documented hang + one kill-window artifact - the world rebuilt once per the remedy path, the lib untouched by the diff).
+- FACE 56 verdict rode in mid-fire (the lane's b779192: THE COMPLETE FACE #2 - 2 deaths, the thirds' 6th read THE SPREAD, the echo's 2nd read 3 OF 3 EXACT, the pump spoke 41 coal, the crowded sky 63.6%) - their mine stands, no double commit.
+- THE VERSION RACE'S 6TH RUN: the lane's fire-1140 took 0.743.0 (THE SAVEABLE DEATH, entrywindow + reachmap) mid-fire; autostash rebase clean over b779192, 0.744.0 taken; THEIR saveable-death cells stay v0.743.0 (surgical retag: this lane's two decompose sites + the smeltledger block only). NO force-push.
+- Pushes: c949ac8 (code) attempt-1 clean. Push-CI 37570883962 PENDING at log-off (8 min polled, never materialized - the runner pool saturated by face 57's fleet leg + the lane's push CI); the verdict rides the next fire.
+- DISPATCH LAW x70: NOT fired - face 57 = 37569577638 (workflow_dispatch on fb2b533, the lane's own tail dispatch) is the active run; max-one-active held.
+
+Stage Summary:
+- Version 0.744.0 (THE CLIP'S OWN DEBT, c949ac8) is master's tip; next free 0.745.0; face 57 in flight (the lane's); push-CI 37570883962 pending.
+- THE FURNACE'S OWN BOOK: the batches, the clips' ask/completion split (v0.461.0), the harvest leg (v0.462.0), the furnace put's pair (v0.664.0), the fuel diet (v0.666.0) - and now the DEBT (v0.744.0): the harvest the furnace still owes when the walk moves on; the 55th's chains owed 49 raw_copper - the counter's smelted-delta blind spot has its unit count.
+- Fronts: the 57th's mine (the debt's 2nd read, the saveable death's 2nd on the v0.743.0 stack, the storm's late-face arc), the re-smelt shadow (does a later chain re-announce the clipped batch? the debt's own payback read), the crowded sky's arc (24.4 -> 48.7 -> 47.4 -> 63.6), CI on c949ac8.
+- Next fire: (1) CI verdict on c949ac8 (37570883962) FIRST. (2) poll face 57 (37569577638) - SUCCESS -> mine with the v0.744.0 stack. (3) dispatch law x71 on clear (0.745.0 next slot).
