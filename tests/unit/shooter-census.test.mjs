@@ -449,3 +449,42 @@ test('seal roster: unknown-bot skips land under the unknown key + the junk batte
   ])
   assert.deepEqual(c.ringStock.byBot, { unknown: { seen: 1, zeroHave: 1 } })
 })
+
+// (v0.764.0) THE MELEE COOLDOWN'S OWN SEAT - face 68 (37610367304) drifted
+// the vocabulary: 'melee cooldown armed vs drowned (10s)' rode beside the
+// already-seated 'melee chase ceiling held' and the honest sweep printed
+// the stranger name (UNKNOWN verbs: melee=1). The seat names the melee
+// chase's own re-arm voice; the ranged sibling keeps its own seat (the
+// prefixes never collide).
+const MELEE_COOLDOWN = 'F12 [F12] combat: melee cooldown armed vs drowned (10s) - the ceiling break never idles vs a closing killer'
+const MELEE_CEILING = 'F12 [F12] combat: melee chase ceiling held (chased 8.1b, drowned @3.3) - the episode breaks, the next drop reopens it'
+
+test('melee cooldown armed: the melee chase re-arm voice gets its seat (face 68 verbatim)', () => {
+  const e = parseCombatLine(MELEE_COOLDOWN)
+  assert.deepEqual(e, {
+    bot: 'F12', verb: 'melee-cooldown', attacker: 'drowned', dist: null, ranged: false
+  })
+})
+
+test('melee chase ceiling held: the seated sibling keeps its seat (face 68 verbatim)', () => {
+  const e = parseCombatLine(MELEE_CEILING)
+  assert.equal(e.verb, 'melee-ceiling')
+  assert.equal(e.attacker, 'drowned')
+  assert.equal(e.dist, 3.3)
+  assert.equal(e.ranged, false)
+})
+
+test('melee cooldown stays UNRANGED while the ranged sibling keeps its own seat', () => {
+  const melee = parseCombatLine(MELEE_COOLDOWN)
+  assert.equal(melee.ranged, false, 'the melee cooldown is the chase lane, not the ranged band')
+  const ranged = parseCombatLine(COOLDOWN)
+  assert.equal(ranged.verb, 'ranged-cooldown')
+  assert.equal(ranged.ranged, true)
+})
+
+test('the face-68 melee pair reads zero strangers (otherVerbs empty)', () => {
+  const c = shooterCensus([MELEE_CEILING, MELEE_COOLDOWN, 'b] n=1 ts=21s rss=251M late=5ms mainLate=0ms'])
+  assert.equal(c.otherVerbs.melee, undefined, 'the drifted name is seated - the honest sweep reads silence')
+  assert.equal(c.byVerb['melee-ceiling'], 1)
+  assert.equal(c.byVerb['melee-cooldown'], 1)
+})

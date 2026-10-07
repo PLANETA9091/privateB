@@ -102,7 +102,11 @@ const MARKER_RE = /\bcombat: (.+)$/
 //   'sheltering from skeleton' - the from form
 //   'fighting drowned' / 'fleeing skeleton' - the bare engagement form
 const ATTACKER_VS_RE = /vs (drowned|skeleton|zombie|spider|creeper)(?:@(\d+(?:\.\d+)?))?/
-const ATTACKER_AT_RE = /(drowned|skeleton|zombie|spider|creeper)@(\d+(?:\.\d+)?)/
+// (v0.764.0) the SPACED @ form - face 68's melee ceiling line rode
+// 'drowned @3.3' (a single space before the @); the @ price is real, the
+// space is the emitter's own prose. The optional space keeps every prior
+// face byte-identical (the unspaced form is the overwhelmingly common one).
+const ATTACKER_AT_RE = /(drowned|skeleton|zombie|spider|creeper) ?@(\d+(?:\.\d+)?)/
 const ATTACKER_FROM_RE = /from (drowned|skeleton|zombie|spider|creeper)\b/
 const ATTACKER_BARE_RE = /^(?:fighting|fleeing) (drowned|skeleton|zombie|spider|creeper)\b/
 const DIST_RE = /\(dist (\d+(?:\.\d+)?)/
@@ -225,7 +229,17 @@ const VERBS = [
   ['flee-bearing', /^flee bearing rotated/],
   ['fleeing', /^fleeing /],
   ['critical-bar', /^critical bar/],
-  ['melee-ceiling', /^melee chase ceiling held/]
+  ['melee-ceiling', /^melee chase ceiling held/],
+  // (v0.764.0) THE MELEE COOLDOWN'S OWN SEAT - face 68 (37610367304) drifted
+  // the vocabulary a second time: 'melee cooldown armed vs drowned (10s)'
+  // rode beside the seated 'melee chase ceiling held' and the honest sweep
+  // printed its stranger name (UNKNOWN verbs: melee=1). The form is the
+  // ranged cooldown's melee sibling (the melee chase's own re-arm voice -
+  // the ceiling break never idles vs a closing killer); it gets its own
+  // seat the same way, most-specific-first order held (the prefixes never
+  // collide: 'ranged cooldown armed' and 'melee cooldown armed' are
+  // distinct fronts).
+  ['melee-cooldown', /^melee cooldown armed/]
 ]
 
 /**
