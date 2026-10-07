@@ -65,7 +65,7 @@ import { pounceBook } from '../../src/lib/pouncebook.mjs' // (v0.498.0) the poun
 import { assistLedger } from '../../src/lib/assistledger.mjs' // (v0.499.0) the assist ledger - the pounce handoff's aftermath (the ownership claim priced: rose vs died at the climb boundary)
 import { torchBook } from '../../src/lib/torchbook.mjs' // (v0.500.0) the torch ledger - the light supply's floors, rungs, asks and yield
 import { veinLedger, tierGuardBill } from '../../src/lib/veinledger.mjs' // (v0.501.0) the vein ledger - the sweep's terminals, walk yield, gallery digs, refusals and the tier guard; (v0.768.0) the tier guard's own bill - the repeat rider's own seat
-import { commonsLedger } from '../../src/lib/commonsledger.mjs' // (v0.502.0) the commons ledger - the ask's answer: the sweeps, the walk anatomy, the deliveries
+import { commonsLedger, sweepBookSeat, sweepBookSeatRow, sweepBookRiders, sweepBookRidersRow } from '../../src/lib/commonsledger.mjs' // (v0.502.0) the commons ledger - the ask's answer: the sweeps, the walk anatomy, the deliveries; (v0.800.0) WHICH close class owns the sweep book
 import { droughtTimeline, droughtTimelineRow } from '../../src/lib/droughttimeline.mjs' // (v0.738.0) the pump's own timeline - the tithe's banks vs the dry reads' positions
 import { reachRadius, reachRadiusRow, reachClock, reachClockRow } from '../../src/lib/reachmap.mjs' // (v0.740.0) the reach's own radius - the last mile's refused distances; (v0.742.0) the last mile's own clock - the refused walks' elapsed ms (the raw walk's own rent)
 import { bridgeBook, bridgePocketBill, bridgePocketBillRow, bridgePocketRiders, bridgePocketRidersRow } from '../../src/lib/bridgebook.mjs' // (v0.496.0) the bridge book - the vertical walk's fill lane (the refusals' why-flip, the cobble signature, the server's own veto; SLOT COLLISION #17: 0.495.0 taken by fire-0008's THE TABLE GATE mid-fire); (v0.786.0) WHICH bot owns the pocket tax
@@ -3688,6 +3688,16 @@ console.log('  plan lines:', count(/materials plan|plan progress/i))
     const t = cl.totals
     console.log(`--- COMMONS LEDGER (v0.502.0: the ask's answer - the sweeps, the walk, the deliveries) ---`)
     console.log(`  sweeps ${t.sweeps} (torch lane ${t.laneTorch} / smelt lane ${t.laneSmelt}): delivered ${t.delivered} (${t.units} units) / budget-spent ${t.budgetSpent} / silent-exhaust ${t.silentExhaust} / ghost ${t.ghost} / no-chest ${t.noChest}`)
+    // (v0.800.0) WHICH close class owns the commons sweep book - the
+    // seat + the riders, one row never both (the branch law; the owner
+    // case leaves the companion unprinted; the sweeps gate above is the
+    // branch's own fence - a zero-sweep face reads the honest silence).
+    const sbs = sweepBookSeat(t)
+    if (sbs) console.log(`  ${sweepBookSeatRow(sbs)}`)
+    else {
+      const sbr = sweepBookRiders(t)
+      if (sbr) console.log(`  ${sweepBookRidersRow(sbr)}`)
+    }
     console.log(`  walk anatomy: nudges ${t.nudges} / re-segments ${t.resegments} / spent slices ${t.spentSlice} / walk fails ${t.walkFail} (${Object.entries(t.walkFailWhys).map(([w, n]) => `${w} ${n}`).join(', ')})${t.lastMile ? ` / last-mile refused ${t.lastMile} (${Object.entries(t.lastMileWhys).map(([w, n]) => `${w} ${n}`).join(', ')})` : ''}`)
     console.log(`  chest anatomy: empty ${t.emptyChest} / open-fail ${t.openFail} / vertical doom ${t.verticalDoom} (${t.doomShapes.join(', ')}) / vanished ${t.blockVanished} / cover stand-downs ${t.coverStandDown}`)
     // (v0.737.0) the dry yard's own side - the located dry reads the

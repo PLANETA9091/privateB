@@ -505,3 +505,105 @@ export function commonsLedger (lines) {
   }
   return { bots, totals, rows }
 }
+
+// (v0.800.0) THE SWEEP BOOK'S OWN SEAT - WHICH close class owns the
+// commons sweep book. The sweeps row prints the outcome split
+// ('delivered 0 / budget-spent 23 / silent-exhaust 17 / ghost 2 ...' -
+// face 85, 37698485347, the dry yard's face: 42 sweeps and no row ever
+// said WHO owns the book, while the delivered counter named only the
+// zero the drought drank). THE SEAT LAW (the census's own close counters
+// only, zero re-parsing - the v0.784.0 kind-seat precedent, the
+// v0.798.0 flee seat's own shape): the strict-majority law, a solo class
+// owns the book only above half (a tie owns nothing); the book is the
+// close counters' own sum (delivered + budgetSpent + silentExhaust +
+// ghost + noChest); junk never invents a class (a missing or non-object
+// ledger, a non-finite or non-positive counter, or a zero book reads
+// the honest silence). The vocabulary is the census's own counter bytes:
+// 'budgetSpent' < 'delivered' < 'ghost' < 'noChest' < 'silentExhaust'.
+const SWEEP_BOOK_CELLS = [
+  ['budgetSpent', 'budgetSpent'],
+  ['delivered', 'delivered'],
+  ['ghost', 'ghost'],
+  ['noChest', 'noChest'],
+  ['silentExhaust', 'silentExhaust']
+]
+
+function sweepBookTally (t) {
+  if (!t || typeof t !== 'object' || Array.isArray(t)) return null
+  const tallies = {}
+  let total = 0
+  for (const [cls, field] of SWEEP_BOOK_CELLS) {
+    const n = t[field]
+    if (!Number.isFinite(n) || n <= 0) continue
+    total += n
+    tallies[cls] = (tallies[cls] || 0) + n
+  }
+  return total > 0 ? { tallies, total } : null
+}
+
+// (v0.800.0) the sweep seat's own bill - the strict-majority law's
+// verdict: the top close class owns the book only above half; a tie
+// owns nothing (the honest null - the mix needs the riders, not a
+// named owner).
+export function sweepBookSeat (t) {
+  const tally = sweepBookTally(t)
+  if (!tally) return null
+  let topOwns = 0
+  let topCls = null
+  for (const [cls, n] of Object.entries(tally.tallies)) {
+    if (n > topOwns) { topOwns = n; topCls = cls }
+  }
+  if (topCls === null || topOwns <= tally.total - topOwns) return null
+  return { cls: topCls, owns: topOwns, ofSweeps: tally.total, shareOfSweeps: +(topOwns / tally.total).toFixed(3) }
+}
+
+// (v0.800.0) the sweep seat's own row - THE SWEEP'S OWN SEAT: one close
+// class's own sweeps own the commons book (the drought's own meter).
+// Junk never prints a row (the honest silence's own row law): every
+// field is guarded before the template speaks.
+export function sweepBookSeatRow (bill) {
+  if (!bill || typeof bill !== 'object') return null
+  const { cls, owns, ofSweeps, shareOfSweeps } = bill
+  if (typeof cls !== 'string' || !cls ||
+      !Number.isFinite(owns) || owns <= 0 ||
+      !Number.isFinite(ofSweeps) || ofSweeps <= 0 || owns > ofSweeps ||
+      !Number.isFinite(shareOfSweeps)) return null
+  return `the sweep book's own seat (v0.800.0): ${cls} owns ${owns} of ${ofSweeps} sweep(s) (${(shareOfSweeps * 100).toFixed(1)}%) - THE SWEEP'S OWN SEAT: one close class's own sweeps own the commons book - the class's own front prices the drought the raw split rode unnamed`
+}
+
+// (v0.800.0) THE SWEEP BOOK'S OWN RIDERS - the sweep seat's own
+// silence's companion. The seat names the solo close class under the
+// strict-majority law; a no-majority class mix rode raw with no row
+// naming the shape. THE RIDER LAW (the census's own close counters
+// only, zero re-parsing - the seat's own precedent): a MEASURE, never a
+// verdict-owner - the top two classes' concentration prices the shape
+// the solo law refused to name (the seat's owner case leaves the
+// companion unprinted - the decompose's own branch law). Junk never
+// invents a shape: a missing or non-object ledger, a non-finite
+// counter, or fewer than two counted classes reads the honest silence
+// (null). The order is deterministic (count desc, then the class's own
+// byte: the name's own lexicographic law - 'budgetSpent' < 'delivered').
+export function sweepBookRiders (t) {
+  const tally = sweepBookTally(t)
+  if (!tally) return null
+  const ranked = Object.entries(tally.tallies).sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1))
+  if (ranked.length < 2) return null
+  const [leader, leaderOwns] = ranked[0]
+  const [runner, runnerOwns] = ranked[1]
+  const pairOwns = leaderOwns + runnerOwns
+  return { leader, leaderOwns, runner, runnerOwns, ofSweeps: tally.total, pairOwns, shareOfSweeps: +(pairOwns / tally.total).toFixed(3), duet: leaderOwns === runnerOwns }
+}
+
+// (v0.800.0) the sweep riders' own row - THE SWEEP'S OWN MIX: a measure
+// of the shape, never a named owner (the seat's tie law holds); the
+// pair prices the concentration the solo law refused to seat. Junk
+// never prints a shape (the honest silence's own row law).
+export function sweepBookRidersRow (r) {
+  if (!r || typeof r !== 'object') return null
+  const { leader, leaderOwns, runner, runnerOwns, ofSweeps, pairOwns, shareOfSweeps } = r
+  if (typeof leader !== 'string' || !leader || typeof runner !== 'string' || !runner ||
+      !Number.isFinite(leaderOwns) || leaderOwns <= 0 || !Number.isFinite(runnerOwns) || runnerOwns <= 0 ||
+      !Number.isFinite(ofSweeps) || ofSweeps <= 0 || !Number.isFinite(pairOwns) || pairOwns > ofSweeps ||
+      !Number.isFinite(shareOfSweeps)) return null
+  return `the sweep book's own riders (v0.800.0): no solo class owns the majority - ${leader} x${leaderOwns} + ${runner} x${runnerOwns} own ${pairOwns} of ${ofSweeps} sweep(s) (${(shareOfSweeps * 100).toFixed(1)}%) - THE SWEEP'S OWN MIX: the seat's tie law held, the mix is the shape - the classes' own spread prices the drought the solo law refused to seat`
+}

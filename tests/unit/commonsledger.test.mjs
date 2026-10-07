@@ -10,12 +10,14 @@
 //
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
+import fs from 'node:fs'
 import {
   commonsLedger, walkWhyClass, normalizeWhy,
   COMMONS_ANCHOR_RE, COMMONS_TOOK_RE, COMMONS_BUDGET_RE,
   COMMONS_DOOM_RE, COMMONS_DEATH_RE,
   COMMONS_EMPTY_RE, COMMONS_LASTMILE_RE,
-  COMMONS_SCANS_SAW_RE, COMMONS_ASK_DEFER_RE
+  COMMONS_SCANS_SAW_RE, COMMONS_ASK_DEFER_RE,
+  sweepBookSeat, sweepBookSeatRow, sweepBookRiders, sweepBookRidersRow
 } from '../../src/lib/commonsledger.mjs'
 import { TORCH_RESUPPLY_RE } from '../../src/lib/torchbook.mjs'
 
@@ -366,4 +368,142 @@ test('commonsLedger v0.737.0: the old faces stay byte-stable and the gate keeps 
   assert.equal(f4.scanSaw, 1)
   assert.equal(f4.askDefers, 1)
   assert.equal(own.totals.sweeps, 0)
+})
+
+// (v0.800.0) THE SWEEP BOOK'S OWN SEAT - the close class's own seat
+// tests. The face-85 cell (37698485347, the dry yard's face: 42 sweeps,
+// delivered 0, budget-spent 23 / silent-exhaust 17 / ghost 2) rides the
+// census's own five close counters only - the v0.798.0 flee seat's own
+// shape, the strict-majority law, a tie owns nothing, junk never
+// invents a class.
+test('sweepBookSeat v0.800.0: the face-85 cell through the seat law with the byte-exact row + the face-82 perfect tie rides as the duet', () => {
+  // face 85's own totals, byte-verbatim from the readout's sweeps row
+  const f85 = { budgetSpent: 23, silentExhaust: 17, ghost: 2, delivered: 0, noChest: 0 }
+  const seat = sweepBookSeat(f85)
+  assert.ok(seat, '23 of 42 clears the strict-majority law')
+  assert.equal(seat.cls, 'budgetSpent')
+  assert.equal(seat.owns, 23)
+  assert.equal(seat.ofSweeps, 42)
+  assert.equal(seat.shareOfSweeps, 0.548)
+  assert.equal(
+    sweepBookSeatRow(seat),
+    "the sweep book's own seat (v0.800.0): budgetSpent owns 23 of 42 sweep(s) (54.8%) - THE SWEEP'S OWN SEAT: one close class's own sweeps own the commons book - the class's own front prices the drought the raw split rode unnamed",
+    'the byte-exact face-85 seat row'
+  )
+  // face 82's own totals - THE PERFECT TIE (18 + 18 of 36): the seat's
+  // tie law owns nothing, the riders price the duet; the byte order
+  // 'budgetSpent' < 'silentExhaust' breaks the rank
+  const f82 = { budgetSpent: 18, silentExhaust: 18, ghost: 0, delivered: 0, noChest: 0 }
+  assert.equal(sweepBookSeat(f82), null, 'the tie owns nothing')
+  const rid = sweepBookRiders(f82)
+  assert.ok(rid, 'the tie prices the duet instead')
+  assert.equal(rid.leader, 'budgetSpent', "the byte pin 'budgetSpent' < 'silentExhaust'")
+  assert.equal(rid.runner, 'silentExhaust')
+  assert.equal(rid.pairOwns, 36)
+  assert.equal(rid.shareOfSweeps, 1)
+  assert.equal(rid.duet, true)
+  assert.equal(
+    sweepBookRidersRow(rid),
+    "the sweep book's own riders (v0.800.0): no solo class owns the majority - budgetSpent x18 + silentExhaust x18 own 36 of 36 sweep(s) (100.0%) - THE SWEEP'S OWN MIX: the seat's tie law held, the mix is the shape - the classes' own spread prices the drought the solo law refused to seat",
+    'the byte-exact face-82 riders row'
+  )
+})
+
+test('sweepBookSeat v0.800.0: the tie law + the exact-half fence + the below-half plurality + the byte order pins', () => {
+  // the exact half: 10 of 20 - the strict law refuses (a tie owns nothing)
+  const half = { budgetSpent: 10, silentExhaust: 10 }
+  assert.equal(sweepBookSeat(half), null, 'the exact half is a tie - no seat')
+  const halfRiders = sweepBookRiders(half)
+  assert.equal(halfRiders.leader, 'budgetSpent', "the byte pin 'budgetSpent' < 'silentExhaust'")
+  assert.equal(halfRiders.duet, true)
+  // the below-half plurality: 9 of 22 - no seat, the riders measure
+  const plurality = { budgetSpent: 9, silentExhaust: 8, ghost: 5 }
+  assert.equal(sweepBookSeat(plurality), null)
+  const pr = sweepBookRiders(plurality)
+  assert.equal(pr.leader, 'budgetSpent')
+  assert.equal(pr.runner, 'silentExhaust', 'the count desc rank: 8 beats 5')
+  assert.equal(pr.pairOwns, 17)
+  assert.equal(pr.shareOfSweeps, 0.773)
+  // the above-half seat: 12 of 17
+  const above = { budgetSpent: 12, silentExhaust: 5 }
+  const seat = sweepBookSeat(above)
+  assert.equal(seat.cls, 'budgetSpent')
+  assert.equal(seat.shareOfSweeps, 0.706)
+  // the byte order of equal counts: 'budgetSpent' < 'delivered'
+  const byteTie = { delivered: 3, budgetSpent: 3 }
+  assert.equal(sweepBookRiders(byteTie).leader, 'budgetSpent', "the byte pin 'budgetSpent' < 'delivered'")
+  // 'noChest' < 'silentExhaust' rides the same law
+  const byteTie2 = { silentExhaust: 2, noChest: 2 }
+  assert.equal(sweepBookRiders(byteTie2).leader, 'noChest', "the byte pin 'noChest' < 'silentExhaust'")
+})
+
+test('sweepBookSeat v0.800.0: the real parser join + the cells-own-sum law + the single-class fence + the zero-book silence', () => {
+  // the real parser's own join: two budget closes, one delivered, one
+  // ghost, one silent exhaust at EOF - the census's own counters feed
+  // the seat through the totals (the sweep gate's own fence upstream)
+  const log = [
+    'F1 fuel commons: the anchor chest is read first',
+    'F1 fuel commons: budget spent (3/8 units)',
+    'F1 fuel commons: the anchor chest is read first',
+    'F1 fuel commons: budget spent (5/8 units)',
+    'F1 fuel commons: the anchor chest is read first',
+    'F1 fuel commons: took 4 units (coal x4) from a yard chest',
+    'F1 fuel commons: the anchor chest is read first',
+    'F1 fuel commons: the clicks lied twice - nothing landed in the pocket (ghost clicks)',
+    'F1 fuel commons: the anchor chest is read first'
+  ]
+  const cl = commonsLedger(log)
+  const t = cl.totals
+  assert.equal(t.sweeps, 5, 'five sweeps opened')
+  assert.equal(t.budgetSpent, 2)
+  assert.equal(t.delivered, 1)
+  assert.equal(t.ghost, 1)
+  assert.equal(t.silentExhaust, 1, 'the unclosed tail reads the honest exhaust')
+  // the cells'-own-sum law: junk counters outside the five cells never
+  // tally (sweeps 5, units 4 ride raw - the book is the closes' own)
+  assert.equal(sweepBookSeat(t), null, '2 of 5 - no majority, the riders price')
+  const rid = sweepBookRiders(t)
+  assert.equal(rid.leader, 'budgetSpent')
+  assert.equal(rid.runner, 'delivered')
+  assert.equal(rid.pairOwns, 3)
+  assert.equal(rid.shareOfSweeps, 0.6)
+  // the single-class fence: a seat can exist where the riders cannot
+  const solo = { budgetSpent: 5 }
+  assert.ok(sweepBookSeat(solo), '5 of 5 owns the solo seat')
+  assert.equal(sweepBookSeat(solo).shareOfSweeps, 1)
+  assert.equal(sweepBookRiders(solo), null, 'one class - no riders (the honest silence)')
+  // the zero-book silence: zero cells never tally
+  assert.equal(sweepBookSeat({ budgetSpent: 0, delivered: 0 }), null)
+  assert.equal(sweepBookRiders({ budgetSpent: 0, delivered: 0 }), null)
+})
+
+test('sweepBookSeat v0.800.0: the junk battery + the row guards + the WIRING assert - the prose lives only in the lib', () => {
+  // the junk battery: junk never invents a class (the honest silence)
+  for (const junk of [null, undefined, 42, 'x', [], {}, { budgetSpent: 'nope' }, { budgetSpent: -1 }, { budgetSpent: NaN }, { budgetSpent: Infinity }]) {
+    assert.equal(sweepBookSeat(junk), null, `the seat reads the silence on ${JSON.stringify(junk)}`)
+    assert.equal(sweepBookRiders(junk), null, `the riders read the silence on ${JSON.stringify(junk)}`)
+  }
+  // the honest skip law: a junk cell is skipped, the real cells still
+  // tally (the v0.795.0 shelter seat's own law - junk never poisons the
+  // neighbors, the census's own sum reads through)
+  const mixed = { budgetSpent: 1, delivered: 'x', ghost: null }
+  assert.equal(sweepBookSeat(mixed).cls, 'budgetSpent', 'the junk cells skip honest, the real cell owns')
+  assert.equal(sweepBookSeat(mixed).ofSweeps, 1, 'the book is the real cells\' own sum')
+  // the row guards: junk never prints a row
+  assert.equal(sweepBookSeatRow(null), null)
+  assert.equal(sweepBookSeatRow({ cls: '', owns: 1, ofSweeps: 1, shareOfSweeps: 1 }), null)
+  assert.equal(sweepBookSeatRow({ cls: 'budgetSpent', owns: 0, ofSweeps: 1, shareOfSweeps: 0 }), null)
+  assert.equal(sweepBookSeatRow({ cls: 'budgetSpent', owns: 2, ofSweeps: 1, shareOfSweeps: 2 }), null)
+  assert.equal(sweepBookSeatRow({ cls: 'budgetSpent', owns: 1, ofSweeps: 1, shareOfSweeps: NaN }), null)
+  assert.equal(sweepBookRidersRow(null), null)
+  assert.equal(sweepBookRidersRow({ leader: 'budgetSpent', leaderOwns: 0, runner: 'delivered', runnerOwns: 1, ofSweeps: 2, pairOwns: 1, shareOfSweeps: 0.5 }), null)
+  assert.equal(sweepBookRidersRow({ leader: 'budgetSpent', leaderOwns: 1, runner: 'delivered', runnerOwns: 1, ofSweeps: 2, pairOwns: 3, shareOfSweeps: 1.5 }), null)
+  // the WIRING assert - the decompose branch rides the sweeps row, the
+  // prose lives only in the lib
+  const src = fs.readFileSync(new URL('../../scripts/fleet-mining/decompose.mjs', import.meta.url), 'utf8')
+  assert.ok(src.includes('const sbs = sweepBookSeat(t)'), 'the seat rides the census totals')
+  assert.ok(src.includes('if (sbs) console.log(`  ${sweepBookSeatRow(sbs)}`)'), 'the owner row rides the branch')
+  assert.ok(src.includes('const sbr = sweepBookRiders(t)'), 'the riders ride the same branch law')
+  assert.ok(!src.includes("THE SWEEP'S OWN SEAT"), 'the prose stays in the lib')
+  assert.ok(!src.includes("THE SWEEP'S OWN MIX"), 'the mix prose stays in the lib')
 })
