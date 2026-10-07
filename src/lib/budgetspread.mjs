@@ -107,3 +107,90 @@ export function budgetGoalSplit (lines) {
   }
   return { zeros, one, small, wide, oneShare: zeros > 0 ? one.zeros / zeros : 0 }
 }
+
+//
+// (v0.787.0) THE BUDGET ZERO'S OWN LANE - WHICH trip lane owns the zero
+// book. The raw split named the lanes' counts ('fuel 26, commune 3' - face
+// 79's own read: 29 zero-delivery budgets, the fuel lane 89.7%) while the
+// WHO rode raw: no row ever said WHICH lane's own budgets own the zero
+// book. THE SEAT LAW (the census's own byKind cell only, zero re-parsing -
+// the v0.784.0 kind-seat precedent): the strict-majority law - a solo lane
+// owns the zero book only above half (a tie owns nothing - the v0.784.0
+// seat law); junk never invents a lane (a missing or non-object byKind
+// cell, a non-finite or non-positive zeros total, or no counted lane reads
+// the honest silence). Pure: reads the spread, never mutates.
+//
+// budgetZeroSeat(spread) ->
+//   { lane, owns, ofZeros, share } | null
+export function budgetZeroSeat (spread) {
+  if (!spread || typeof spread !== 'object') return null
+  const byKind = spread.byKind
+  if (!byKind || typeof byKind !== 'object' || Array.isArray(byKind)) return null
+  const total = spread.zeros
+  if (!Number.isFinite(total) || total <= 0) return null
+  const lanes = Object.entries(byKind)
+    .filter(([lane, n]) => typeof lane === 'string' && lane !== '' && Number.isFinite(n) && n > 0)
+  if (!lanes.length) return null
+  lanes.sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1))
+  const [lane, owns] = lanes[0]
+  // the tie law - a tie owns nothing (the v0.784.0 seat law)
+  if (lanes.length > 1 && lanes[1][1] === owns) return null
+  // the strict-majority law - only above half
+  if (owns * 2 <= total) return null
+  return { lane, owns, ofZeros: total, share: +(owns / total).toFixed(3) }
+}
+
+// (v0.787.0) the lane seat's own row - THE ZERO'S OWN LANE: the seat names
+// WHICH trip lane owns the zero book; the lane's own front prices the cure
+// (the budget sizing is the lever - the fire-1338 handoff's own question).
+// Junk never prints a seat (the honest silence's own row law).
+export function budgetZeroSeatRow (seat) {
+  if (!seat || typeof seat !== 'object') return null
+  const { lane, owns, ofZeros, share } = seat
+  if (typeof lane !== 'string' || !lane ||
+      !Number.isFinite(owns) || owns <= 0 ||
+      !Number.isFinite(ofZeros) || ofZeros <= 0 || owns > ofZeros ||
+      !Number.isFinite(share)) return null
+  return `the budget zero's own lane (v0.787.0): ${lane} owns ${owns} of ${ofZeros} zero-delivery budget(s) (${(share * 100).toFixed(1)}%) - THE ZERO'S OWN LANE: one lane's own budgets own the zero book - the lane's own front prices the walks the raw split rode unnamed`
+}
+
+// (v0.787.0) THE BUDGET ZERO'S OWN RIDERS - the lane seat's own silence's
+// companion. The seat names the solo lane under the strict-majority law; a
+// no-majority zero mix rode raw with no row naming the shape. THE RIDER LAW
+// (the census's own byKind cell only, zero re-parsing - the seat's own
+// precedent): a MEASURE, never a verdict-owner - the top two lanes'
+// concentration prices the shape the solo law refused to name (the seat's
+// owner case leaves the companion unprinted - the decompose's own branch
+// law). Junk never invents a shape: a missing or non-object byKind cell, a
+// non-finite or non-positive zeros total, or fewer than two counted lanes
+// reads the honest silence (null). The order is deterministic (count desc,
+// then the lane's own byte asc: 'commune' < 'fuel').
+export function budgetZeroRiders (spread) {
+  if (!spread || typeof spread !== 'object') return null
+  const byKind = spread.byKind
+  if (!byKind || typeof byKind !== 'object' || Array.isArray(byKind)) return null
+  const total = spread.zeros
+  if (!Number.isFinite(total) || total <= 0) return null
+  const lanes = Object.entries(byKind)
+    .filter(([lane, n]) => typeof lane === 'string' && lane !== '' && Number.isFinite(n) && n > 0)
+  if (lanes.length < 2) return null
+  lanes.sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1))
+  const [leader, leaderOwns] = lanes[0]
+  const [runner, runnerOwns] = lanes[1]
+  const pairOwns = leaderOwns + runnerOwns
+  return { leader, leaderOwns, runner, runnerOwns, ofZeros: total, pairOwns, share: +(pairOwns / total).toFixed(3), duet: leaderOwns === runnerOwns }
+}
+
+// (v0.787.0) the lane riders' own row - THE ZERO'S OWN MIX: a measure of
+// the shape, never a named owner (the seat's tie law holds); the pair
+// prices the concentration the solo law refused to seat. Junk never prints
+// a shape (the honest silence's own row law).
+export function budgetZeroRidersRow (r) {
+  if (!r || typeof r !== 'object') return null
+  const { leader, leaderOwns, runner, runnerOwns, ofZeros, pairOwns, share } = r
+  if (typeof leader !== 'string' || !leader || typeof runner !== 'string' || !runner ||
+      !Number.isFinite(leaderOwns) || leaderOwns <= 0 || !Number.isFinite(runnerOwns) || runnerOwns <= 0 ||
+      !Number.isFinite(ofZeros) || ofZeros <= 0 || !Number.isFinite(pairOwns) || pairOwns > ofZeros ||
+      !Number.isFinite(share)) return null
+  return `the budget zero's own lane riders (v0.787.0): no solo lane owns the majority - ${leader} x${leaderOwns} + ${runner} x${runnerOwns} own ${pairOwns} of ${ofZeros} zero-delivery budget(s) (${(share * 100).toFixed(1)}%) - THE ZERO'S OWN MIX: the seat's tie law held, the mix is the shape - the zeros' own spread prices the walks the solo law refused to name`
+}

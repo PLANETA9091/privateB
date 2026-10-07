@@ -14,7 +14,7 @@ import { sealCensus, SEAL_FAMILIES } from '../../src/lib/sealcensus.mjs' // (v0.
 import { hopCensus, hopZeroBotBillRow, hopZeroRidersRow } from '../../src/lib/hopcensus.mjs' // (v0.399.0) the walk-deliveries class's field read; (v0.767.0) WHICH walker owns the bleed; (v0.770.0) the shape the solo law refused to seat
 import { openDeafCensus, chestFateLedger } from '../../src/lib/opendeaf.mjs' // (v0.438.0) the open-timeout zeros against the valve + the main-late spikes; (v0.448.0) the returns to the autopsied chests
 import { zeroClockCensus, budgetFloorVerdict, noPathClockVerdict } from '../../src/lib/zeroclock.mjs' // (v0.441.0) the hop zeros' face-phase anatomy; (v0.766.0) the walk lattice's own clock - the no-path class's phase verdict
-import { budgetSpread, budgetGoalSplit } from '../../src/lib/budgetspread.mjs' // (v0.473.0) the budget-zero family's per-bot half - the sizing lever's spread read (fuel commons + iron commune, the trip kind rides the line); (v0.475.0) the goal-size split - the miscalibration read
+import { budgetSpread, budgetGoalSplit, budgetZeroSeat, budgetZeroSeatRow, budgetZeroRiders, budgetZeroRidersRow } from '../../src/lib/budgetspread.mjs' // (v0.473.0) the budget-zero family's per-bot half - the sizing lever's spread read (fuel commons + iron commune, the trip kind rides the line); (v0.475.0) the goal-size split - the miscalibration read; (v0.787.0) WHICH lane owns the zero book
 import { o2Gap, reentryGaps, REENTRY_IMMEDIATE_MAX } from '../../src/lib/o2gap.mjs' // (v0.477.0) the rescue-relation split - the o2 census's missing half (stale vs live rescues) + the sentry's last-known read joined per drown death; (v0.746.0) the re-entry's own gap - the stale class's own clock (immediate vs delayed)
 import { sensorToll } from '../../src/lib/sensortoll.mjs' // (v0.707.0) the sensor's own toll - the reset(-1) skin's mass across the family's three skins
 import { ascendStall } from '../../src/lib/ascendstall.mjs' // (v0.708.0) the ascend's live fence - the stall lane's own mass (the live side the toll fences out)
@@ -1835,6 +1835,15 @@ if (zeroClock.zeros.length > 0) {
   if (bs && bs.zeros > 0) {
     const bsBits = Object.entries(bs.perBot).sort((x, y) => y[1].zeros - x[1].zeros || x[0].localeCompare(y[0])).slice(0, 4).map(([k, v]) => `${k}=${v.zeros}`).join(' ')
     console.log(`  budget zeros (v0.473.0): ${bs.zeros} zero-delivery budget(s) (delivered ${bs.delivered} of ${bs.goal}u goal) across ${bs.spreadBots} bot(s) - fuel ${bs.byKind.fuel}, commune ${bs.byKind.commune}${bs.topBot ? `, top ${bs.topBot} ${bs.topN}` : ''}${bsBits ? ` (${bsBits})` : ''}`)
+    // (v0.787.0) THE BUDGET ZERO'S OWN SEAT - WHICH trip lane owns the zero
+    // book (the seat + the riders, one row never both - the branch law; the
+    // owner case leaves the companion unprinted).
+    const bzs = budgetZeroSeat(bs)
+    if (bzs) console.log(`  ${budgetZeroSeatRow(bzs)}`)
+    else {
+      const bzr = budgetZeroRiders(bs)
+      if (bzr) console.log(`  ${budgetZeroRidersRow(bzr)}`)
+    }
     // (v0.475.0) THE GOAL SPLIT - the sizing lever's goal-size half: do the
     // zero-delivery budgets ride TINY goals (the goal itself is the
     // miscalibration - raise the floor) or spread across goal sizes (the
