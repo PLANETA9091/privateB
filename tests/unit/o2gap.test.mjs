@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { o2Gap, DROWN_CONTEXT_RE, BREATH_MIRROR_RE } from '../../src/lib/o2gap.mjs'
+import { o2Gap, DROWN_CONTEXT_RE, BREATH_MIRROR_RE, reentryGaps, REENTRY_IMMEDIATE_MAX } from '../../src/lib/o2gap.mjs'
 
 // Face 43's live shapes verbatim (run 36970605824), compressed to the
 // join-bearing lines: F13's pre-death passes + death at raw index 1399->
@@ -163,4 +163,62 @@ test('o2Gap is junk-safe and nulls on non-array (the laws)', () => {
   assert.equal(o2Gap(null), null)
   assert.equal(o2Gap('x'), null)
   assert.deepEqual(o2Gap([null, 7, 'garbage', 'F13 [F13] water: rescue complete in 1.2s']), { deaths: 0, rescue: { live: 0, stale: 0, never: 0 }, wet: { live: 0, atLast: 0, unknown: 0 }, lastPass: { seen: 0, none: 0 }, cue: { wired: 0, cueOnly: 0, blind: 0 }, mirrors: 0, perBot: {} })
+})
+
+// (v0.745.0) THE RE-ENTRY'S OWN GAP - the stale class's own clock. The
+// face 57 byte-verbatim death (run 37569577638): F1 re-drowned 2s after
+// the lane completed - THE RELEASE'S OWN EDGE (the walk-out never got
+// traction), the leg names what the bot was walking (the fuel commons
+// walk's nudge retry at the death's own X,Z). The 43rd's shapes
+// (face43Mini's deaths): F13@42s + F1@166s - THE BOT'S OWN RETURN.
+const face57F1Stale = [
+  'F1 [F1] water: pass 2 head=wet shore=none land=none y=52.0 o2=0 probes=0 at=[-126,52,404]',
+  'F1 [F1] death: drown context (o2 reset(-1), feet water, head water, rescue 2s ago, leg fuel commons walk @-126,405 (nudge retry), wet 9s)'
+]
+
+test('reentryGaps reads the 57th byte-verbatim: F1@2s is the immediate class - the release\'s own edge, the leg captured', () => {
+  const o2g = o2Gap(face57F1Stale)
+  assert.equal(o2g.perBot.F1.rescueKind, 'stale')
+  const r = reentryGaps(o2g.perBot)
+  assert.equal(r.immediate.length, 1)
+  assert.equal(r.delayed.length, 0)
+  assert.deepEqual(r.immediate[0], { bot: 'F1', ago: 2, leg: 'fuel commons walk @-126,405 (nudge retry)' })
+})
+
+test('reentryGaps reads the 43rd byte-verbatim: F13@42s + F1@166s are the delayed class - the bot\'s own return', () => {
+  const o2g = o2Gap(face43Mini)
+  const r = reentryGaps(o2g.perBot)
+  assert.equal(r.immediate.length, 0)
+  assert.equal(r.delayed.length, 2)
+  assert.deepEqual(r.delayed.map(x => `${x.bot}@${x.ago}s`), ['F13@42s', 'F1@166s'])
+})
+
+test('the re-entry fences: live and never never split, the 10s bar edges (9 immediate / 10 delayed), the zero shape on no stale', () => {
+  // live (rescue active) and never are other cells' subjects - never split
+  const other = o2Gap([
+    'F5 [F5] death: drown context (o2 3, feet water wl, head water, rescue active, leg unknown, wet 12s)',
+    'F9 [F9] death: drown context (o2 0, feet water, head air, rescue never, leg wood trip, wet 0s)'
+  ])
+  const rOther = reentryGaps(other.perBot)
+  assert.deepEqual(rOther, { immediate: [], delayed: [] })
+  // the bar's own edge: 9 < 10 immediate, 10 >= 10 delayed
+  const edge = o2Gap([
+    'F2 [F2] death: drown context (o2 reset(-1), feet water, head water, rescue 9s ago, leg approach segment, wet 4s)',
+    'F3 [F3] death: drown context (o2 reset(-1), feet water, head water, rescue 10s ago, leg approach segment, wet 6s)'
+  ])
+  const rEdge = reentryGaps(edge.perBot)
+  assert.deepEqual(rEdge.immediate.map(x => x.bot), ['F2'])
+  assert.deepEqual(rEdge.delayed.map(x => x.bot), ['F3'])
+  assert.equal(REENTRY_IMMEDIATE_MAX, 10)
+  // a clean face (no deaths) -> the zero shape
+  const calm = o2Gap(['F2 [F2] water: rescue complete in 1.2s'])
+  assert.deepEqual(reentryGaps(calm.perBot), { immediate: [], delayed: [] })
+})
+
+test('reentryGaps is junk-safe: the zero shape on null/junk/empty perBot (the v0.379.0 precedent)', () => {
+  assert.deepEqual(reentryGaps(null), { immediate: [], delayed: [] })
+  assert.deepEqual(reentryGaps('x'), { immediate: [], delayed: [] })
+  assert.deepEqual(reentryGaps({}), { immediate: [], delayed: [] })
+  // a malformed row (no rescueAgo) is skipped, never guessed
+  assert.deepEqual(reentryGaps({ F1: { rescueKind: 'stale', rescueAgo: null, leg: null } }), { immediate: [], delayed: [] })
 })

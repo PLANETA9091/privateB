@@ -15,7 +15,7 @@ import { hopCensus } from '../../src/lib/hopcensus.mjs' // (v0.399.0) the walk-d
 import { openDeafCensus, chestFateLedger } from '../../src/lib/opendeaf.mjs' // (v0.438.0) the open-timeout zeros against the valve + the main-late spikes; (v0.448.0) the returns to the autopsied chests
 import { zeroClockCensus, budgetFloorVerdict } from '../../src/lib/zeroclock.mjs' // (v0.441.0) the hop zeros' face-phase anatomy
 import { budgetSpread, budgetGoalSplit } from '../../src/lib/budgetspread.mjs' // (v0.473.0) the budget-zero family's per-bot half - the sizing lever's spread read (fuel commons + iron commune, the trip kind rides the line); (v0.475.0) the goal-size split - the miscalibration read
-import { o2Gap } from '../../src/lib/o2gap.mjs' // (v0.477.0) the rescue-relation split - the o2 census's missing half (stale vs live rescues) + the sentry's last-known read joined per drown death
+import { o2Gap, reentryGaps, REENTRY_IMMEDIATE_MAX } from '../../src/lib/o2gap.mjs' // (v0.477.0) the rescue-relation split - the o2 census's missing half (stale vs live rescues) + the sentry's last-known read joined per drown death; (v0.745.0) the re-entry's own gap - the stale class's own clock (immediate vs delayed)
 import { sensorToll } from '../../src/lib/sensortoll.mjs' // (v0.707.0) the sensor's own toll - the reset(-1) skin's mass across the family's three skins
 import { ascendStall } from '../../src/lib/ascendstall.mjs' // (v0.708.0) the ascend's live fence - the stall lane's own mass (the live side the toll fences out)
 import { entryWindow, saveableDeaths } from '../../src/lib/entrywindow.mjs' // (v0.480.0) the effective window - the live trigger's real reaction window (lead - the stale floor) priced against the lane's own saves; (v0.743.0) the saveable death - the window's own verdict joined with the lane's own relation
@@ -605,6 +605,18 @@ const o2g = o2Gap(lines)
 if (o2g && o2g.deaths > 0) {
   const o2Bits = Object.entries(o2g.perBot).map(([bot, v]) => `${bot} [last pass ${v.lastPass ? `${v.lastPass.head} o2=${v.lastPass.o2.kind === 'value' ? v.lastPass.o2.value : v.lastPass.o2.kind}` : 'none'}, rescue ${v.rescueKind === 'stale' ? `${v.rescueAgo}s ago` : v.rescueKind}, ${v.wetKind === 'unknown' ? 'wet unknown' : `wet ${v.wetS}s${v.wetKind === 'atLast' ? '@last' : ''}`}]`).join(' ')
   console.log(`  rescue relation split (v0.477.0): live ${o2g.rescue.live} (the lane was flying) / stale ${o2g.rescue.stale} (Ns ago - the lane completed, the bot re-drowned) / never ${o2g.rescue.never} - wet at-last ${o2g.wet.atLast}, live ${o2g.wet.live}, unknown ${o2g.wet.unknown} - last-pass join ${o2g.lastPass.seen}/${o2g.deaths}${o2Bits ? ` (${o2Bits})` : ''}`)
+  // (v0.745.0) THE RE-ENTRY'S OWN GAP - the stale class's own clock (the
+  // skywalk law): the relation split's stale rows carry their delay
+  // unread. immediate (< 10s) = the release's own edge (the walk-out never
+  // got traction - the release criterion's lever, the leg names what the
+  // bot was walking); delayed (>= 10s) = the bot's own return (the route's
+  // own water). Silent when the stale class never rode.
+  const rg = reentryGaps(o2g.perBot)
+  if (rg.immediate.length || rg.delayed.length) {
+    const imm = rg.immediate.map(r => `${r.bot}@${r.ago}s (${r.leg ?? 'the leg unread'})`).join(' ')
+    const del = rg.delayed.map(r => `${r.bot}@${r.ago}s`).join(' ')
+    console.log(`  the re-entry's own gap (v0.745.0): immediate (<${REENTRY_IMMEDIATE_MAX}s - the release's own edge: the walk-out never got traction) x${rg.immediate.length}${imm ? `: ${imm}` : ''} / delayed (the bot's own return) x${rg.delayed.length}${del ? `: ${del}` : ''}`)
+  }
   // (v0.736.0) THE CRIED-WOLF DEATH - the churn's own aftermath join (the
   // skywalk law: two lenses, one read, no re-parsing). A bot whose trigger
   // cried drowning past the churn's own bars AND died the real drowning

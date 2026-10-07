@@ -175,3 +175,33 @@ export function o2Gap (lines) {
   }
   return { deaths, rescue, wet, lastPass: { seen, none }, cue, mirrors, perBot }
 }
+
+//
+// (v0.745.0) THE RE-ENTRY'S OWN GAP - the stale class's own clock (the
+// skywalk law: the relation split's own rows, one read, no re-parsing).
+// The stale class (the lane completed, the bot re-drowned) carried its
+// delay unread since v0.477.0: the 43rd's F13@42s/F1@166s and the 57th's
+// F1@2s are different diseases wearing one class. The split:
+//   immediate (ago < REENTRY_IMMEDIATE_MAX=10s) - THE RELEASE'S OWN EDGE:
+//   the lane called the bot safe and the water kept it seconds later - the
+//   walk-out never got traction; the release criterion's own edge is the
+//   lever, and the captured-but-unread leg field names what the bot was
+//   walking when it went back under.
+//   delayed (ago >= 10s) - THE BOT'S OWN RETURN: the lane did its job, the
+//   bot came back on its own later - the route's own water is the lever.
+// Pure on the perBot map (o2Gap's own grammar, no second parser).
+// Junk-safe: non-object -> the zero shape. Two cures, one class split.
+//
+export const REENTRY_IMMEDIATE_MAX = 10
+
+export function reentryGaps (perBot) {
+  if (!perBot || typeof perBot !== 'object') return { immediate: [], delayed: [] }
+  const immediate = []
+  const delayed = []
+  for (const [bot, v] of Object.entries(perBot)) {
+    if (!v || v.rescueKind !== 'stale' || !Number.isFinite(v.rescueAgo)) continue
+    const row = { bot, ago: v.rescueAgo, leg: typeof v.leg === 'string' && v.leg ? v.leg : null }
+    ;(v.rescueAgo < REENTRY_IMMEDIATE_MAX ? immediate : delayed).push(row)
+  }
+  return { immediate, delayed }
+}
