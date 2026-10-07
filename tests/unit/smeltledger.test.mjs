@@ -6,7 +6,7 @@
 // split avoids). Junk judges nothing, non-array is null.
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { smeltLedger, clipDebtRow, clipPaybackRow, clipDietRow, clockWindowRow, clockAskRow, SMELT_START_RE, SMELT_FUEL_CLIP_RE, SMELT_CLOCK_CLIP_RE, SMELT_REFUSAL_RE, SMELT_TOOK_RE } from '../../src/lib/smeltledger.mjs'
+import { smeltLedger, clipDebtRow, clipDebtSeat, clipDebtSeatRow, clipPaybackRow, clipDietRow, clockWindowRow, clockAskRow, SMELT_START_RE, SMELT_FUEL_CLIP_RE, SMELT_CLOCK_CLIP_RE, SMELT_REFUSAL_RE, SMELT_TOOK_RE } from '../../src/lib/smeltledger.mjs'
 
 test('smelt-ledger: the batches, the fuel and the per-bot/per-item split (live face 36/39 shapes)', () => {
   const lines = [
@@ -446,4 +446,89 @@ test('clock-ask: the covered ask reads the honest silence (the metronome\'s own 
   const junked = smeltLedger([null, 42, 'the clock clips the batch: the 83s window completes ~7 of 36 x raw_copper'])
   assert.equal(junked.clockClips, 0)
   assert.equal(clockAskRow(junked), null)
+})
+
+// (v0.764.0) THE CLIP DEBT'S OWN SEAT - the v0.744.0 row priced the debt,
+// never WHICH class owns it. Face 68's own cell: the six real clip lines
+// (byte-verbatim, the mine's own witness: fuel 13 / clock 3 of 16) -> the
+// fuel's own seat, the v0.744.0 row's bytes untouched beside it.
+test('v0.764.0 the clip debt seat: face 68\'s own cell (fuel owns 13 of 16, the v0.744.0 row byte-untouched)', () => {
+  const FACE68 = [
+    '[F4] fuel clips the batch: 1 x birch_log completes 1 of 6 x cobblestone (the rest re-smelts on the next chain)',
+    '[F17] fuel clips the batch: 2 x oak_log completes 3 of 4 x oak_log (the rest re-smelts on the next chain)',
+    '[F17] the clock clips the batch: the 18s window completes ~1 of 4 x oak_log (the rest re-smelts on the next chain)',
+    '[F18] fuel clips the batch: 3 x oak_log completes 4 of 6 x cobblestone (the rest re-smelts on the next chain)',
+    '[F18] fuel clips the batch: 2 x stick completes 1 of 4 x oak_log (the rest re-smelts on the next chain)',
+    '[F7] fuel clips the batch: 3 x stick completes 1 of 3 x oak_log (the rest re-smelts on the next chain)',
+  ]
+  const l = smeltLedger(FACE68)
+  assert.equal(l.clipDebt, 16)
+  assert.equal(l.clipDebtFuel, 13)
+  assert.equal(l.clipDebtClock, 3)
+  const s = clipDebtSeat(l)
+  assert.deepEqual(s, { owner: 'fuel', units: 13, total: 16, shareOfDebt: 0.813 })
+  assert.equal(
+    clipDebtSeatRow(l),
+    `the clip debt's own seat (v0.764.0): fuel owns 13 of 16 unit(s) (81.3%) - THE FUEL'S OWN DEBT: the furnace starves mid-batch - re-prime the fuel before the walk`
+  )
+  assert.equal(
+    clipDebtRow(l),
+    `the clip's own debt: the chains left 16 unit(s) smelting (fuel 13 / clock 3; oak_log 9, cobblestone 7) - the furnace still owes the harvest`
+  )
+})
+
+// (v0.764.0) the clock's own seat - the 55th's own split (fuel 17 /
+// clock 32 of 49: the clock ate the batch) rides the other prose. The
+// why mix is face-local - the two cells are the lens's own witness.
+test('v0.764.0 the clock\'s own seat (the 55th\'s split: fuel 17 / clock 32)', () => {
+  const FACE55 = [
+    '[F4] fuel clips the batch: 5 x oak_log completes 7 of 14 x raw_copper (the rest re-smelts on the next chain)',
+    '[F8] fuel clips the batch: 4 x coal completes 2 of 12 x raw_copper (the rest re-smelts on the next chain)',
+    '[F4] the clock clips the batch: the 21s window completes ~1 of 14 x raw_copper (the rest re-smelts on the next chain)',
+    '[F4] the clock clips the batch: the 17s window completes ~1 of 20 x raw_copper (the rest re-smelts on the next chain)',
+  ]
+  const l = smeltLedger(FACE55)
+  assert.equal(l.clipDebt, 49)
+  assert.equal(l.clipDebtFuel, 17)
+  assert.equal(l.clipDebtClock, 32)
+  const s = clipDebtSeat(l)
+  assert.deepEqual(s, { owner: 'clock', units: 32, total: 49, shareOfDebt: 0.653 })
+  assert.equal(
+    clipDebtSeatRow(l),
+    `the clip debt's own seat (v0.764.0): clock owns 32 of 49 unit(s) (65.3%) - THE CLOCK'S OWN DEBT: the chain's own clock ate the batch - arm the smelt earlier`
+  )
+})
+
+// (v0.764.0) the tie law (a tie owns nothing - the storm-has-no-seat
+// precedent) + the junk battery: a missing/absent ledger, a non-finite
+// or negative class, a zero total -> the honest silence.
+test('v0.764.0 the tie owns nothing + the seat junk battery', () => {
+  const TIE = [
+    '[F4] fuel clips the batch: 5 x oak_log completes 7 of 14 x raw_copper (the rest re-smelts on the next chain)',
+    '[F4] the clock clips the batch: the 21s window completes ~1 of 14 x raw_copper (the rest re-smelts on the next chain)',
+  ]
+  const tl = smeltLedger(TIE)
+  assert.equal(tl.clipDebtFuel, 7)
+  assert.equal(tl.clipDebtClock, 13) // not a tie at the line level - build the tie at the seat's own door
+  assert.equal(clipDebtSeat({ clipDebtFuel: 5, clipDebtClock: 5 }), null)
+  assert.equal(clipDebtSeatRow({ clipDebtFuel: 5, clipDebtClock: 5 }), null)
+  assert.equal(clipDebtSeat(null), null)
+  assert.equal(clipDebtSeat('junk'), null)
+  assert.equal(clipDebtSeat({}), null)
+  assert.equal(clipDebtSeat({ clipDebtFuel: 0, clipDebtClock: 0 }), null)
+  assert.equal(clipDebtSeat({ clipDebtFuel: -1, clipDebtClock: 3 }), null)
+  assert.equal(clipDebtSeat({ clipDebtFuel: Number.NaN, clipDebtClock: 3 }), null)
+  assert.equal(clipDebtSeat({ clipDebtFuel: 3, clipDebtClock: 'x' }), null)
+  assert.equal(clipDebtSeatRow(null), null)
+  assert.equal(clipDebtSeatRow({}), null)
+})
+
+// (v0.764.0) the WIRING assert: the decompose mine prints the seat row
+// beside the v0.744.0 debt row (the additive law - both call sites in
+// the source, the seat guard reads the same one truth).
+test('v0.764.0 the seat rides the decompose mine (WIRING)', async () => {
+  const { readFileSync } = await import('node:fs')
+  const src = readFileSync(new URL('../../scripts/fleet-mining/decompose.mjs', import.meta.url), 'utf8')
+  assert.equal(src.includes('clipDebtSeatRow'), true)
+  assert.equal(src.includes("the clip debt's own seat"), false) // the prose lives in the lib, never duplicated in the mine
 })

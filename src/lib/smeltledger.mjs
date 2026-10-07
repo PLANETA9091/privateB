@@ -294,6 +294,40 @@ export function clipDebtRow (ledger) {
   return `the clip's own debt: the chains left ${ledger.clipDebt} unit(s) smelting (fuel ${ledger.clipDebtFuel} / clock ${ledger.clipDebtClock}${items ? `; ${items}` : ''}) - the furnace still owes the harvest`
 }
 
+// (v0.764.0) THE CLIP DEBT'S OWN SEAT - the v0.744.0 row prices the debt,
+// never WHICH class owns it. The two classes' own book decided under the
+// strict-majority law (a tie owns nothing - the storm-has-no-seat
+// precedent): the fuel side owns the debt = the furnace starves mid-batch
+// (re-prime the fuel before the walk); the clock side owns it = the
+// chain's own clock ate the batch (arm the smelt earlier). The why mix is
+// face-local (the 55th: fuel 17 / clock 32 = the clock's own; face 68:
+// fuel 13 / clock 3 = the fuel's own) - the lens earns its keep. Junk
+// never invents a seat: a missing/absent ledger, a non-finite or negative
+// class, a zero or tied total -> the honest silence (null).
+export function clipDebtSeat (ledger) {
+  if (!ledger || typeof ledger !== 'object') return null
+  const fuel = ledger.clipDebtFuel
+  const clock = ledger.clipDebtClock
+  if (!Number.isFinite(fuel) || !Number.isFinite(clock) || fuel < 0 || clock < 0) return null
+  const total = fuel + clock
+  if (!(total > 0) || fuel === clock) return null
+  const owner = fuel > clock ? 'fuel' : 'clock'
+  const units = owner === 'fuel' ? fuel : clock
+  return { owner, units, total, shareOfDebt: +(units / total).toFixed(3) }
+}
+
+// (v0.764.0) ONE verdict line beside the v0.744.0 debt row (additive -
+// the old row's bytes stay the face's own), only when a seat stands at
+// all. The levers' law: one prose per class, the honest silence for a
+// tie or junk.
+export function clipDebtSeatRow (ledger) {
+  const s = clipDebtSeat(ledger)
+  if (!s) return null
+  return s.owner === 'fuel'
+    ? `the clip debt's own seat (v0.764.0): fuel owns ${s.units} of ${s.total} unit(s) (${(s.shareOfDebt * 100).toFixed(1)}%) - THE FUEL'S OWN DEBT: the furnace starves mid-batch - re-prime the fuel before the walk`
+    : `the clip debt's own seat (v0.764.0): clock owns ${s.units} of ${s.total} unit(s) (${(s.shareOfDebt * 100).toFixed(1)}%) - THE CLOCK'S OWN DEBT: the chain's own clock ate the batch - arm the smelt earlier`
+}
+
 // (v0.745.0) ONE verdict line, only when a debt stood at all (zero clips
 // = the honest silence). Two classes, exclusive: a chain returned (the
 // clip line's own promise kept) / none ever did (the IOU stands alone -
