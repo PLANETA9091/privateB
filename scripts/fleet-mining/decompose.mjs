@@ -1,7 +1,7 @@
 // Decompose a fleet19.log into the evidence classes the worklog tracks.
 // Usage: node scripts/fleet-mining/decompose.mjs <path-to-fleet19.log>
 import { readFileSync } from 'node:fs'
-import { rescueLedger, rescueEndSeconds, RESCUE_END_CLASSES } from '../../src/lib/rescue-ledger.mjs'
+import { rescueLedger, rescueEndSeconds, RESCUE_END_CLASSES, rescueStartBill, rescueStartBillRow, rescueStartRiders, rescueStartRidersRow } from '../../src/lib/rescue-ledger.mjs' // (v0.368.0) the pure pairing's field read; (v0.773.0) WHICH walker owns the starts
 import { orphanOwnerCensus } from '../../src/lib/orphanowner.mjs' // (v0.679.0) the orphan end's per-bot owner (the dead-client class names its bot)
 import { askWhyCensus, dryAskVerdict, dryAskVerdictRow, dryAskBotBill, dryAskBotBillRow, dryAskRiders, dryAskRidersRow } from '../../src/lib/askwhycensus.mjs' // (v0.652.0) THE ASK'S OWN WHY BOOK - the ask ladder's walk-failure whys joined to the dry terminals (the delivery side's v0.612.0 why-book law, the ask side's own seat); (v0.769.0) WHICH class owns the dry ask; (v0.772.0) WHICH walker owns the class's rows
 import { bankFlowCensus, bankYield } from '../../src/lib/bankcensus.mjs' // (v0.686.0) + the yield dial - the banked mass over the visit lane's own line count
@@ -375,6 +375,17 @@ if (ledger.saved.verdict) {
 }
 // below the bar with zero deaths: the honest silence (the sparse calm
 // proves nothing - the bars never invent)
+// (v0.773.0) THE CHURN'S OWN CAST - the starts' bot-level seat, one
+// additive row beside the v0.728.0 verdict (the cells are the ledger's
+// own perBot/totals, zero re-parsing; the old rows' bytes stay
+// untouched); the bill's tie silence reads the riders' measure - one
+// row, never both; the junk reads the honest silence
+const castBill = rescueStartBill(ledger.perBot, ledger.totals)
+if (castBill) console.log(`  ${rescueStartBillRow(castBill)}`)
+else {
+  const castRiders = rescueStartRiders(ledger.perBot, ledger.totals)
+  if (castRiders) console.log(`  ${rescueStartRidersRow(castRiders)}`)
+}
 // (v0.731.0) THE RELEASE'S OWN TOLL - the release's own aftermath, the join
 // the arena census never held: the hound census prices the ARENA, the
 // ledger prices every END - the 49th asked whether the lane's own save

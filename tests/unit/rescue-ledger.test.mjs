@@ -6,9 +6,11 @@
 // (miner.mjs's terminal line) must classify, junk must never invent.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import { readFile } from 'node:fs/promises'
 import {
   RESCUE_START_RE, RESCUE_END_CLASSES, RESCUE_MID_EVENTS,
-  rescueEndClass, rescueEndSeconds, rescueLedger
+  rescueEndClass, rescueEndSeconds, rescueLedger,
+  rescueStartBill, rescueStartBillRow, rescueStartRiders, rescueStartRidersRow
 } from '../../src/lib/rescue-ledger.mjs'
 
 const start = (bot, verdict = 'drowning', o2 = 4) =>
@@ -407,4 +409,71 @@ test('junk never invents the toll: prose quoting the arena fails the anchored ki
   assert.deepEqual(empty.releasedKills, { dryShoreKills: 0, releasedKills: 0, byBot: {}, verdict: null })
   const junk = rescueLedger(undefined)
   assert.deepEqual(junk.releasedKills, { dryShoreKills: 0, releasedKills: 0, byBot: {}, verdict: null })
+})
+
+// (v0.774.0) THE CHURN'S OWN CAST - the starts' bot-level seat. The
+// perBot/totals cells are the ledger's own (zero re-parsing); the bill's
+// strict-majority law, the riders' top-two measure, the junk battery.
+
+test("v0.774.0 the churn's own cast: the bill's solo owner fires under the strict-majority law", () => {
+  const lines = []
+  for (let i = 0; i < 5; i++) lines.push(start('F9'))
+  for (let i = 0; i < 2; i++) lines.push(start('F2'))
+  const r = rescueLedger(lines)
+  const bill = rescueStartBill(r.perBot, r.totals)
+  assert.deepEqual(bill, { bot: 'F9', owns: 5, ofStarts: 7, shareOfStarts: 0.714 })
+  assert.equal(
+    rescueStartBillRow(bill),
+    "the starts' own cast (v0.774.0): F9 owns 5 of 7 start(s) (71.4%) - THE CHURN'S OWN SOLO SPENDER: one walker's own water lane owns the rescue churn - the relog bill's own loop (v0.715.0) prices the cast's cure"
+  )
+})
+
+test("v0.774.0 face 72's own cell: the duo at the top reads the riders' measure (the bill's tie law held)", () => {
+  // face 72's own distribution (run 37632243441): F2=12 F5=12 F18=4 F14=3
+  // F15=3 F19=3 F9=3 F13=3 F17=2 F16=2 F8=1 - 48 starts, no solo majority.
+  const starts = { F2: 12, F5: 12, F18: 4, F14: 3, F15: 3, F19: 3, F9: 3, F13: 3, F17: 2, F16: 2, F8: 1 }
+  const perBot = {}
+  for (const [bot, n] of Object.entries(starts)) {
+    perBot[bot] = { starts: n, complete: 0, completeStandingWet: 0, released: 0, frozenStanddown: 0, timeout: 0, dead: 0, botGone: 0, abortedError: 0, unclosed: 0 }
+  }
+  const totals = { starts: 48 }
+  assert.equal(rescueStartBill(perBot, totals), null) // 12 <= 48-12 - the tie law held
+  const riders = rescueStartRiders(perBot, totals)
+  assert.deepEqual(riders, { leader: 'F2', leaderOwns: 12, runner: 'F5', runnerOwns: 12, ofStarts: 48, pairOwns: 24, shareOfStarts: 0.5, duet: true })
+  assert.equal(
+    rescueStartRidersRow(riders),
+    "the starts' own riders (v0.774.0): no solo spender owns the majority - F2 x12 + F5 x12 own 24 of 48 start(s) (50.0%) - THE DUO'S OWN SEAT: the bill's tie law held, the concentration is still real - the pair prices the dives the solo law refused to name"
+  )
+})
+
+test("v0.774.0 the deterministic order rides the real ledger: count desc, then the name's own", () => {
+  const r = rescueLedger([start('F7'), start('F3'), start('F3'), start('F4')])
+  // F3=2 F4=1 F7=1 - the leader is F3; the runner-up tie (F4 vs F7) breaks by name
+  const riders = rescueStartRiders(r.perBot, r.totals)
+  assert.deepEqual(riders, { leader: 'F3', leaderOwns: 2, runner: 'F4', runnerOwns: 1, ofStarts: 4, pairOwns: 3, shareOfStarts: 0.75, duet: false })
+  assert.equal(rescueStartBill(r.perBot, r.totals), null) // 2 <= 4-2 - no solo majority
+})
+
+test("v0.774.0 junk never invents the cast: the empty tables, the solo walker, the malformed rows", () => {
+  assert.equal(rescueStartBill(null, { starts: 5 }), null)
+  assert.equal(rescueStartBill(undefined, undefined), null)
+  assert.equal(rescueStartBill({}, { starts: 0 }), null) // the startless total
+  assert.equal(rescueStartBill({ F1: { starts: 0 } }, { starts: 5 }), null) // the zero rows never cast
+  const solo = rescueStartBill({ F1: { starts: 3 } }, { starts: 3 })
+  assert.deepEqual(solo, { bot: 'F1', owns: 3, ofStarts: 3, shareOfStarts: 1 }) // the solo lane owns its own three
+  assert.equal(rescueStartRiders({ F1: { starts: 3 } }, { starts: 3 }), null) // fewer than two walkers
+  assert.equal(rescueStartBillRow(null), null)
+  assert.equal(rescueStartBillRow({ bot: 'F1' }), null) // the malformed cell
+  assert.equal(rescueStartRidersRow(null), null)
+  assert.equal(rescueStartRidersRow({ leader: 'F1' }), null)
+  assert.equal(rescueStartRidersRow({ leader: 'F1', leaderOwns: 2, runner: 'F2', runnerOwns: 1, ofStarts: 1, pairOwns: 3, shareOfStarts: 3 }), null) // the pair outran the face
+})
+
+test('v0.774.0 the cast rides the decompose mine (WIRING)', async () => {
+  const src = await readFile(new URL('../../scripts/fleet-mining/decompose.mjs', import.meta.url), 'utf8')
+  assert.ok(src.includes('rescueStartBill, rescueStartBillRow, rescueStartRiders, rescueStartRidersRow')) // the import
+  assert.ok(src.includes('rescueStartBill(ledger.perBot, ledger.totals)')) // the ledger's own cells, zero re-parsing
+  const branch = src.indexOf('if (castBill) console.log')
+  const elseRiders = src.indexOf('const castRiders = rescueStartRiders(ledger.perBot, ledger.totals)')
+  assert.ok(branch > 0 && elseRiders > branch) // the branch law's own shape: the bill's silence reads the riders'
 })

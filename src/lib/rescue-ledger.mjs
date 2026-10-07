@@ -307,3 +307,83 @@ function releaseTollCell (dryShoreKills, releasedKills, releasedKillBots) {
     verdict: releasedKills >= RELEASE_TOLL_MIN_KILLS ? RELEASE_TOLL_VERDICT : null
   }
 }
+
+// (v0.774.0) THE CHURN'S OWN CAST - the starts' bot-level seat. The
+// v0.728.0 verdict priced WHETHER the lane saved its riders (the face's
+// own collective read), the v0.756.0 meter priced the churn's DENSITY,
+// the calm paradox names the top spender - but only on the 0-death faces
+// (the paradox's own gate), so the storm faces' cast rode raw (face 72's
+// own read: 'per-bot rescue starts: F2=12 F5=12 F18=4 ...' - 48 starts
+// with a duo at the top and no row naming the shape). THE BILL LAW (the
+// ledger's own perBot/totals cells, zero re-parsing - the hop bill's
+// v0.767.0 precedent): the top spender owns the churn under the
+// strict-majority law (a tie owns nothing - the storm-has-no-seat
+// precedent). Junk never invents a cast: a missing or empty per-bot
+// table, a startless total, or a tied spread reads the honest silence
+// (null).
+export function rescueStartBill (perBot, totals) {
+  const starts = totals && typeof totals === 'object' && Number.isFinite(totals.starts) ? totals.starts : 0
+  if (!(perBot && typeof perBot === 'object') || starts <= 0) return null
+  const byBot = {}
+  for (const [bot, row] of Object.entries(perBot)) {
+    if (row && typeof row === 'object' && Number.isFinite(row.starts) && row.starts > 0) byBot[bot] = row.starts
+  }
+  let topUnits = 0
+  let topBot = null
+  for (const [bot, n] of Object.entries(byBot)) {
+    if (n > topUnits) { topUnits = n; topBot = bot }
+  }
+  if (topBot === null || topUnits <= starts - topUnits) return null
+  return { bot: topBot, owns: topUnits, ofStarts: starts, shareOfStarts: +(topUnits / starts).toFixed(3) }
+}
+
+// (v0.774.0) the bill's own row - THE CHURN'S OWN SOLO SPENDER: one
+// walker's own water lane owns the rescue churn; the relog bill's own
+// loop (v0.715.0) prices the cast's cure (the repeat customer IS the
+// loop's own skin). Junk never prints a seat (the honest silence's own
+// row law).
+export function rescueStartBillRow (bill) {
+  if (!bill || typeof bill !== 'object') return null
+  const { bot, owns, ofStarts, shareOfStarts } = bill
+  if (typeof bot !== 'string' || !bot || !Number.isFinite(owns) || owns <= 0 ||
+      !Number.isFinite(ofStarts) || ofStarts <= 0 || owns > ofStarts ||
+      !Number.isFinite(shareOfStarts)) return null
+  return `the starts' own cast (v0.774.0): ${bot} owns ${owns} of ${ofStarts} start(s) (${(shareOfStarts * 100).toFixed(1)}%) - THE CHURN'S OWN SOLO SPENDER: one walker's own water lane owns the rescue churn - the relog bill's own loop (v0.715.0) prices the cast's cure`
+}
+
+// (v0.774.0) THE CHURN'S OWN RIDERS - the bill's silence's own companion
+// (the v0.770.0 riders precedent, zero re-parsing): a MEASURE, never a
+// verdict-owner - the top two spenders' concentration prices the shape
+// the solo law refused to name (the bill's owner case leaves the
+// companion unprinted - the decompose's own branch law). The order is
+// deterministic (count desc, then the name's own). Junk never invents a
+// shape: a missing or empty per-bot table, a startless total, or fewer
+// than two walkers reads the honest silence (null).
+export function rescueStartRiders (perBot, totals) {
+  const starts = totals && typeof totals === 'object' && Number.isFinite(totals.starts) ? totals.starts : 0
+  if (!(perBot && typeof perBot === 'object') || starts <= 0) return null
+  const ranked = Object.entries(perBot)
+    .filter(([, row]) => row && typeof row === 'object' && Number.isFinite(row.starts) && row.starts > 0)
+    .sort((a, b) => b[1].starts - a[1].starts || (a[0] < b[0] ? -1 : 1))
+  if (ranked.length < 2) return null
+  const leader = ranked[0][0]
+  const runner = ranked[1][0]
+  const leaderOwns = ranked[0][1].starts
+  const runnerOwns = ranked[1][1].starts
+  const pairOwns = leaderOwns + runnerOwns
+  return { leader, leaderOwns, runner, runnerOwns, ofStarts: starts, pairOwns, shareOfStarts: +(pairOwns / starts).toFixed(3), duet: leaderOwns === runnerOwns }
+}
+
+// (v0.774.0) the riders' own row - THE DUO'S OWN SEAT: a measure of the
+// shape, never a named owner (the bill's tie law holds); the pair prices
+// the concentration the solo law refused to seat. Junk never prints a
+// shape (the honest silence's own row law).
+export function rescueStartRidersRow (r) {
+  if (!r || typeof r !== 'object') return null
+  const { leader, leaderOwns, runner, runnerOwns, ofStarts, pairOwns, shareOfStarts } = r
+  if (typeof leader !== 'string' || !leader || typeof runner !== 'string' || !runner ||
+      !Number.isFinite(leaderOwns) || leaderOwns <= 0 || !Number.isFinite(runnerOwns) || runnerOwns <= 0 ||
+      !Number.isFinite(ofStarts) || ofStarts <= 0 || !Number.isFinite(pairOwns) || pairOwns > ofStarts ||
+      !Number.isFinite(shareOfStarts)) return null
+  return `the starts' own riders (v0.774.0): no solo spender owns the majority - ${leader} x${leaderOwns} + ${runner} x${runnerOwns} own ${pairOwns} of ${ofStarts} start(s) (${(shareOfStarts * 100).toFixed(1)}%) - THE DUO'S OWN SEAT: the bill's tie law held, the concentration is still real - the pair prices the dives the solo law refused to name`
+}
