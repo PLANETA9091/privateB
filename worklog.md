@@ -18780,3 +18780,21 @@ Stage Summary:
 - THE FURNACE'S BOOK'S FOURTH ENTRY NOW PRICES ITS OWN CAUSE: the ~C is the plan's own put cap (floor(W/11)), the idle is the plan's own 11s margin's tax (35s of 190s on the 58th) - the fuel/input-gap hypothesis is closed.
 - Fronts: face 60's mine (the margin's 2nd read if clock clips return), THE ECONOMY FRONT (face 59: banked 0 of 2006, leaks 68.3%, the door leg's chest-unreachable 54 - the bank chain's own starvation), the zombie storm's arc (late 14/17, the flips that now die), the re-entry delayed class's 2nd read (F15@143s), the drought's sand seat (11th+ zero).
 - Next fire: (1) CI verdict on 2140ea8 (37580518752) FIRST. (2) poll face 60 (37580611393) - SUCCESS -> mine with the v0.750.0 stack. (3) dispatch law x75 on clear (0.751.0 next slot).
+
+---
+Task ID: cron-agent-loop-202610071440
+Agent: Super Z (cron agent, Job 415967)
+Task: standard cron fire 1440 - sandbox recovery (the 25th), face 60's failure autopsy + v0.751.0 THE DAY-LOCK, the race's 10th run (the lane's storm tally), dispatch law x75 FIRED
+
+Work Log:
+- SANDBOX DEAD (the 25th): fresh clone + identity dual-pinned + npm install. Master at arrival f4e141b (the lane's fire-1400 stack: v0.750.0 THE PLAN'S OWN MARGIN + face 59 mined by the lane).
+- FACE 60 AUTOPSIED (37580611393 FAILURE): the integration job's smelting pipeline timed out at the 390s box - the server's own log the only witness: 'SmeltTest was slain by Zombie' x2 (06:28:52, 06:30:01), nightfall landed mid-pipeline (the smelting lane boots ~12 min into the server's life after smoke+units+productivity; the spawn-time night guard read DAY and never re-armed), the Big fleet run job was skipped, the face was LOST to a flake dressed as a pipeline failure. Unit tests all green on the same tree.
+- ONE ATOMIC FIX: v0.751.0 THE DAY-LOCK (97d3cd1) - two layers: (1) the workflow's integration job grows 'Lock the day for the integration lanes' (server.sh cmd rides the console fifo with 'gamerule doDaylightCycle false' + 'time set day' after the world settles - the setup-yard precedent: infrastructure through the console, not bot gifts; the FLEET FACES KEEP THE REAL CLOCK, the lock never touches the fleet job's own server); (2) the smelting test's night guard re-arms mid-pipeline (isNight re-checked after the tool bootstrap - the honest-skip fallback if the lock ever fails). Zero fleet wiring. Syntax 0-broken, YAML validated. Pushed attempt-1 clean (f4e141b..97d3cd1).
+- THE RACE'S 10TH RUN, RESOLVED WITHOUT CONTACT: the lane's fire-1430 autopsied the SAME failure and committed fc768b9 v0.751.0 THE STORM'S OWN TALLY (the 3rd layer: stormTallySkip - 2 mob kills at any phase boundary = the honest skip, nightsafety 21/21) riding ON TOP of my 97d3cd1 (clean fast-forward, my day-lock cells untouched, no conflict); both commits share the 0.751.0 tag (mine set it first, theirs lost the slot by ~2 min - the retag precedent is the lane's to take at fire-1500). The integration lanes now carry THREE protective layers: the day-lock (the sky holds still) + the night re-arm (the honest skip) + the storm tally (the mid-flight corpse count).
+- DISPATCH LAW x75 FIRED: poll x2 clear (only push-CIs in flight), POST 204, face 61 = 37583836654 (#2481) on fc768b9 in_progress - THE FIRST FACE ON THE FULLY-PROTECTED TREE (day-lock + re-arm + tally). Materialization verified. Push-CI #2479 (97d3cd1) in_progress, #2480 (fc768b9) pending.
+
+Stage Summary:
+- Version 0.751.0 double-occupied (97d3cd1 THE DAY-LOCK + fc768b9 THE STORM'S OWN TALLY); next free 0.752.0 (the lane's retag move at fire-1500 by the 9-run precedent); face 61 in flight (MY x75).
+- Face 60's lesson: the integration world's real clock was the last un-harnessed environment axis - the single-bot pipeline lanes now own their sky.
+- Fronts: face 61's mine (the storm's 4th face on the newest lens stack); the integration job's green recovery (the day-lock's first CI verdict rides #2479/#2480 + face 61's own integration leg); the economy's dark arc (face 59: banked 0 of 2006, leaks 68.3%).
+- Next fire: (1) poll face 61 (37583836654) - SUCCESS -> mine with the full lens stack (the day-lock face). (2) push-CI verdicts on 97d3cd1/fc768b9. (3) dispatch law x76 on clear (0.752.0 next slot, mind the lane's retag).
