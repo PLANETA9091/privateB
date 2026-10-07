@@ -3,7 +3,7 @@
 // byte. Tests feed the face-19 (36802577873) verbatim lines, the junk
 // battery, and the missing-block tolerance (a FATAL face truncates the end
 // phase - the v0.358.0 lesson).
-import { bankFlowCensus, parseSurplusItems, parseStranded, parseWriteOff, parseDoomWhy, parseDeliverable, parsePrePositionCensus, craterSeatSplit } from '../../src/lib/bankcensus.mjs'
+import { bankFlowCensus, parseSurplusItems, parseStranded, parseWriteOff, parseDoomWhy, parseDeliverable, parsePrePositionCensus, craterSeatSplit, writeOffBill, writeOffBillRow, writeOffRiders, writeOffRidersRow } from '../../src/lib/bankcensus.mjs'
 import assert from 'node:assert'
 import { test } from 'node:test'
 
@@ -432,6 +432,7 @@ test('WIRING: the decompose prints the bank yield row beside the visit count', (
 })
 
 import fs from 'node:fs'
+import { readFile } from 'node:fs/promises'
 
 // (v0.758.0) THE CRATER'S OWN SEATS - face 63's own cell: the write-off
 // carried 905u of the 1216u unbanked mass (the 2/3 bar crossed -> the
@@ -512,4 +513,82 @@ test('v0.758.0 the seat junk battery', () => {
   assert.equal(s.writeOff.badRows, 4)
   assert.equal(s.cls, 'failed-walks')
   assert.equal(s.deadlineSeconds, null)
+})
+
+// (v0.777.0) THE WRITE-OFF'S OWN CAST - the write-off book's bot-level seat.
+// The census's own writeOff cells are the book (zero re-parsing); the bill's
+// strict-majority law, the riders' top-two measure, the junk battery.
+
+test("v0.777.0 the write-off's own cast: the bill's solo owner fires under the strict-majority law", () => {
+  // face 72's own printed book (run 37632243441): F9 154u/17s, F7 64u/17s
+  const book = [{ bot: 'F9', units: 154, seconds: 17 }, { bot: 'F7', units: 64, seconds: 17 }]
+  const bill = writeOffBill(book)
+  assert.deepEqual(bill, { bot: 'F9', units: 154, total: 218, share: 0.706 })
+  assert.equal(
+    writeOffBillRow(bill),
+    "the write-off's own cast (v0.777.0): F9 owns 154 of 218u (70.6%) - THE POCKET'S OWN SOLO SPENDER: one bot's own pocket carried the deadline's collection - the crater's own seat (v0.758.0) prices the mass, the cast names its owner"
+  )
+})
+
+test("v0.777.0 face 73's own cell: the five-holder book reads the riders' measure (the bill's tie law held)", () => {
+  // face 73's own printed book (run 37639051812): F2 261u/19s, F5 154u/19s,
+  // F11 120u/13s, F19 106u/14s, F7 106u/14s - 747u, no solo majority.
+  const book = [
+    { bot: 'F2', units: 261, seconds: 19 }, { bot: 'F5', units: 154, seconds: 19 },
+    { bot: 'F11', units: 120, seconds: 13 }, { bot: 'F19', units: 106, seconds: 14 },
+    { bot: 'F7', units: 106, seconds: 14 },
+  ]
+  assert.equal(writeOffBill(book), null) // 261 <= 747-261 - the tie law held
+  const riders = writeOffRiders(book)
+  assert.deepEqual(riders, { leader: 'F2', leaderUnits: 261, runner: 'F5', runnerUnits: 154, total: 747, pairUnits: 415, share: 0.556 })
+  assert.equal(
+    writeOffRidersRow(riders),
+    "the write-off's own riders (v0.777.0): no solo holder owns the majority - F2 x261u + F5 x154u own 415 of 747u (55.6%) - THE DUO'S OWN SEAT: the bill's tie law held, the concentration is still real - the pair prices the pockets the solo law refused to name"
+  )
+})
+
+test("v0.777.0 the deterministic order rides the real census: units desc, then the name's own", () => {
+  // face 68's own printed book (run 37610367304): F2 171u, F19 70u, F17 67u,
+  // F14 64u - the runner-up tie (F19 70 vs F17 67) is units-decided; the
+  // byte-wise pin needs an equal pair: F17 67 == a synthetic F7 67? no - the
+  // pin is the name's own when units tie: 'F17' < 'F7' byte-wise.
+  const book = [{ bot: 'F7', units: 100, seconds: 15 }, { bot: 'F17', units: 100, seconds: 15 }, { bot: 'F2', units: 50, seconds: 15 }]
+  assert.equal(writeOffBill(book), null) // the tied spread owns nothing
+  const riders = writeOffRiders(book)
+  assert.deepEqual(riders, { leader: 'F17', leaderUnits: 100, runner: 'F7', runnerUnits: 100, total: 250, pairUnits: 200, share: 0.8 })
+  // face 70's own crowd (run 37624132784): the bill's silence held on seven holders
+  const crowd = [
+    { bot: 'F10', units: 181, seconds: 17 }, { bot: 'F13', units: 178, seconds: 15 }, { bot: 'F18', units: 166, seconds: 16 },
+    { bot: 'F1', units: 143, seconds: 17 }, { bot: 'F19', units: 134, seconds: 16 }, { bot: 'F3', units: 132, seconds: 19 },
+    { bot: 'F17', units: 96, seconds: 18 },
+  ]
+  assert.equal(writeOffBill(crowd), null) // 181 <= 1030-181
+  assert.deepEqual(writeOffRiders(crowd), { leader: 'F10', leaderUnits: 181, runner: 'F13', runnerUnits: 178, total: 1030, pairUnits: 359, share: 0.349 })
+})
+
+test("v0.777.0 junk never invents the cast: the empty books, the malformed rows", () => {
+  assert.equal(writeOffBill(null), null)
+  assert.equal(writeOffBill(undefined), null)
+  assert.equal(writeOffBill([]), null)
+  assert.equal(writeOffBill('junk'), null)
+  assert.equal(writeOffBill([{ bot: 'F1', units: 0 }, { bot: 'F2', units: -5 }, { bot: 'F3', units: Number.NaN }, null, 'junk']), null) // the dead cells never cast
+  const solo = writeOffBill([{ bot: 'F1', units: 5 }]) // the solo holder IS the strict majority (5 > 5-5)
+  assert.deepEqual(solo, { bot: 'F1', units: 5, total: 5, share: 1 })
+  assert.equal(writeOffRiders([{ bot: 'F1', units: 5 }]), null) // fewer than two holders
+  assert.equal(writeOffBillRow(null), null)
+  assert.equal(writeOffBillRow({ bot: 'F1' }), null) // the malformed cell
+  assert.equal(writeOffBillRow({ bot: 'F1', units: 10, total: 5, share: 2 }), null) // the units outran the book
+  assert.equal(writeOffRidersRow(null), null)
+  assert.equal(writeOffRidersRow({ leader: 'F1' }), null)
+  assert.equal(writeOffRidersRow({ leader: 'F1', leaderUnits: 2, runner: 'F2', runnerUnits: 1, total: 1, pairUnits: 3, share: 3 }), null) // the pair outran the book
+})
+
+test("v0.777.0 the write-off's own cast rides the decompose mine (WIRING)", async () => {
+  const src = await readFile(new URL('../../scripts/fleet-mining/decompose.mjs', import.meta.url), 'utf8')
+  assert.ok(src.includes('writeOffBill, writeOffBillRow, writeOffRiders, writeOffRidersRow')) // the import
+  assert.ok(src.includes('writeOffBill(bankCensus.writeOff)')) // the census's own cells, zero re-parsing
+  const branch = src.indexOf('const woRow = woBill ? writeOffBillRow(woBill) : writeOffRidersRow(writeOffRiders(bankCensus.writeOff))')
+  assert.ok(branch > 0) // the branch law's own shape: one row, never both
+  const guard = src.indexOf("if (bankCensus.writeOff.length) {", src.indexOf('final write-off:'))
+  assert.ok(guard > 0 && guard < branch) // the seat rides the book's own guard
 })

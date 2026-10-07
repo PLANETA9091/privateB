@@ -397,3 +397,71 @@ export function craterSeatSplit (census) {
     deadlineSeconds: census.flow && Number.isFinite(census.flow.secondsPastDeadline) ? census.flow.secondsPastDeadline : null,
   }
 }
+
+// (v0.777.0) THE WRITE-OFF'S OWN CAST - the write-off book's bot-level seat.
+// The v0.583.0 why row priced the CLASS leg (night/timeout/unnamed), the
+// v0.758.0 crater seat priced the SHARE leg (the write-off mass against the
+// unbanked mass) - the BOT axis rode raw (face 73's own read: 'final
+// write-off: F2 261u/19s, F5 154u/19s, F11 120u/13s, F19 106u/14s, F7
+// 106u/14s' - five holders carrying 747u with no row naming whose pocket
+// paid the deadline's collection). THE BILL LAW (the census's own writeOff
+// cells only, zero re-parsing - the cast's v0.774.0 precedent): the top
+// holder owns the book under the strict-majority law (a tie owns nothing -
+// the storm-has-no-seat precedent). Junk never invents a cast: a missing or
+// empty book, a non-finite or non-positive unit cell, or a minority top
+// reads the honest silence (null).
+export function writeOffBill (rows) {
+  const book = (Array.isArray(rows) ? rows : []).filter((r) => r && typeof r === 'object' &&
+    typeof r.bot === 'string' && r.bot && Number.isFinite(r.units) && r.units > 0)
+  if (!book.length) return null
+  const total = book.reduce((a, r) => a + r.units, 0)
+  const ranked = book.slice().sort((a, b) => b.units - a.units || (a.bot < b.bot ? -1 : 1))
+  const top = ranked[0]
+  if (top.units <= total - top.units) return null
+  return { bot: top.bot, units: top.units, total, share: +(top.units / total).toFixed(3) }
+}
+
+// (v0.777.0) the bill's own row - THE POCKET'S OWN SOLO SPENDER: one bot's
+// own pocket carried the deadline's collection; the v0.758.0 crater seat
+// prices the mass, the cast names its owner. Junk never prints a seat (the
+// honest silence's own row law).
+export function writeOffBillRow (bill) {
+  if (!bill || typeof bill !== 'object') return null
+  const { bot, units, total, share } = bill
+  if (typeof bot !== 'string' || !bot || !Number.isFinite(units) || units <= 0 ||
+      !Number.isFinite(total) || total <= 0 || units > total || !Number.isFinite(share)) return null
+  return `the write-off's own cast (v0.777.0): ${bot} owns ${units} of ${total}u (${(share * 100).toFixed(1)}%) - THE POCKET'S OWN SOLO SPENDER: one bot's own pocket carried the deadline's collection - the crater's own seat (v0.758.0) prices the mass, the cast names its owner`
+}
+
+// (v0.777.0) THE WRITE-OFF'S OWN RIDERS - the bill's silence's own companion
+// (the v0.774.0 riders precedent, zero re-parsing): a MEASURE, never a
+// verdict-owner - the top two holders' concentration prices the shape the
+// solo law refused to name (the bill's owner case leaves the companion
+// unprinted - the decompose's own branch law). The order is deterministic
+// (units desc, then the name's own - 'F17' < 'F7' byte-wise). Junk never
+// invents a shape: a missing or empty book or fewer than two holders reads
+// the honest silence (null).
+export function writeOffRiders (rows) {
+  const book = (Array.isArray(rows) ? rows : []).filter((r) => r && typeof r === 'object' &&
+    typeof r.bot === 'string' && r.bot && Number.isFinite(r.units) && r.units > 0)
+  if (book.length < 2) return null
+  const ranked = book.slice().sort((a, b) => b.units - a.units || (a.bot < b.bot ? -1 : 1))
+  const leader = ranked[0]
+  const runner = ranked[1]
+  const pairUnits = leader.units + runner.units
+  const total = book.reduce((a, r) => a + r.units, 0)
+  return { leader: leader.bot, leaderUnits: leader.units, runner: runner.bot, runnerUnits: runner.units, total, pairUnits, share: +(pairUnits / total).toFixed(3) }
+}
+
+// (v0.777.0) the riders' own row - THE DUO'S OWN SEAT (the family's own
+// tail): a measure of the shape, never a named owner. Junk never prints a
+// shape (the honest silence's own row law).
+export function writeOffRidersRow (r) {
+  if (!r || typeof r !== 'object') return null
+  const { leader, leaderUnits, runner, runnerUnits, total, pairUnits, share } = r
+  if (typeof leader !== 'string' || !leader || typeof runner !== 'string' || !runner ||
+      !Number.isFinite(leaderUnits) || leaderUnits <= 0 || !Number.isFinite(runnerUnits) || runnerUnits <= 0 ||
+      !Number.isFinite(total) || total <= 0 || !Number.isFinite(pairUnits) || pairUnits > total ||
+      !Number.isFinite(share)) return null
+  return `the write-off's own riders (v0.777.0): no solo holder owns the majority - ${leader} x${leaderUnits}u + ${runner} x${runnerUnits}u own ${pairUnits} of ${total}u (${(share * 100).toFixed(1)}%) - THE DUO'S OWN SEAT: the bill's tie law held, the concentration is still real - the pair prices the pockets the solo law refused to name`
+}
