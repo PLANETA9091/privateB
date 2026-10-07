@@ -166,10 +166,10 @@ test('junk battery + anchored shape (non-strings, non-arrays, strangers)', () =>
   assert.ok(!HOP_ZERO_RE.test('2026-10-01T09:30:00.000Z ' + DECIDE_TIMEOUT))
 })
 
-// (v0.759.0) THE HOP-ZERO'S OWN BLEED - face 66's own cell (61 zeros, the
+// (v0.760.0) THE HOP-ZERO'S OWN BLEED - face 66's own cell (61 zeros, the
 // nothing-to-deposit honest non-defects split out, decide-timeout owns the
 // bleed under the strict-majority law) + the lever table's own front.
-test('v0.759.0 the bleed: face 66\'s own cell (decide-timeout owns the bleed, the decider\'s clock is the front)', () => {
+test('v0.760.0 the bleed: face 66\'s own cell (decide-timeout owns the bleed, the decider\'s clock is the front)', () => {
   const FACE66_BYWHY = { 'decide-timeout': 30, 'open-timeout': 11, 'nothing-to-deposit': 6, 'no-path': 6, 'goal-churn': 4, 'budget-floor': 3, 'walk-timeout': 1 }
   const b = hopZeroBleed(FACE66_BYWHY)
   assert.equal(b.total, 61)
@@ -180,10 +180,10 @@ test('v0.759.0 the bleed: face 66\'s own cell (decide-timeout owns the bleed, th
   assert.equal(b.bad, 0)
 })
 
-// (v0.759.0) face 22's own cell: goal-churn 8 of the 23 bleed - a unique
+// (v0.760.0) face 22's own cell: goal-churn 8 of the 23 bleed - a unique
 // max under the strict-majority bar reads the honest no-verdict silence;
 // a tie owns nothing (the storm-has-no-seat precedent).
-test('v0.759.0 the no-majority silence (face 22) + the tie owns nothing', () => {
+test('v0.760.0 the no-majority silence (face 22) + the tie owns nothing', () => {
   const FACE22_BYWHY = { 'goal-churn': 8, 'walk-timeout': 5, 'decide-timeout': 4, 'no-path': 3, 'open-timeout': 2, 'brake-refusal': 1, 'nothing-to-deposit': 1 }
   const b22 = hopZeroBleed(FACE22_BYWHY)
   assert.equal(b22.total, 24)
@@ -194,9 +194,9 @@ test('v0.759.0 the no-majority silence (face 22) + the tie owns nothing', () => 
   assert.equal(tie.bleed, 4)
 })
 
-// (v0.759.0) the WIRING assert: hopCensus computes bleed with the same one
+// (v0.760.0) the WIRING assert: hopCensus computes bleed with the same one
 // truth from the log's own lines (the honest non-defect rides the split).
-test('v0.759.0 the bleed rides the census return additively (WIRING)', () => {
+test('v0.760.0 the bleed rides the census return additively (WIRING)', () => {
   const LINES = [
     'F1 [F1] hop: chest at [-143,68,411] d=23 zero: chest unreachable (Took to long to decide path to goal!)',
     'F5 [F5] hop: chest at [-122,68,395] d=4 zero: cannot open chest (open chest: timeout after 10000ms)',
@@ -211,10 +211,10 @@ test('v0.759.0 the bleed rides the census return additively (WIRING)', () => {
   assert.equal(c.bleed.topWhy, null) // 1/1/1 - no majority owns it
 })
 
-// (v0.759.0) the junk battery: the empty/missing mix reads the honest
+// (v0.760.0) the junk battery: the empty/missing mix reads the honest
 // zero-shape; junk counts are skipped and counted (never priced); the
 // all-honest lane reads bleed 0; an unknown class falls back honestly.
-test('v0.759.0 the bleed junk battery', () => {
+test('v0.760.0 the bleed junk battery', () => {
   assert.deepEqual(hopZeroBleed(null), { total: 0, bleed: 0, honest: 0, bleedShare: 0, topWhy: null, bad: 0 })
   assert.deepEqual(hopZeroBleed('junk').total, 0)
   assert.deepEqual(hopZeroBleed(['no']).total, 0)

@@ -110,10 +110,10 @@ export function hopCensus (lines) {
     if (e.dist !== null) { out.dists.n++; out.dists.sum += e.dist; if (e.dist > out.dists.max) out.dists.max = e.dist }
     out.events.push(e)
   }
-  return Object.assign(out, { bleed: hopZeroBleed(out.byWhy) }) // (v0.759.0) the bleed rides additively - the hop-zero's own split
+  return Object.assign(out, { bleed: hopZeroBleed(out.byWhy) }) // (v0.760.0) the bleed rides additively - the hop-zero's own split
 }
 
-// (v0.759.0) THE HOP-ZERO'S OWN BLEED - the zero-hop total's honest split.
+// (v0.760.0) THE HOP-ZERO'S OWN BLEED - the zero-hop total's honest split.
 // The v0.399.0 census counted every zero the same way; face 66's lane read
 // 61 zeros with 6 of them 'nothing-to-deposit' - the machinery worked, the
 // pocket was empty: not a delivery bleed, the delivery chain was never
