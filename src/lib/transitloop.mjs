@@ -40,7 +40,7 @@ import { parseTransitLaunch, parseTransitStall } from './transitcensus.mjs'
 import { parseRearmBrake } from './rearm.mjs'
 
 // ---------------------------------------------------------------------------
-// (v0.753.0) THE WHALE'S OWN ROTATION - the seat split's own verdict.
+// (v0.754.0) THE WHALE'S OWN ROTATION - the seat split's own verdict.
 //
 // The loop ledger (v0.692.0) prices the bot-level whale (the zero-yield
 // loop), the pinbill (v0.722.0) prices the fleet-level pin, the cadence

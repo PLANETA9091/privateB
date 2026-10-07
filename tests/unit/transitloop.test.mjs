@@ -123,7 +123,7 @@ test('WIRING: the decompose prints the loop ledger row', () => {
 })
 
 // ---------------------------------------------------------------------------
-// (v0.753.0) THE WHALE'S OWN ROTATION - the seat split's verdict. The 62nd
+// (v0.754.0) THE WHALE'S OWN ROTATION - the seat split's verdict. The 62nd
 // face (37586368766) is the rotation's own field read: F14 spent 145
 // launches across THREE pinned seats (65/44/36), every seat flat by the
 // cadence's own law (8..7 = 12% closed, 5..5 and 14..14 = 0%), 4 paired
@@ -213,5 +213,5 @@ test('whaleRotationRow junk battery + WIRING: null on non-input, the decompose p
   // the WIRING: the row rides beside the water bill in the whale block
   const src = fs.readFileSync(new URL('../../scripts/fleet-mining/decompose.mjs', import.meta.url), 'utf8')
   assert.match(src, /whaleRotationRow\(lines\)/, 'the rotation reads the same face the ledger reads')
-  assert.match(src, /the whale's own rotation \(v0\.753\.0\)/, 'the row prints with its own version')
+  assert.match(src, /the whale's own rotation \(v0\.754\.0\)/, 'the row prints with its own version')
 })
