@@ -480,3 +480,102 @@ export function rescueEndRidersRow (r) {
       !Number.isFinite(shareOfEnds)) return null
   return `the ends' own riders (v0.780.0): no solo class owns the majority - ${leader} x${leaderOwns} + ${runner} x${runnerOwns} own ${pairOwns} of ${ofEnds} end(s) (${(shareOfEnds * 100).toFixed(1)}%) - THE PAIR'S OWN SEAT: the bill's tie law held, the concentration is still real - the pair prices the closes the solo law refused to name`
 }
+
+//
+// (v0.790.0) THE RESCUE'S MID-EPISODE SHAPE - WHICH mid-episode event owns
+// the rescue churn. The mid-episode line named the events' counts ('shore-
+// stall 0, transit-stall 1, blind-live 15, no-ground-truth 7, repeat-wet
+// standdown 0' - face 78's own read: 23 mid-episode events, the blind-live
+// event 65.2%) while the WHO rode raw: no row ever said WHICH event's own
+// holds own the rescue churn. THE SEAT LAW (the ledger's own midEvents
+// cell only, zero re-parsing - the v0.784.0 kind-seat precedent): the
+// strict-majority law - a solo event owns the churn only above half (a tie
+// owns nothing - the v0.784.0 seat law); junk never invents an event (a
+// missing or non-object midEvents cell, a non-finite or non-positive
+// count, or no counted event reads the honest silence). The display name
+// rides the ledger's own event keys (the row's byte law: count desc, then
+// the display name's own byte asc). Pure: reads the cell, never mutates.
+//
+export const RESCUE_MID_NAMES = {
+  shoreStall: 'shore-stall',
+  shorePin: 'shore-pin',
+  transitStall: 'transit-stall',
+  blindLive: 'blind-live',
+  noGroundTruth: 'no-ground-truth',
+  repeatWetStanddown: 'repeat-wet'
+}
+
+// rescueMidSeat(midEvents) -> { name, owns, ofEvents, share } | null
+export function rescueMidSeat (midEvents) {
+  if (!midEvents || typeof midEvents !== 'object' || Array.isArray(midEvents)) return null
+  const entries = Object.entries(midEvents)
+    .map(([k, n]) => [RESCUE_MID_NAMES[k] || k, n])
+    .filter(([name, n]) => typeof name === 'string' && name !== '' && Number.isFinite(n) && n > 0)
+  if (!entries.length) return null
+  let total = 0
+  for (const [, n] of entries) total += n
+  if (!(total > 0)) return null
+  entries.sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1))
+  const [name, owns] = entries[0]
+  // the tie law - a tie owns nothing (the v0.784.0 seat law)
+  if (entries.length > 1 && entries[1][1] === owns) return null
+  // the strict-majority law - only above half
+  if (owns * 2 <= total) return null
+  return { name, owns, ofEvents: total, share: +(owns / total).toFixed(3) }
+}
+
+// (v0.790.0) the mid-episode seat's own row - THE MID-EPISODE'S OWN SEAT:
+// the seat names WHICH mid-episode event owns the rescue churn; the
+// event's own front prices the cure (the blind dive is the ground-truth
+// front, the stall is the transit's own pace front). Junk never prints a
+// seat (the honest silence's own row law).
+export function rescueMidSeatRow (seat) {
+  if (!seat || typeof seat !== 'object') return null
+  const { name, owns, ofEvents, share } = seat
+  if (typeof name !== 'string' || !name ||
+      !Number.isFinite(owns) || owns <= 0 ||
+      !Number.isFinite(ofEvents) || ofEvents <= 0 || owns > ofEvents ||
+      !Number.isFinite(share)) return null
+  return `the rescue's own mid-episode (v0.790.0): ${name} owns ${owns} of ${ofEvents} mid-episode event(s) (${(share * 100).toFixed(1)}%) - THE MID-EPISODE'S OWN SEAT: one event's own holds own the rescue churn - the event's own front prices the water the raw split rode unnamed`
+}
+
+// (v0.790.0) THE RESCUE'S MID-EPISODE RIDERS - the seat's own silence's
+// companion. The seat names the solo event under the strict-majority law;
+// a no-majority event mix rode raw with no row naming the shape (face 80's
+// own read: blind-live 12 of 35 events - the mix the seat's own law
+// refused to seat). THE RIDER LAW (the ledger's own midEvents cell only,
+// zero re-parsing - the seat's own precedent): a MEASURE, never a
+// verdict-owner - the top two events' concentration prices the shape the
+// solo law refused to name (the seat's owner case leaves the companion
+// unprinted - the decompose's own branch law). Junk never invents a shape:
+// a missing or non-object midEvents cell, a non-finite or non-positive
+// count, or fewer than two counted events reads the honest silence (null).
+export function rescueMidRiders (midEvents) {
+  if (!midEvents || typeof midEvents !== 'object' || Array.isArray(midEvents)) return null
+  const entries = Object.entries(midEvents)
+    .map(([k, n]) => [RESCUE_MID_NAMES[k] || k, n])
+    .filter(([name, n]) => typeof name === 'string' && name !== '' && Number.isFinite(n) && n > 0)
+  if (entries.length < 2) return null
+  let total = 0
+  for (const [, n] of entries) total += n
+  if (!(total > 0)) return null
+  entries.sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1))
+  const [leader, leaderOwns] = entries[0]
+  const [runner, runnerOwns] = entries[1]
+  const pairOwns = leaderOwns + runnerOwns
+  return { leader, leaderOwns, runner, runnerOwns, ofEvents: total, pairOwns, share: +(pairOwns / total).toFixed(3), duet: leaderOwns === runnerOwns }
+}
+
+// (v0.790.0) the mid-episode riders' own row - THE MID-EPISODE'S OWN CROWD:
+// a measure of the shape, never a named owner (the seat's tie law holds);
+// the pair prices the concentration the solo law refused to seat. Junk
+// never prints a shape (the honest silence's own row law).
+export function rescueMidRidersRow (r) {
+  if (!r || typeof r !== 'object') return null
+  const { leader, leaderOwns, runner, runnerOwns, ofEvents, pairOwns, share } = r
+  if (typeof leader !== 'string' || !leader || typeof runner !== 'string' || !runner ||
+      !Number.isFinite(leaderOwns) || leaderOwns <= 0 || !Number.isFinite(runnerOwns) || runnerOwns <= 0 ||
+      !Number.isFinite(ofEvents) || ofEvents <= 0 || !Number.isFinite(pairOwns) || pairOwns > ofEvents ||
+      !Number.isFinite(share)) return null
+  return `the rescue's own mid-episode riders (v0.790.0): no solo event owns the majority - ${leader} x${leaderOwns} + ${runner} x${runnerOwns} own ${pairOwns} of ${ofEvents} mid-episode event(s) (${(share * 100).toFixed(1)}%) - THE MID-EPISODE'S OWN CROWD: the seat's tie law held, the crowd is the shape - the events' own spread prices the water the solo law refused to name`
+}

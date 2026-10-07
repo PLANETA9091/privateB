@@ -1,7 +1,7 @@
 // Decompose a fleet19.log into the evidence classes the worklog tracks.
 // Usage: node scripts/fleet-mining/decompose.mjs <path-to-fleet19.log>
 import { readFileSync } from 'node:fs'
-import { rescueLedger, rescueEndSeconds, RESCUE_END_CLASSES, rescueStartBill, rescueStartBillRow, rescueStartRiders, rescueStartRidersRow, rescueEndBill, rescueEndBillRow, rescueEndRiders, rescueEndRidersRow } from '../../src/lib/rescue-ledger.mjs' // (v0.368.0) the pure pairing's field read; (v0.773.0) WHICH walker owns the starts; (v0.779.0) WHICH class owns the ends
+import { rescueLedger, rescueEndSeconds, RESCUE_END_CLASSES, rescueStartBill, rescueStartBillRow, rescueStartRiders, rescueStartRidersRow, rescueEndBill, rescueEndBillRow, rescueEndRiders, rescueEndRidersRow, rescueMidSeat, rescueMidSeatRow, rescueMidRiders, rescueMidRidersRow } from '../../src/lib/rescue-ledger.mjs' // (v0.368.0) the pure pairing's field read; (v0.773.0) WHICH walker owns the starts; (v0.779.0) WHICH class owns the ends; (v0.790.0) WHICH mid-episode event owns the churn
 import { orphanOwnerCensus } from '../../src/lib/orphanowner.mjs' // (v0.679.0) the orphan end's per-bot owner (the dead-client class names its bot)
 import { askWhyCensus, dryAskVerdict, dryAskVerdictRow, dryAskBotBill, dryAskBotBillRow, dryAskRiders, dryAskRidersRow } from '../../src/lib/askwhycensus.mjs' // (v0.652.0) THE ASK'S OWN WHY BOOK - the ask ladder's walk-failure whys joined to the dry terminals (the delivery side's v0.612.0 why-book law, the ask side's own seat); (v0.769.0) WHICH class owns the dry ask; (v0.772.0) WHICH walker owns the class's rows
 import { bankFlowCensus, bankYield, writeOffBill, writeOffBillRow, writeOffRiders, writeOffRidersRow } from '../../src/lib/bankcensus.mjs' // (v0.686.0) + the yield dial - the banked mass over the visit lane's own line count; (v0.777.0) + the write-off's own cast - the book's bot-level seat
@@ -461,6 +461,15 @@ console.log('  timeout budget per-bot:', Object.entries(ledger.timeoutSecondsByB
 for (const l of ledger.orphanEndLines) console.log('  ORPHAN END:', l)
 for (const l of ledger.unclosedLines) console.log('  UNCLOSED START:', l)
 console.log(`  mid-episode: shore-stall ${ledger.midEvents.shoreStall || 0}, transit-stall ${ledger.midEvents.transitStall || 0}, blind-live ${ledger.midEvents.blindLive || 0}, no-ground-truth ${ledger.midEvents.noGroundTruth || 0}, repeat-wet standdown ${ledger.midEvents.repeatWetStanddown || 0}`)
+// (v0.790.0) THE RESCUE'S MID-EPISODE SEAT - WHICH mid-episode event owns
+// the rescue churn (the seat + the riders, one row never both - the
+// branch law; the owner case leaves the companion unprinted).
+const rms = rescueMidSeat(ledger.midEvents)
+if (rms) console.log(`  ${rescueMidSeatRow(rms)}`)
+else {
+  const rmr = rescueMidRiders(ledger.midEvents)
+  if (rmr) console.log(`  ${rescueMidRidersRow(rmr)}`)
+}
 console.log('  per-bot ends:', Object.entries(ledger.perBot).map(([b, r]) => `${b}{${Object.entries(r).filter(([, v]) => v > 0).map(([k, v]) => `${k}=${v}`).join(',')}}`).join(' ') || 'none')
 // (v0.431.0) THE RESCUE CLOCK - the rescue lane's price leg: every end's
 // 'in Ns' duration (the ledger prices only the timeout class) + the frozen

@@ -11,7 +11,8 @@ import {
   RESCUE_START_RE, RESCUE_END_CLASSES, RESCUE_MID_EVENTS,
   rescueEndClass, rescueEndSeconds, rescueLedger,
   rescueStartBill, rescueStartBillRow, rescueStartRiders, rescueStartRidersRow,
-  rescueEndBill, rescueEndBillRow, rescueEndRiders, rescueEndRidersRow
+  rescueEndBill, rescueEndBillRow, rescueEndRiders, rescueEndRidersRow,
+  rescueMidSeat, rescueMidSeatRow, rescueMidRiders, rescueMidRidersRow
 } from '../../src/lib/rescue-ledger.mjs'
 
 const start = (bot, verdict = 'drowning', o2 = 4) =>
@@ -547,4 +548,72 @@ test('v0.780.0 the ends ride the decompose mine (WIRING)', async () => {
   const castBranch = src.indexOf('if (castBill) console.log')
   const endBranch = src.indexOf('if (endBill) console.log')
   assert.ok(endBranch > castBranch) // the class axis rides beside the bot axis - additive, never re-ordering
+})
+
+// (v0.790.0) THE RESCUE'S MID-EPISODE SHAPE - the seat + the riders on the
+// ledger's own midEvents cell (the v0.784.0 kind-seat precedent, the
+// display name rides the ledger's own event keys).
+
+test('v0.790.0 the mid-episode seat reads a blind-live-heavy cell through the seat: blind-live owns 15 of 23 (65.2%)', () => {
+  // a blind-live-heavy 23-event cell (the seat's solo law prices it above
+  // half; the LIVE face-78 cell rode 48 events with the hidden shore-pin
+  // count - the riders case, the field's own mix)
+  const face78Mid = { shoreStall: 0, transitStall: 1, blindLive: 15, noGroundTruth: 7, repeatWetStanddown: 0 }
+  const s = rescueMidSeat(face78Mid)
+  assert.deepEqual(s, { name: 'blind-live', owns: 15, ofEvents: 23, share: 0.652 })
+  assert.equal(rescueMidSeatRow(s), `the rescue's own mid-episode (v0.790.0): blind-live owns 15 of 23 mid-episode event(s) (65.2%) - THE MID-EPISODE'S OWN SEAT: one event's own holds own the rescue churn - the event's own front prices the water the raw split rode unnamed`)
+})
+
+test('v0.790.0 the mid-episode seat obeys the tie and the strict-majority laws (a tie owns nothing, below half owns nothing)', () => {
+  // the tie - a tie owns nothing (the v0.784.0 seat law)
+  assert.equal(rescueMidSeat({ blindLive: 3, noGroundTruth: 3 }), null)
+  // below half - face 80's own read: blind-live 12 of 35 (34.3%) sits BELOW half
+  const face80Mid = { shoreStall: 1, transitStall: 9, blindLive: 12, noGroundTruth: 10, repeatWetStanddown: 3 }
+  assert.equal(rescueMidSeat(face80Mid), null)
+  // the riders ride the no-owner cases - the byte order broke the rank tie
+  // ('blind-live' < 'no-ground-truth' < 'repeat-wet' < 'shore-pin' < 'shore-stall' < 'transit-stall')
+  const r80 = rescueMidRiders(face80Mid)
+  assert.deepEqual(r80, { leader: 'blind-live', leaderOwns: 12, runner: 'no-ground-truth', runnerOwns: 10, ofEvents: 35, pairOwns: 22, share: 0.629, duet: false })
+  assert.equal(rescueMidRidersRow(r80), `the rescue's own mid-episode riders (v0.790.0): no solo event owns the majority - blind-live x12 + no-ground-truth x10 own 22 of 35 mid-episode event(s) (62.9%) - THE MID-EPISODE'S OWN CROWD: the seat's tie law held, the crowd is the shape - the events' own spread prices the water the solo law refused to name`)
+  // the tie duet - the byte order pin ('blind-live' < 'no-ground-truth')
+  const tieRiders = rescueMidRiders({ blindLive: 3, noGroundTruth: 3 })
+  assert.deepEqual(tieRiders, { leader: 'blind-live', leaderOwns: 3, runner: 'no-ground-truth', runnerOwns: 3, ofEvents: 6, pairOwns: 6, share: 1, duet: true })
+})
+
+test('v0.790.0 the mid-episode riders is the measure-not-owner law (the owner case keeps the measure, the decompose branch decides)', () => {
+  // the owner case's own measure - the riders still read (the branch law
+  // lives in the decompose, the lib stays the honest measure)
+  const m = rescueMidRiders({ shoreStall: 0, transitStall: 1, blindLive: 15, noGroundTruth: 7, repeatWetStanddown: 0 })
+  assert.deepEqual(m, { leader: 'blind-live', leaderOwns: 15, runner: 'no-ground-truth', runnerOwns: 7, ofEvents: 23, pairOwns: 22, share: 0.957, duet: false })
+  // the single-event fence - fewer than two counted events reads the silence
+  assert.equal(rescueMidRiders({ blindLive: 5 }), null)
+})
+
+test('v0.790.0 the mid-episode junk battery and the WIRING assert - the decompose branch rides the seat, the prose lives only in the lib', () => {
+  // the junk battery - the honest silence every time
+  const junk = [null, undefined, 42, 'prose', [], { blindLive: 0, transitStall: 0 }, { blindLive: -1 }, { blindLive: NaN }, { blindLive: Infinity }]
+  for (const j of junk) {
+    assert.equal(rescueMidSeat(j), null)
+    assert.equal(rescueMidRiders(j), null)
+  }
+  // an unknown key keeps its own byte (the display name's own law - never invented)
+  const unknown = rescueMidSeat({ mysteryEvent: 5 })
+  assert.deepEqual(unknown, { name: 'mysteryEvent', owns: 5, ofEvents: 5, share: 1 })
+  // the rows' own junk law - the honest silence's row
+  assert.equal(rescueMidSeatRow(null), null)
+  assert.equal(rescueMidSeatRow({}), null)
+  assert.equal(rescueMidSeatRow({ name: '', owns: 1, ofEvents: 2, share: 0.5 }), null)
+  assert.equal(rescueMidSeatRow({ name: 'blind-live', owns: 3, ofEvents: 2, share: 1.5 }), null)
+  assert.equal(rescueMidRidersRow(null), null)
+  assert.equal(rescueMidRidersRow({}), null)
+  assert.equal(rescueMidRidersRow({ leader: 'blind-live', leaderOwns: 0, runner: 'transit-stall', runnerOwns: 1, ofEvents: 1, pairOwns: 1, share: 1 }), null)
+  // the WIRING assert - the decompose branch rides the seat, the prose
+  // lives only in the lib
+  return (async () => {
+    const src = await readFile(new URL('../../scripts/fleet-mining/decompose.mjs', import.meta.url), 'utf8')
+    assert.ok(src.includes('const rms = rescueMidSeat(ledger.midEvents)'), 'the seat rides the midEvents cells')
+    assert.ok(src.includes('if (rms) console.log(`  ${rescueMidSeatRow(rms)}`)'), 'the owner row rides the branch')
+    assert.ok(src.includes('const rmr = rescueMidRiders(ledger.midEvents)'), 'the riders ride the same branch law')
+    assert.ok(!src.includes("THE MID-EPISODE'S OWN SEAT"), 'the prose stays in the lib')
+  })()
 })
