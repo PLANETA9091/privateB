@@ -8,6 +8,7 @@
 
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
 import {
   parseFrozenPhysics, parseFrozenRelog, parseFrozenLoopBreak,
   parseFreezeNamed, parseGateHold, parseGateBypassed, parseGateClears,
@@ -208,7 +209,8 @@ test('frozen-census: the gate endings - bypassed at arrival vs clears (the 23rd 
   ])
   assert.equal(c.gateBypassed.n, 3)
   assert.deepEqual(c.gateBypassed.byBot, { F18: 3 })
-  assert.deepEqual(c.gateBypassed.o2, { min: 0, max: 4, unknown: 0 }) // 0 is a VALUE - the critical dry read, never unknown
+  assert.deepEqual(c.gateBypassed.byCls, { critical: 3, wetCycler: 0 }) // (v0.759.0) the class rides the census
+  assert.deepEqual(c.gateBypassed.o2, { min: 0, max: 4, reset: 0, unknown: 0 }) // 0 is a VALUE - the critical dry read, never unknown
   assert.equal(c.gateBypassed.streakMax, 2)
   assert.equal(c.gateClears.n, 1)
   assert.deepEqual(c.gateClears.byBot, { F18: 1 })
@@ -218,10 +220,11 @@ test('frozen-census: the gate endings - bypassed at arrival vs clears (the 23rd 
 test('frozen-census: the gate endings parsers - reset(-1) is unknown evidence, junk-safe', () => {
   const line = 'F3 [F3] water: frozen-return gate bypassed (critical read o2=reset(-1)) - the armed hold voids on arrival, the rescue owns the clock (relog streak 5)'
   const b = parseGateBypassed(line)
-  assert.deepEqual(b, { bot: 'F3', o2: 'reset(-1)', streak: 5 })
+  assert.deepEqual(b, { bot: 'F3', o2: 'reset(-1)', streak: 5, whyClass: 'critical' }) // (v0.759.0) the class rides the parse
   const c = frozenCensus([line])
   assert.equal(c.gateBypassed.n, 1)
-  assert.equal(c.gateBypassed.o2.unknown, 1) // reset(-1) is evidence, never a value
+  assert.equal(c.gateBypassed.o2.reset, 1) // (v0.759.0) reset(-1) sits in its OWN seat now - the verdicts' book law mirrored
+  assert.equal(c.gateBypassed.o2.unknown, 0)
   assert.equal(c.gateBypassed.o2.min, null)
   assert.equal(c.gateBypassed.o2.max, null)
   assert.equal(c.gateBypassed.streakMax, 5)
@@ -271,4 +274,56 @@ test('frozen-census: the gate promise rate - kept vs voided (the 23rd/24th arc)'
   assert.equal(c0.gatePromise, null)
   assert.equal(c0.gateBypassed.n, 0)
   assert.equal(c0.gateClears.n, 0)
+})
+
+// (v0.759.0) THE BYPASS'S OWN GRAMMAR - the v0.266.0 emitter's wet-cycler
+// shape joins the standalone endings. Face 65 (37597552768) F4's chain is the
+// first field read: relog #1 armed the 10s hold, the fresh client re-paged
+// head-wet on the reset burst, the sentinel crossed, and the grammar refused
+// the line - the gate rows read 'bypasses 0 ... the promise LIVES' over a
+// hold that WAS voided, the escape hatch caught the evidence.
+test('frozen-census: the wet-cycler bypass - the standalone sentinel shape parses (face 65 byte-exact, v0.759.0)', () => {
+  const line = 'F4 [F4] water: frozen-return gate bypassed (wet cycler o2=reset(-1) - the sentinel is not safety evidence, the drowning clock outranks the hold) - the rescue owns the clock (relog streak 1)'
+  assert.deepEqual(parseGateBypassed(line), { bot: 'F4', o2: 'reset(-1)', streak: 1, whyClass: 'wet-cycler' })
+  // the face-65 composed chain: the relog arms the hold -> the sentinel voids
+  // it at arrival -> the rescue lands (clears x3, the face's own endings)
+  const c = frozenCensus([
+    'F4 [F4] water: frozen client relog (#1 consecutive) (frozen while head-wet (1 verdict) - the drowning clock owns this client) - ending the session, the reconnect lane rebuilds the physics; the drowning sentry holds non-critical pages 10s (the frozen-return gate) - o2=16 health=20 window=legacy',
+    line,
+    'F4 [F4] water: frozen-return gate clears - the rescue completed with living physics',
+    'F16 [F16] water: frozen-return gate clears - the rescue completed with living physics',
+    'F17 [F17] water: frozen-return gate clears - the rescue completed with living physics'
+  ])
+  assert.equal(c.gateBypassed.n, 1)
+  assert.deepEqual(c.gateBypassed.byCls, { critical: 0, wetCycler: 1 }) // the void's own class named
+  assert.equal(c.gateBypassed.o2.reset, 1) // the sentinel is evidence - its own seat, never a gauge
+  assert.equal(c.gateBypassed.o2.unknown, 0)
+  assert.equal(c.gateBypassed.streakMax, 1)
+  assert.deepEqual(c.gatePromise, { kept: 3, voided: 1, total: 4, pct: 75 }) // the promise's TRUE rate (was 3/3 100%)
+  assert.equal(c.unparsed, 0) // the escape hatch returns to honest silence
+})
+
+test('frozen-census: the wet-cycler fences - the prose rides the emitter\'s own words, junk stays refused', () => {
+  // the emitter ALWAYS prints the sentinel prose in the wet-cycler branch -
+  // the bare shape is a line the fleet never wrote, the grammar refuses
+  assert.equal(parseGateBypassed('F4 [F4] water: frozen-return gate bypassed (wet cycler o2=reset(-1)) - the rescue owns the clock (relog streak 1)'), null)
+  // the critical branch ALWAYS prints the arrival prose - the bare shape refused
+  assert.equal(parseGateBypassed('F4 [F4] water: frozen-return gate bypassed (critical read o2=0) - the rescue owns the clock (relog streak 1)'), null)
+  // a class word the emitter never prints - refused
+  assert.equal(parseGateBypassed('F4 [F4] water: frozen-return gate bypassed (critical o2=0) - the armed hold voids on arrival, the rescue owns the clock (relog streak 1)'), null)
+  // no streak, no line (both branches print the streak)
+  assert.equal(parseGateBypassed('F4 [F4] water: frozen-return gate bypassed (critical read o2=0) - the armed hold voids on arrival, the rescue owns the clock'), null)
+  // the junk battery - non-strings and foreign-family lines stay null
+  assert.equal(parseGateBypassed(undefined), null)
+  assert.equal(parseGateBypassed(42), null)
+  assert.equal(parseGateBypassed({}), null)
+  assert.equal(parseGateBypassed('F4 [F4] water: freeze named ticking-flat - the simulate runs and the world owns the bot'), null)
+  assert.equal(parseGateBypassed('F4 [F4] water: frozen-return gate holds the page (7s left) - the fresh client walks the hazard-ledged column out'), null)
+})
+
+test('frozen-census: the WIRING - the promise\'s LIVES tail consults BOTH void lanes (v0.759.0)', () => {
+  const src = readFileSync(new URL('../../scripts/fleet-mining/decompose.mjs', import.meta.url), 'utf8')
+  assert.ok(src.includes('const allVoids = inlineVoids + fc.gateBypassed.n'), 'the LIVES tail counts the standalone arrivals')
+  assert.ok(src.includes('allVoids === 0 ? \' - the promise LIVES'), 'the LIVES tail rides the combined voids')
+  assert.ok(src.includes('fc.gateBypassed.byCls.critical'), 'the endings row prints the class split')
 })

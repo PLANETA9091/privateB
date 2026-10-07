@@ -30,7 +30,12 @@
 //             hold SURVIVING to hold a page: the relog promise met
 //   endings   'water: frozen-return gate bypassed (critical read o2=O) -
 //             the armed hold voids on arrival, the rescue owns the clock
-//             (relog streak S)' and 'water: frozen-return gate clears -
+//             (relog streak S)' and 'water: frozen-return gate bypassed
+//             (wet cycler o2=reset(-1) - the sentinel is not safety
+//             evidence, the drowning clock outranks the hold) - the rescue
+//             owns the clock (relog streak S)' (the v0.759.0 grammar - the
+//             v0.266.0 emitter's second shape, refused until face 65's
+//             field read) and 'water: frozen-return gate clears -
 //             the rescue completed with living physics' - the hold's TWO
 //             endings: the promise voided at arrival vs the promise met
 //             (the v0.681.0 gate-endings census)
@@ -88,10 +93,25 @@ const FREEZE_NAMED_RE = new RegExp(TAG + 'water: freeze named ([a-z][a-z-]*) - (
 const GATE_HOLD_RE = new RegExp(TAG +
   'water: frozen-return gate holds the page \\((\\d+)s left\\) - the fresh client walks the hazard-ledgered column out$')
 
-// the gate endings: the hold's two arrival verdicts (the v0.681.0 census)
+// the gate endings: the hold's two arrival verdicts (the v0.681.0 census).
+// (v0.759.0) THE BYPASS'S OWN GRAMMAR - one regex per emitter branch (the
+// one-parser-per-emitter law). The emitter (miner.mjs, the v0.266.0 sentinel
+// cure) has carried BOTH shapes since v0.266.0, each with its own fixed
+// prose: the critical crossing ('critical read o2=O - the armed hold voids
+// on arrival, ...') and the sentinel crossing ('wet cycler o2=O - the
+// sentinel is not safety evidence, the drowning clock outranks the hold -
+// ...'). Face 65's F4 chain (relog #1 armed the 10s hold, the fresh client
+// re-paged head-wet on the reset burst) is the wet-cycler's first field
+// read, and the grammar refused it: the line fed the escape hatch while the
+// gate rows read 'bypasses 0 ... the promise LIVES' over a hold that WAS
+// voided. The class rides the parse (the mirror of the relog-tail's own
+// v0.266.0 inline classes).
 const GATE_BYPASSED_RE = new RegExp(TAG +
   'water: frozen-return gate bypassed \\(critical read o2=' + O2 +
   '\\) - the armed hold voids on arrival, the rescue owns the clock \\(relog streak (\\d+)\\)$')
+const GATE_BYPASSED_WET_RE = new RegExp(TAG +
+  'water: frozen-return gate bypassed \\(wet cycler o2=' + O2 +
+  ' - the sentinel is not safety evidence, the drowning clock outranks the hold\\) - the rescue owns the clock \\(relog streak (\\d+)\\)$')
 
 const GATE_CLEARS_RE = new RegExp(TAG +
   'water: frozen-return gate clears - the rescue completed with living physics$')
@@ -196,14 +216,20 @@ export function parseGateHold (line) {
  * Parse one frozen-return gate bypassed line (the hold voided at arrival),
  * or null. The o2 rides o2SensorLabel's shapes - the domain read (o2Value)
  * decides value vs evidence, never this parser.
+ * (v0.759.0) BOTH emitter shapes parse (the v0.266.0 wet-cycler joined the
+ * v0.681.0 critical) and the class rides the parse as whyClass.
  * @param {string} [line]
- * @returns {null|{bot: string, o2: string, streak: number}}
+ * @returns {null|{bot: string, o2: string, streak: number, whyClass: 'critical'|'wet-cycler'}}
  */
 export function parseGateBypassed (line) {
   if (typeof line !== 'string') return null
-  const m = line.match(GATE_BYPASSED_RE)
-  if (!m) return null
-  return { bot: m[1], o2: m[2], streak: Number(m[3]) }
+  // each branch's own regex - the prose rides its class, never the other's
+  // (groups: m[1] = the bot (TAG's own), m[2] = the o2 label, m[3] = the streak)
+  let m = line.match(GATE_BYPASSED_RE)
+  if (m) return { bot: m[1], o2: m[2], streak: Number(m[3]), whyClass: 'critical' }
+  m = line.match(GATE_BYPASSED_WET_RE)
+  if (m) return { bot: m[1], o2: m[2], streak: Number(m[3]), whyClass: 'wet-cycler' }
+  return null
 }
 
 /**
@@ -271,7 +297,10 @@ export function frozenCensus (lines) {
   const loopBreaks = { n: 0, why: { criticalLungs: 0, loopCap: 0 } }
   const freezeNamed = { n: 0, byCls: {} }
   const gateHolds = { n: 0 }
-  const gateBypassed = { n: 0, byBot: {}, o2: { min: null, max: null, unknown: 0 }, streakMax: null }
+  // (v0.759.0) byCls: the void's own class split (critical read vs the
+  // wet-cycler sentinel) and the o2 book grows the reset seat (the
+  // sentinel is evidence, not a gauge - the verdicts' own o2 book law).
+  const gateBypassed = { n: 0, byBot: {}, byCls: { critical: 0, wetCycler: 0 }, o2: { min: null, max: null, reset: 0, unknown: 0 }, streakMax: null }
   const gateClears = { n: 0, byBot: {} }
   const apexRests = { n: 0, byBot: {} }
   const dupKicks = { n: 0, byBot: {} }
@@ -330,11 +359,14 @@ export function frozenCensus (lines) {
     if (gb) {
       gateBypassed.n++
       gateBypassed.byBot[gb.bot] = (gateBypassed.byBot[gb.bot] || 0) + 1
+      if (gb.whyClass === 'wet-cycler') gateBypassed.byCls.wetCycler++
+      else gateBypassed.byCls.critical++
       const gov = o2Value(gb.o2)
       if (gov !== null) {
         if (gateBypassed.o2.min === null || gov < gateBypassed.o2.min) gateBypassed.o2.min = gov
         if (gateBypassed.o2.max === null || gov > gateBypassed.o2.max) gateBypassed.o2.max = gov
-      } else gateBypassed.o2.unknown++
+      } else if (gb.o2 === 'reset(-1)') gateBypassed.o2.reset++
+      else gateBypassed.o2.unknown++
       if (gateBypassed.streakMax === null || gb.streak > gateBypassed.streakMax) gateBypassed.streakMax = gb.streak
       continue
     }

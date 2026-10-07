@@ -2905,7 +2905,14 @@ console.log('  plan lines:', count(/materials plan|plan progress/i))
     const rlBots = Object.entries(rl.byBot).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([k, n]) => `${k} ${n}`).join(', ')
     console.log(`  relogs: ${rl.n} (head-wet saver ${rl.why.headWet}, legacy threshold ${rl.why.legacy}; era current ${rl.era.current} / legacy ${rl.era.legacy})${rl.streakMax !== null ? `, streak max #${rl.streakMax}` : ''}${rlBots ? `, top bots: ${rlBots}` : ''}`)
     if (rl.era.current > 0) {
-      console.log(`  gate: holds ${rl.holds.n}${rl.holds.n > 0 ? ` (${rl.holds.min}..${rl.holds.max}s armed)` : ''}, bypasses ${rl.bypass.critical + rl.bypass.wetCycler} (critical ${rl.bypass.critical}, wet-cycler ${rl.bypass.wetCycler})${rl.holds.n > 0 && rl.bypass.critical + rl.bypass.wetCycler === 0 ? ' - the promise LIVES: a hold armed and no echo voided it' : ''}${rl.bypass.critical + rl.bypass.wetCycler > 0 ? ' - THE LOOP FUEL: every void is a relog that fed the column' : ''}`)
+      // (v0.759.0) the promise's echoes ride BOTH lanes: the relog line's own
+      // inline tail (rl.bypass) AND the standalone arrival verdict
+      // (fc.gateBypassed.n - the v0.266.0 wet-cycler shape's own row). The
+      // LIVES tail stayed blind to the standalone lane until face 65's F4
+      // chain read 'the promise LIVES' over a hold the wet-cycler voided.
+      const inlineVoids = rl.bypass.critical + rl.bypass.wetCycler
+      const allVoids = inlineVoids + fc.gateBypassed.n
+      console.log(`  gate: holds ${rl.holds.n}${rl.holds.n > 0 ? ` (${rl.holds.min}..${rl.holds.max}s armed)` : ''}, bypasses ${allVoids} (critical ${rl.bypass.critical + fc.gateBypassed.byCls.critical}, wet-cycler ${rl.bypass.wetCycler + fc.gateBypassed.byCls.wetCycler})${rl.holds.n > 0 && allVoids === 0 ? ' - the promise LIVES: a hold armed and no echo voided it' : ''}${allVoids > 0 ? ' - THE LOOP FUEL: every void is a relog that fed the column' : ''}`)
     }
     if (fc.loopBreaks.n > 0) console.log(`  loop breaks (the grace): ${fc.loopBreaks.n} (critical-lungs ${fc.loopBreaks.why.criticalLungs}, loop-cap ${fc.loopBreaks.why.loopCap})`)
     if (fc.freezeNamed.n > 0) {
@@ -2917,7 +2924,7 @@ console.log('  plan lines:', count(/materials plan|plan progress/i))
       const gbLo = fc.gateBypassed.o2.min !== null ? String(fc.gateBypassed.o2.min) : '?'
       const gbHi = fc.gateBypassed.o2.max !== null ? String(fc.gateBypassed.o2.max) : '?'
       const gbTail = fc.gateBypassed.n > 0
-        ? ` (o2 at arrival ${gbLo}..${gbHi}${fc.gateBypassed.o2.unknown > 0 ? `, unknown ${fc.gateBypassed.o2.unknown}` : ''}${fc.gateBypassed.streakMax !== null ? `, streak max #${fc.gateBypassed.streakMax}` : ''})`
+        ? ` (${fc.gateBypassed.byCls.critical > 0 || fc.gateBypassed.byCls.wetCycler > 0 ? `critical ${fc.gateBypassed.byCls.critical} / wet-cycler ${fc.gateBypassed.byCls.wetCycler}: ` : ''}o2 at arrival ${gbLo}..${gbHi}${fc.gateBypassed.o2.reset > 0 ? `, reset ${fc.gateBypassed.o2.reset}` : ''}${fc.gateBypassed.o2.unknown > 0 ? `, unknown ${fc.gateBypassed.o2.unknown}` : ''}${fc.gateBypassed.streakMax !== null ? `, streak max #${fc.gateBypassed.streakMax}` : ''})`
         : ''
       console.log(`  gate endings: bypassed ${fc.gateBypassed.n}${gbTail}, clears ${fc.gateClears.n}${fc.gatePromise ? ` - the promise kept ${fc.gatePromise.kept}/${fc.gatePromise.total} (${fc.gatePromise.pct}%)` : ''} - the hold's promise priced at arrival`)
     }
