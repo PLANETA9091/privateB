@@ -387,3 +387,96 @@ export function rescueStartRidersRow (r) {
       !Number.isFinite(shareOfStarts)) return null
   return `the starts' own riders (v0.774.0): no solo spender owns the majority - ${leader} x${leaderOwns} + ${runner} x${runnerOwns} own ${pairOwns} of ${ofStarts} start(s) (${(shareOfStarts * 100).toFixed(1)}%) - THE DUO'S OWN SEAT: the bill's tie law held, the concentration is still real - the pair prices the dives the solo law refused to name`
 }
+
+// (v0.780.0) THE ENDS' OWN SEAT - the rescue book's class-level seat. The
+// v0.368.0 ledger priced every END, the v0.728.0 verdict priced WHETHER the
+// lane saved, the v0.774.0 cast named WHICH BOT spends the starts - no row
+// ever named WHICH CLASS owns the book (face 75's own split rode raw:
+// 'complete: 4  released: 20  frozen standdown: 28 / timeout: 1
+// dead-in-rescue: 1' - the freeze's majority sat unnamed beside the
+// dead-client class's own prose). The labels are the decompose's own
+// display bytes (the END-STATE row's own words), never a fork. The
+// unclosed class never joins the book: it is the FATAL-face class (the
+// process died mid-rescue), not an end the lane chose - the ledger counts
+// it separately and the bill keeps that fence.
+export const RESCUE_END_CLASS_LABELS = {
+  complete: 'complete',
+  completeStandingWet: 'standing-wet complete',
+  released: 'released',
+  frozenStanddown: 'frozen standdown',
+  timeout: 'timeout',
+  dead: 'dead-in-rescue',
+  botGone: 'bot-gone',
+  abortedError: 'error abort'
+}
+
+// (v0.780.0) THE BILL LAW (the ledger's own totals cells, zero re-parsing
+// - the v0.774.0 cast's own precedent, the class instead of the bot): the
+// top class owns the book under the strict-majority law (a tie owns
+// nothing - the storm-has-no-seat precedent; face 70's own split was the
+// tie's first field witness: released 16 = frozen 16). Junk never invents
+// a bill: a missing or empty totals table, an end-less book, or a tied
+// spread reads the honest silence (null).
+export function rescueEndBill (totals) {
+  if (!(totals && typeof totals === 'object')) return null
+  const classes = {}
+  let ofEnds = 0
+  for (const key of Object.keys(RESCUE_END_CLASS_LABELS)) {
+    const n = totals[key]
+    if (Number.isFinite(n) && n > 0) { classes[key] = n; ofEnds += n }
+  }
+  if (ofEnds <= 0) return null
+  let topUnits = 0
+  let topKey = null
+  for (const [key, n] of Object.entries(classes)) {
+    if (n > topUnits) { topUnits = n; topKey = key }
+  }
+  if (topKey === null || topUnits <= ofEnds - topUnits) return null
+  return { key: topKey, label: RESCUE_END_CLASS_LABELS[topKey], owns: topUnits, ofEnds, shareOfEnds: +(topUnits / ofEnds).toFixed(3) }
+}
+
+// (v0.780.0) the bill's own row - THE CLASS'S OWN SEAT: one class's own
+// closes own the rescue book. Junk never prints a seat (the honest
+// silence's own row law).
+export function rescueEndBillRow (bill) {
+  if (!bill || typeof bill !== 'object') return null
+  const { label, owns, ofEnds, shareOfEnds } = bill
+  if (typeof label !== 'string' || !label || !Number.isFinite(owns) || owns <= 0 ||
+      !Number.isFinite(ofEnds) || ofEnds <= 0 || owns > ofEnds ||
+      !Number.isFinite(shareOfEnds)) return null
+  return `the ends' own bill (v0.780.0): ${label} owns ${owns} of ${ofEnds} end(s) (${(shareOfEnds * 100).toFixed(1)}%) - THE CLASS'S OWN SEAT: one class's own closes own the rescue book - the class's own front prices the ends the raw split rode unnamed`
+}
+
+// (v0.780.0) THE ENDS' OWN RIDERS - the bill's silence's own companion
+// (the v0.774.0 riders precedent, zero re-parsing): a MEASURE, never a
+// verdict-owner - the top two classes' concentration prices the shape the
+// solo law refused to name (the bill's owner case leaves the companion
+// unprinted - the decompose's own branch law). The order is deterministic
+// (count desc, then the key's own byte - 'frozenStanddown' < 'released').
+// Junk never invents a shape: a missing or empty totals table, an end-less
+// book, or fewer than two classes reads the honest silence (null).
+export function rescueEndRiders (totals) {
+  if (!(totals && typeof totals === 'object')) return null
+  const ranked = Object.keys(RESCUE_END_CLASS_LABELS)
+    .map(key => ({ key, label: RESCUE_END_CLASS_LABELS[key], n: totals[key] }))
+    .filter(c => Number.isFinite(c.n) && c.n > 0)
+    .sort((a, b) => b.n - a.n || (a.key < b.key ? -1 : 1))
+  if (ranked.length < 2) return null
+  const ofEnds = ranked.reduce((a, c) => a + c.n, 0)
+  const pairOwns = ranked[0].n + ranked[1].n
+  return { leader: ranked[0].label, leaderOwns: ranked[0].n, runner: ranked[1].label, runnerOwns: ranked[1].n, ofEnds, pairOwns, shareOfEnds: +(pairOwns / ofEnds).toFixed(3), tie: ranked[0].n === ranked[1].n }
+}
+
+// (v0.780.0) the riders' own row - THE PAIR'S OWN SEAT: a measure of the
+// shape, never a named owner (the bill's tie law holds); the pair prices
+// the concentration the solo law refused to seat. Junk never prints a
+// shape (the honest silence's own row law).
+export function rescueEndRidersRow (r) {
+  if (!r || typeof r !== 'object') return null
+  const { leader, leaderOwns, runner, runnerOwns, ofEnds, pairOwns, shareOfEnds } = r
+  if (typeof leader !== 'string' || !leader || typeof runner !== 'string' || !runner ||
+      !Number.isFinite(leaderOwns) || leaderOwns <= 0 || !Number.isFinite(runnerOwns) || runnerOwns <= 0 ||
+      !Number.isFinite(ofEnds) || ofEnds <= 0 || !Number.isFinite(pairOwns) || pairOwns > ofEnds ||
+      !Number.isFinite(shareOfEnds)) return null
+  return `the ends' own riders (v0.780.0): no solo class owns the majority - ${leader} x${leaderOwns} + ${runner} x${runnerOwns} own ${pairOwns} of ${ofEnds} end(s) (${(shareOfEnds * 100).toFixed(1)}%) - THE PAIR'S OWN SEAT: the bill's tie law held, the concentration is still real - the pair prices the closes the solo law refused to name`
+}

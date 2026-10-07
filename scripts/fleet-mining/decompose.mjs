@@ -1,7 +1,7 @@
 // Decompose a fleet19.log into the evidence classes the worklog tracks.
 // Usage: node scripts/fleet-mining/decompose.mjs <path-to-fleet19.log>
 import { readFileSync } from 'node:fs'
-import { rescueLedger, rescueEndSeconds, RESCUE_END_CLASSES, rescueStartBill, rescueStartBillRow, rescueStartRiders, rescueStartRidersRow } from '../../src/lib/rescue-ledger.mjs' // (v0.368.0) the pure pairing's field read; (v0.773.0) WHICH walker owns the starts
+import { rescueLedger, rescueEndSeconds, RESCUE_END_CLASSES, rescueStartBill, rescueStartBillRow, rescueStartRiders, rescueStartRidersRow, rescueEndBill, rescueEndBillRow, rescueEndRiders, rescueEndRidersRow } from '../../src/lib/rescue-ledger.mjs' // (v0.368.0) the pure pairing's field read; (v0.773.0) WHICH walker owns the starts; (v0.779.0) WHICH class owns the ends
 import { orphanOwnerCensus } from '../../src/lib/orphanowner.mjs' // (v0.679.0) the orphan end's per-bot owner (the dead-client class names its bot)
 import { askWhyCensus, dryAskVerdict, dryAskVerdictRow, dryAskBotBill, dryAskBotBillRow, dryAskRiders, dryAskRidersRow } from '../../src/lib/askwhycensus.mjs' // (v0.652.0) THE ASK'S OWN WHY BOOK - the ask ladder's walk-failure whys joined to the dry terminals (the delivery side's v0.612.0 why-book law, the ask side's own seat); (v0.769.0) WHICH class owns the dry ask; (v0.772.0) WHICH walker owns the class's rows
 import { bankFlowCensus, bankYield, writeOffBill, writeOffBillRow, writeOffRiders, writeOffRidersRow } from '../../src/lib/bankcensus.mjs' // (v0.686.0) + the yield dial - the banked mass over the visit lane's own line count; (v0.777.0) + the write-off's own cast - the book's bot-level seat
@@ -385,6 +385,17 @@ if (castBill) console.log(`  ${rescueStartBillRow(castBill)}`)
 else {
   const castRiders = rescueStartRiders(ledger.perBot, ledger.totals)
   if (castRiders) console.log(`  ${rescueStartRidersRow(castRiders)}`)
+}
+// (v0.779.0) THE ENDS' OWN SEAT - the rescue book's class-level seat, one
+// additive branch beside the v0.774.0 cast (the bot axis): the ledger's
+// own totals cells, zero re-parsing; the bill's tie silence reads the
+// riders' measure - one row, never both; the junk reads the honest
+// silence. The unclosed class stays outside (the FATAL-face fence).
+const endBill = rescueEndBill(ledger.totals)
+if (endBill) console.log(`  ${rescueEndBillRow(endBill)}`)
+else {
+  const endRiders = rescueEndRiders(ledger.totals)
+  if (endRiders) console.log(`  ${rescueEndRidersRow(endRiders)}`)
 }
 // (v0.731.0) THE RELEASE'S OWN TOLL - the release's own aftermath, the join
 // the arena census never held: the hound census prices the ARENA, the

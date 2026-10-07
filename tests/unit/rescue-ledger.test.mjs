@@ -10,7 +10,8 @@ import { readFile } from 'node:fs/promises'
 import {
   RESCUE_START_RE, RESCUE_END_CLASSES, RESCUE_MID_EVENTS,
   rescueEndClass, rescueEndSeconds, rescueLedger,
-  rescueStartBill, rescueStartBillRow, rescueStartRiders, rescueStartRidersRow
+  rescueStartBill, rescueStartBillRow, rescueStartRiders, rescueStartRidersRow,
+  rescueEndBill, rescueEndBillRow, rescueEndRiders, rescueEndRidersRow
 } from '../../src/lib/rescue-ledger.mjs'
 
 const start = (bot, verdict = 'drowning', o2 = 4) =>
@@ -476,4 +477,74 @@ test('v0.774.0 the cast rides the decompose mine (WIRING)', async () => {
   const branch = src.indexOf('if (castBill) console.log')
   const elseRiders = src.indexOf('const castRiders = rescueStartRiders(ledger.perBot, ledger.totals)')
   assert.ok(branch > 0 && elseRiders > branch) // the branch law's own shape: the bill's silence reads the riders'
+})
+
+test("v0.780.0 face 75's own cell: the freeze's majority reads the bill (the storm face's own dead-client class)", () => {
+  // face 75's own split (run 37649886742): complete 4, released 20,
+  // frozen standdown 28, timeout 1, dead-in-rescue 1 - 54 ends, the freeze
+  // owns 28 > 26 - the strict majority the raw split rode unnamed.
+  const totals = { starts: 57, complete: 4, completeStandingWet: 0, released: 20, frozenStanddown: 28, timeout: 1, dead: 1, botGone: 0, abortedError: 0, unclosed: 3 }
+  const bill = rescueEndBill(totals)
+  assert.deepEqual(bill, { key: 'frozenStanddown', label: 'frozen standdown', owns: 28, ofEnds: 54, shareOfEnds: 0.519 }) // the unclosed 3 stay outside - the FATAL-face fence
+  assert.equal(
+    rescueEndBillRow(bill),
+    "the ends' own bill (v0.780.0): frozen standdown owns 28 of 54 end(s) (51.9%) - THE CLASS'S OWN SEAT: one class's own closes own the rescue book - the class's own front prices the ends the raw split rode unnamed"
+  )
+})
+
+test("v0.780.0 face 70's own cell: the tie owns nothing and the pair prices the shape", () => {
+  // face 70's own split (run 37624132784): complete 10, released 16,
+  // frozen standdown 16, timeout 2 - 44 ends, the tie's first field
+  // witness: released 16 = frozen 16 - the storm-has-no-seat precedent.
+  const totals = { starts: 57, complete: 10, completeStandingWet: 0, released: 16, frozenStanddown: 16, timeout: 2, dead: 0, botGone: 0, abortedError: 0, unclosed: 0 }
+  assert.equal(rescueEndBill(totals), null) // 16 <= 44-16 - the tie law held
+  const riders = rescueEndRiders(totals)
+  assert.deepEqual(riders, { leader: 'frozen standdown', leaderOwns: 16, runner: 'released', runnerOwns: 16, ofEnds: 44, pairOwns: 32, shareOfEnds: 0.727, tie: true }) // the key's own byte breaks the display order: 'frozenStanddown' < 'released'
+  assert.equal(
+    rescueEndRidersRow(riders),
+    "the ends' own riders (v0.780.0): no solo class owns the majority - frozen standdown x16 + released x16 own 32 of 44 end(s) (72.7%) - THE PAIR'S OWN SEAT: the bill's tie law held, the concentration is still real - the pair prices the closes the solo law refused to name"
+  )
+})
+
+test("v0.780.0 the six-face story rides the real splits: the landslide, the release, the deterministic order, the junk battery", () => {
+  // face 73's own split (run 37639051812): complete 80 of 100 - THE
+  // COMPLETE'S OWN LANDSLIDE (the calm face's own landing); face 74's own
+  // split (run 37643508935): released 38 of 49 (77.6%). The owner churns
+  // face-local: released 74.5% (68) -> tie (70) -> riders (72) ->
+  // complete 80.0% (73) -> released 77.6% (74) -> frozen 51.9% (75).
+  const calm = rescueEndBill({ complete: 80, completeStandingWet: 0, released: 15, frozenStanddown: 5, timeout: 0, dead: 0, botGone: 0, abortedError: 0, unclosed: 0 })
+  assert.deepEqual(calm, { key: 'complete', label: 'complete', owns: 80, ofEnds: 100, shareOfEnds: 0.8 })
+  const face74 = rescueEndBill({ complete: 11, completeStandingWet: 0, released: 38, frozenStanddown: 0, timeout: 0, dead: 0, botGone: 0, abortedError: 0, unclosed: 0 })
+  assert.deepEqual(face74, { key: 'released', label: 'released', owns: 38, ofEnds: 49, shareOfEnds: 0.776 })
+  // face 72's own split: released 23 of 47 = 48.9% - no majority, the
+  // riders measure the concentration (released 23 + frozen 12 = 35, 74.5%)
+  const face72Totals = { complete: 9, completeStandingWet: 0, released: 23, frozenStanddown: 12, timeout: 1, dead: 2, botGone: 0, abortedError: 0, unclosed: 0 }
+  assert.equal(rescueEndBill(face72Totals), null)
+  const face72Riders = rescueEndRiders(face72Totals)
+  assert.deepEqual(face72Riders, { leader: 'released', leaderOwns: 23, runner: 'frozen standdown', runnerOwns: 12, ofEnds: 47, pairOwns: 35, shareOfEnds: 0.745, tie: false })
+  // the junk battery - the bars never invent
+  assert.equal(rescueEndBill(null), null)
+  assert.equal(rescueEndBill(undefined), null)
+  assert.equal(rescueEndBill({}), null) // the end-less book
+  assert.equal(rescueEndBill({ complete: 0, released: 0 }), null) // the zero cells never bill
+  const solo = rescueEndBill({ complete: 1 })
+  assert.deepEqual(solo, { key: 'complete', label: 'complete', owns: 1, ofEnds: 1, shareOfEnds: 1 }) // the solo class owns its own one
+  assert.equal(rescueEndRiders({ complete: 1 }), null) // fewer than two classes
+  assert.equal(rescueEndBillRow(null), null)
+  assert.equal(rescueEndBillRow({ label: 'complete' }), null) // the malformed cell
+  assert.equal(rescueEndRidersRow(null), null)
+  assert.equal(rescueEndRidersRow({ leader: 'complete' }), null)
+  assert.equal(rescueEndRidersRow({ leader: 'complete', leaderOwns: 2, runner: 'released', runnerOwns: 1, ofEnds: 1, pairOwns: 3, shareOfEnds: 3 }), null) // the pair outran the face
+})
+
+test('v0.780.0 the ends ride the decompose mine (WIRING)', async () => {
+  const src = await readFile(new URL('../../scripts/fleet-mining/decompose.mjs', import.meta.url), 'utf8')
+  assert.ok(src.includes('rescueEndBill, rescueEndBillRow, rescueEndRiders, rescueEndRidersRow')) // the import
+  assert.ok(src.includes('rescueEndBill(ledger.totals)')) // the ledger's own cells, zero re-parsing
+  const branch = src.indexOf('if (endBill) console.log')
+  const elseRiders = src.indexOf('const endRiders = rescueEndRiders(ledger.totals)')
+  assert.ok(branch > 0 && elseRiders > branch) // the branch law's own shape: the bill's silence reads the riders'
+  const castBranch = src.indexOf('if (castBill) console.log')
+  const endBranch = src.indexOf('if (endBill) console.log')
+  assert.ok(endBranch > castBranch) // the class axis rides beside the bot axis - additive, never re-ordering
 })
