@@ -3,7 +3,7 @@
 // ground [-127,397] holding 4 (two skeleton arcs + two drowned chases), the
 // second [-120,422] holding 3, the third [-173,415] holding 2. The radius
 // edges, the planar law, the combat-kind authority, the blind bucket and
-// the junk convention all pin here. (v0.792.0) THE DEATH GROUND'S OWN SEAT
+// the junk convention all pin here. (v0.793.0) THE DEATH GROUND'S OWN SEAT
 // + the riders join the block: WHICH ground owns the combat book, pinned
 // hand-counted against the face 81 storm's own cell (the nest's own read).
 
@@ -160,7 +160,7 @@ test('junk judges nothing: non-array non-string reads null, the empty inputs rea
   assert.equal(blank.blind, 0)
 })
 
-// (v0.792.0) THE DEATH GROUND'S OWN SEAT tests - the face 81 storm's own
+// (v0.793.0) THE DEATH GROUND'S OWN SEAT tests - the face 81 storm's own
 // cell hand-counted (the probe's own read: 17 combat deaths, blind 0, the
 // book the grounds cells' own sum; top [-140,394] x5 Drowned:4 Zombie:1,
 // second [-125,394] x3 Drowned:2 Zombie:1, then [-128,419] x2, [-102,408]
@@ -201,7 +201,7 @@ test('the face 81 cell through the seat law: the nest rides below half - the rid
   assert.deepEqual(r, { leader: '[-140,394]', leaderOwns: 5, runner: '[-125,394]', runnerOwns: 3, ofDeaths: 17, pairOwns: 8, shareOfDeaths: 0.471, duet: false })
   assert.equal(
     deathGroundRidersRow(r),
-    "the death ground's own riders (v0.792.0): no solo ground owns the majority - ground [-140,394] x5 + ground [-125,394] x3 own 8 of 17 combat death(s) (47.1%) - THE GROUND'S OWN MIX: the seat's tie law held, the mix is the shape - the grounds' own geometry prices the book the solo law refused to seat"
+    "the death ground's own riders (v0.793.0): no solo ground owns the majority - ground [-140,394] x5 + ground [-125,394] x3 own 8 of 17 combat death(s) (47.1%) - THE GROUND'S OWN MIX: the seat's tie law held, the mix is the shape - the grounds' own geometry prices the book the solo law refused to seat"
   )
   // the measure-not-owner law: the riders stay a MEASURE beside the seat -
   // the decompose's branch law (one row never both) leaves the companion
@@ -228,7 +228,7 @@ test("the tie owns nothing, the below-half fence, the duet byte order pin '[-100
   assert.deepEqual(r, { leader: '[-100,300]', leaderOwns: 1, runner: '[-300,300]', runnerOwns: 1, ofDeaths: 2, pairOwns: 2, shareOfDeaths: 1, duet: true })
   assert.equal(
     deathGroundRidersRow(r),
-    "the death ground's own riders (v0.792.0): no solo ground owns the majority - ground [-100,300] x1 + ground [-300,300] x1 own 2 of 2 combat death(s) (100.0%) - THE GROUND'S OWN MIX: the seat's tie law held, the mix is the shape - the grounds' own geometry prices the book the solo law refused to seat"
+    "the death ground's own riders (v0.793.0): no solo ground owns the majority - ground [-100,300] x1 + ground [-300,300] x1 own 2 of 2 combat death(s) (100.0%) - THE GROUND'S OWN MIX: the seat's tie law held, the mix is the shape - the grounds' own geometry prices the book the solo law refused to seat"
   )
   // the below-half fence: the top ground at exactly half reads no solo seat
   const half = deathGrounds([
@@ -256,7 +256,7 @@ test("the book is the cells' own sum - the blind stay outside - and the single-g
   assert.equal(s.owns, 3)
   assert.equal(
     deathGroundSeatRow(s),
-    "the death ground's own seat (v0.792.0): ground [0,0] owns 3 of 4 combat death(s) (75.0%) - THE GROUND'S OWN SEAT: one ground's own deaths own the combat book - the nest's own geometry prices the front the raw split rode unnamed"
+    "the death ground's own seat (v0.793.0): ground [0,0] owns 3 of 4 combat death(s) (75.0%) - THE GROUND'S OWN SEAT: one ground's own deaths own the combat book - the nest's own geometry prices the front the raw split rode unnamed"
   )
   // the single-ground fence: one counted ground reads a seat but no riders
   // (fewer than two cells - the honest silence's companion law)

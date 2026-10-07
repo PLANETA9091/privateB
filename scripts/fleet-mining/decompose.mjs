@@ -34,7 +34,7 @@ import { furnacePut } from '../../src/lib/furnaceput.mjs' // (v0.664.0) THE FURN
 import { fuelDiet, coalEquivalent } from '../../src/lib/fueldiet.mjs' // (v0.666.0) THE FUEL DIET'S OWN BILL - the intent side's fuel split by the emitter's own window law (metal vs junk) + the kindling bill + the coal touch + the plain-furnace mismatch
 import { fuelYieldOf } from '../../src/lib/smelting.mjs' // (v0.666.0) the vanilla yield table's own voice - the diet row's coal divisor, never a made constant
 import { tierDeferCensus } from '../../src/lib/tierdefer.mjs' // (v0.463.0) the tool ladder's own voice - the steer's deferred names counted
-import { deathGrounds, DEATH_GROUND_RADIUS, deathGroundSeat, deathGroundSeatRow, deathGroundRiders, deathGroundRidersRow } from '../../src/lib/deathground.mjs' // (v0.464.0) the combat deaths' spatial join - the mob-cure's WHERE input; (v0.792.0) WHICH ground owns the combat book
+import { deathGrounds, DEATH_GROUND_RADIUS, deathGroundSeat, deathGroundSeatRow, deathGroundRiders, deathGroundRidersRow } from '../../src/lib/deathground.mjs' // (v0.464.0) the combat deaths' spatial join - the mob-cure's WHERE input; (v0.793.0) WHICH ground owns the combat book
 import { deathDropCensus } from '../../src/lib/deathdropcensus.mjs' // (v0.647.0) the death-drop stakes' own census - the silent-arm join; (v0.663.0) the stakes' own clock rides the same shape
 import { RELOOT_DESPAWN_MS } from '../../src/lib/reloot.mjs' // (v0.663.0) the despawn one-truth - the arm-lag row's own inversion base
 import { upgradeCensus, deferPromise, upgradeVerdicts, verdictSpread, promisePersistence } from '../../src/lib/upgradecensus.mjs' // (v0.465.0) the tool ladder's own harvest - the rung's delivered tools counted; (v0.467.0) the defer promise's order-aware join; (v0.468.0) the verdict census - the counter-vs-words window named; (v0.470.0) the verdict spread - the worn class's per-bot spread; (v0.471.0) the promise persistence - the kept bots' cross-face fate
@@ -1270,7 +1270,7 @@ if (shooter.total > 0) {
       console.log(`  ground [${g.x},${g.z}] x${g.n} (${killers}) bots ${g.bots.slice().sort().join('+')}${g.n >= 3 ? ' - THE NEST HARVEST SIGNATURE: one ground took 3+ bots this face' : ''}`)
     }
     if (dg.grounds.length > 5) console.log(`  ... ${dg.grounds.length - 5} more ground(s) - the tail stays in the lib's row`)
-    // (v0.792.0) WHICH ground owns the combat death book - the seat + the
+    // (v0.793.0) WHICH ground owns the combat death book - the seat + the
     // riders, one row never both (the branch law; the owner case leaves the
     // companion unprinted; a ground-less or all-blind face reads the honest
     // silence).

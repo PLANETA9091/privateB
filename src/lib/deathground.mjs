@@ -108,7 +108,7 @@ export function deathGrounds (lines) {
   }
 }
 
-// (v0.792.0) THE DEATH GROUND'S OWN SEAT - WHICH ground owns the combat
+// (v0.793.0) THE DEATH GROUND'S OWN SEAT - WHICH ground owns the combat
 // death book. The census row named the grounds' counts ('ground [-140,394]
 // x5 (Drowned:4 Zombie:1)' - face 81's own read: one shore nest took five
 // bots) while the WHO rode raw: no row ever said WHICH ground's own deaths
@@ -152,7 +152,7 @@ export function deathGroundSeat (dg) {
   return { ground: topGround, owns: topOwns, ofDeaths: t.total, shareOfDeaths: +(topOwns / t.total).toFixed(3) }
 }
 
-// (v0.792.0) the ground seat's own row - THE GROUND'S OWN SEAT: the seat
+// (v0.793.0) the ground seat's own row - THE GROUND'S OWN SEAT: the seat
 // names WHICH ground owns the combat book; the nest's own geometry prices
 // the mob front (a solo ground is the nest harvest's own signature - the
 // cure digs there, not everywhere). Junk never prints a seat (the honest
@@ -164,10 +164,10 @@ export function deathGroundSeatRow (seat) {
       !Number.isFinite(owns) || owns <= 0 ||
       !Number.isFinite(ofDeaths) || ofDeaths <= 0 || owns > ofDeaths ||
       !Number.isFinite(shareOfDeaths)) return null
-  return `the death ground's own seat (v0.792.0): ground ${ground} owns ${owns} of ${ofDeaths} combat death(s) (${(shareOfDeaths * 100).toFixed(1)}%) - THE GROUND'S OWN SEAT: one ground's own deaths own the combat book - the nest's own geometry prices the front the raw split rode unnamed`
+  return `the death ground's own seat (v0.793.0): ground ${ground} owns ${owns} of ${ofDeaths} combat death(s) (${(shareOfDeaths * 100).toFixed(1)}%) - THE GROUND'S OWN SEAT: one ground's own deaths own the combat book - the nest's own geometry prices the front the raw split rode unnamed`
 }
 
-// (v0.792.0) THE DEATH GROUND'S OWN RIDERS - the ground seat's own
+// (v0.793.0) THE DEATH GROUND'S OWN RIDERS - the ground seat's own
 // silence's companion. The seat names the solo ground under the
 // strict-majority law; a no-majority ground mix rode raw with no row naming
 // the shape. THE RIDER LAW (the census's own ground cells only, zero
@@ -190,7 +190,7 @@ export function deathGroundRiders (dg) {
   return { leader, leaderOwns, runner, runnerOwns, ofDeaths: t.total, pairOwns, shareOfDeaths: +(pairOwns / t.total).toFixed(3), duet: leaderOwns === runnerOwns }
 }
 
-// (v0.792.0) the ground riders' own row - THE GROUND'S OWN MIX: a measure
+// (v0.793.0) the ground riders' own row - THE GROUND'S OWN MIX: a measure
 // of the shape, never a named owner (the seat's tie law holds); the pair
 // prices the concentration the solo law refused to seat. Junk never prints
 // a shape (the honest silence's own row law).
@@ -201,5 +201,5 @@ export function deathGroundRidersRow (r) {
       !Number.isFinite(leaderOwns) || leaderOwns <= 0 || !Number.isFinite(runnerOwns) || runnerOwns <= 0 ||
       !Number.isFinite(ofDeaths) || ofDeaths <= 0 || !Number.isFinite(pairOwns) || pairOwns > ofDeaths ||
       !Number.isFinite(shareOfDeaths)) return null
-  return `the death ground's own riders (v0.792.0): no solo ground owns the majority - ground ${leader} x${leaderOwns} + ground ${runner} x${runnerOwns} own ${pairOwns} of ${ofDeaths} combat death(s) (${(shareOfDeaths * 100).toFixed(1)}%) - THE GROUND'S OWN MIX: the seat's tie law held, the mix is the shape - the grounds' own geometry prices the book the solo law refused to seat`
+  return `the death ground's own riders (v0.793.0): no solo ground owns the majority - ground ${leader} x${leaderOwns} + ground ${runner} x${runnerOwns} own ${pairOwns} of ${ofDeaths} combat death(s) (${(shareOfDeaths * 100).toFixed(1)}%) - THE GROUND'S OWN MIX: the seat's tie law held, the mix is the shape - the grounds' own geometry prices the book the solo law refused to seat`
 }
