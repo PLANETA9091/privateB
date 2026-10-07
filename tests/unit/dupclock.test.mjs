@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { dupClock, unseenLosses, DUP_BURST_MIN, DUP_BURST_WINDOW_S, DUP_METRO_MIN, DUP_METRO_SPREAD } from '../../src/lib/dupclock.mjs'
+import { dupClock, unseenLosses, surplusKicks, DUP_BURST_MIN, DUP_BURST_WINDOW_S, DUP_METRO_MIN, DUP_METRO_SPREAD } from '../../src/lib/dupclock.mjs'
 
 // The 48th face's server log (run 37530997515) - the duplicate churn's
 // own clock, byte-verbatim. The fleet lens printed 9 kicked lines; the
@@ -163,4 +163,23 @@ test("the unseen loss's own column (v0.734.0): the 51st face's delta names its b
     null,
     'fleet 3 vs server 2 clamps at zero - the bound holds')
   assert.equal(unseenLosses(null, null), null, 'empty maps - the silence')
+})
+
+test("the surplus kick's own side (v0.735.0): the 52nd face's mirror names its bot", () => {
+  // run 37549177806, byte-verbatim from the mine: the server's clock owns
+  // 5 duplicate losses (F5/F4/F3/F19/F7, one each - the 60s storm); the
+  // fleet's dup-kick census printed SIX - F2 kicked once and relogged
+  // twice, the pair rider's own byte, and the server's log never owned
+  // the loss. The unseen column's own join, mirrored.
+  const sk = surplusKicks(
+    { F2: 1, F5: 1, F4: 1, F3: 1, F19: 1, F7: 1 },
+    { F5: 1, F4: 1, F3: 1, F19: 1, F7: 1 }
+  )
+  assert.deepEqual(sk, { n: 1, byBot: { F2: 1 } },
+    'the 52nd: 1 surplus kick - the pair rider owns the mirror column')
+  // the full-coverage face: every kick the server owned - no surplus.
+  assert.equal(surplusKicks({ F10: 1 }, { F10: 1 }), null, 'every kick owned - the honest silence')
+  // the bound holds mirrored: a server count above the fleet's clamps.
+  assert.equal(surplusKicks({ F5: 2 }, { F5: 3 }), null, 'server 3 vs fleet 2 clamps at zero')
+  assert.equal(surplusKicks(null, null), null, 'empty maps - the silence')
 })

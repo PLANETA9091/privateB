@@ -174,3 +174,28 @@ export function unseenLosses (serverByBot, fleetByBot) {
   }
   return n > 0 ? { n, byBot } : null
 }
+
+// (v0.735.0) THE SURPLUS KICK'S OWN SIDE - the 52nd face (run 37549177806)
+// flipped the unseen column's own join: the fleet printed SIX dup kicks,
+// the server's clock owns only FIVE losses - the fleet lens saw MORE than
+// the server. A surplus kick is a KICKED byte whose server loss line never
+// landed in the duplicate class (the pair rider's own case: F2 kicked once
+// while relogging twice, the server's loss byte carried a different reason
+// or none) - the mirror of the unseen loss, and the join's other bound.
+// surplusKicks(fleetByBot, serverByBot) walks the same clamp symmetrically:
+// the per-bot surplus is the bot's fleet-side column; a server count above
+// the fleet's own clamps at zero (the clock cannot lose a kick that never
+// printed); zero surplus reads the honest silence (null - the lens never
+// invents a surplus). The two columns TOGETHER close the join: unseen =
+// what the server owned and the fleet missed, surplus = what the fleet
+// printed and the server's clock never owned.
+export function surplusKicks (fleetByBot, serverByBot) {
+  const server = serverByBot || {}
+  const byBot = {}
+  let n = 0
+  for (const [bot, fk] of Object.entries(fleetByBot || {})) {
+    const d = fk - (server[bot] || 0)
+    if (d > 0) { byBot[bot] = d; n += d }
+  }
+  return n > 0 ? { n, byBot } : null
+}

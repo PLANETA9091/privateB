@@ -85,7 +85,7 @@ import { relogBill } from '../../src/lib/relogbill.mjs' // (v0.715.0) the relog'
 import { freezeBill } from '../../src/lib/freezebill.mjs' // (v0.724.0) the freeze gate's own ladder - the frozen relog's streak/gate/vitals bytes folded per bot (the doubling's own futility read)
 import { kickBill } from '../../src/lib/kickbill.mjs' // (v0.717.0) the kick's own churn - the kick cells joined to the relog cells (the pair, the split, the repeats over both lanes)
 import { kickKindCensus } from '../../src/lib/kickkinds.mjs' // (v0.730.0) the kick's own kinds - the kicked clients' reason census (the translate byte per kind; the dup class reconciles with the frozen census's dupKicks)
-import { dupClock, unseenLosses } from '../../src/lib/dupclock.mjs' // (v0.729.0) the duplicate's own clock - the server log's join side (the losses, the cadence, the bursts, the storm; v0.734.0 grows the unseen loss's own column)
+import { dupClock, unseenLosses, surplusKicks } from '../../src/lib/dupclock.mjs' // (v0.729.0) the duplicate's own clock - the server log's join side (the losses, the cadence, the bursts, the storm; v0.734.0 grows the unseen loss's own column)
 import { pinBill } from '../../src/lib/pinbill.mjs' // (v0.722.0) the pinned seat's own bill - the water lane's launches per bot per target (the 70%/10+ concentration names the seat)
 import { memHbCensus, RSS_JUMP_STORM_M, ENT_JUMP_STORM_N } from '../../src/lib/memhb.mjs' // (v0.408.0) the OOM precursors' field read
 import { stormCensus } from '../../src/lib/stormcensus.mjs' // (v0.409.0) the storm EVENT story's field read (verdicts + valve + hb)
@@ -1340,6 +1340,14 @@ console.log('  hazard memorized:', count(/hazard memorized/))
     if (un) {
       const unTail = Object.entries(un.byBot).sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1)).map(([k, v]) => `${k}=${v}`).join(' ')
       console.log(`  the unseen loss's own column (v0.734.0): ${un.n} the fleet never saw - ${unTail}`)
+    }
+    // (v0.735.0) THE SURPLUS KICK'S OWN SIDE - the join's mirror: a fleet
+    // kick the server's clock never owned (the pair rider's own case).
+    // Zero surplus reads the honest silence (no line - the column's law).
+    const sk = surplusKicks((frozenCensus(lines).dupKicks && frozenCensus(lines).dupKicks.byBot) || {}, dc.losses.byBot)
+    if (sk) {
+      const skTail = Object.entries(sk.byBot).sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1)).map(([k, v]) => `${k}=${v}`).join(' ')
+      console.log(`  the surplus kick's own side (v0.735.0): ${sk.n} the server's clock never owned - ${skTail}`)
     }
     if (dc.bursts.n > 0) {
       const metro = dc.bursts.list.filter((b) => b.periodic)
