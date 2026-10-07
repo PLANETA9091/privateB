@@ -94,7 +94,7 @@ import { memHbCensus, RSS_JUMP_STORM_M, ENT_JUMP_STORM_N } from '../../src/lib/m
 import { stormCensus } from '../../src/lib/stormcensus.mjs' // (v0.409.0) the storm EVENT story's field read (verdicts + valve + hb)
 import { gcPoolCensus } from '../../src/lib/gcpool.mjs' // (v0.421.0) the GC Pinned hunt's pool read (the old/ext/ab split)
 import { voidCensus } from '../../src/lib/voidcensus.mjs' // (v0.423.0) the out-of-world stamp's field read
-import { deathKindCensus } from '../../src/lib/deathkinds.mjs' // (v0.425.0) the vertical-death front's mechanical leg
+import { deathKindCensus, deathKindBill, deathKindBillRow, deathKindRiders, deathKindRidersRow } from '../../src/lib/deathkinds.mjs' // (v0.425.0) the vertical-death front's mechanical leg; (v0.783.0) WHICH kind owns the death book
 import { houndCensus } from '../../src/lib/houndcensus.mjs' // (v0.433.0) the hound presence's field read
 import { faceFate } from '../../src/lib/facefate.mjs' // (v0.546.0) the frozen book's READER side - the face's own fate named before the censuses speak
 
@@ -173,6 +173,15 @@ if (sweep.keywordOnly.length) {
   // many of them carry no server verdict.
   const inferredNote = kinds.inferredOnlyCount ? `, INFERRED-ONLY ${kinds.inferredOnlyCount}` : ''
   console.log(`  death causes: ${causeRow}${inferredNote}${unparsedNote}`)
+  // (v0.783.0) THE DEATHS' OWN KIND - WHICH kind owns the death book
+  // (the seat + the riders, one row never both - the branch law;
+  // the owner case leaves the companion unprinted).
+  const kb = deathKindBill(kinds)
+  if (kb) console.log(`  ${deathKindBillRow(kb)}`)
+  else {
+    const kr = deathKindRiders(kinds)
+    if (kr) console.log(`  ${deathKindRidersRow(kr)}`)
+  }
   // (v0.713.0) THE INFERENCE'S OWN BILL - the two-way read of the
   // inference's tails across the whole face (the server kind stays the
   // authority; the bill measures the witness, never re-adjudicates).

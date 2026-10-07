@@ -10,7 +10,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
-import { deathKindCensus } from '../../src/lib/deathkinds.mjs'
+import { deathKindCensus, deathKindBill, deathKindBillRow, deathKindRiders, deathKindRidersRow } from '../../src/lib/deathkinds.mjs'
 
 // the face-27 verbatims (36870593766), byte for byte from the artifact
 const FACE27_FALL = 'F14 [F14] died - respawning (cause: server: fell from a high place [kind=fall] | inferred: fall/env (0s before death at [-132,45,405]) [the inference corroborates the server verdict])'
@@ -114,7 +114,7 @@ test('a non-array input judges nothing (junk-safe by contract)', () => {
 
 test('WIRING: the decompose prints the causes row and the vertical rows (the DEATHS block)', () => {
   const src = fs.readFileSync(new URL('../../scripts/fleet-mining/decompose.mjs', import.meta.url), 'utf8')
-  assert.match(src, /import \{ deathKindCensus \} from '\.\.\/\.\.\/src\/lib\/deathkinds\.mjs'/, 'the census import rides the decompose head')
+  assert.match(src, /import \{ deathKindCensus, deathKindBill, deathKindBillRow, deathKindRiders, deathKindRidersRow \} from '\.\.\/\.\.\/src\/lib\/deathkinds\.mjs'/, 'the census import rides the decompose head (v0.783.0: the kind seat rides too)')
   assert.match(src, /death causes: \$\{causeRow\}\$\{inferredNote\}\$\{unparsedNote\}/, 'the mechanical causes row prints on every face (v0.672.0: the inferred-only note rides too)')
   assert.match(src, /vertical death: \$\{v\.bot\}/, 'the vertical row names the front\'s witness')
 })
@@ -461,4 +461,100 @@ test("the zero shape and the class's debut - the face-27 anatomy retro-reads the
     pairs: { 'drown->fall': 1 },
     bots: { F5: 1 }
   })
+})
+
+// (v0.783.0) THE DEATHS' OWN KIND - the seat + the riders. The face-77
+// and face-75 verbatims byte for byte from the artifacts (37658837046,
+// 37649886742) - the mine's own answer: the owner churns face-local
+// (mob 73 -> drown 74 -> duet 75 -> explosion 76 -> drown 77), the seat
+// re-names the front every face.
+const FACE77_DROWN_F4 = 'F4 [F4] died - respawning (cause: server: drowned [kind=drown] | inferred: fall/env (0s before death at [-137,51,414]) [the inference is blind to this kind - the hint is noise by construction (the server kind stays the authority)])'
+const FACE77_DROWN_F10 = 'F10 [F10] died - respawning (cause: server: drowned [kind=drown] | inferred: fall/env (0s before death at [-103,41,385]) [the inference is blind to this kind - the hint is noise by construction (the server kind stays the authority)])'
+const FACE77_FALL_F2 = 'F2 [F2] died - respawning (cause: server: fell from a high place [kind=fall] | inferred: fall/env (0s before death at [-107,44,393]) [the inference corroborates the server verdict])'
+const FACE77_INFERRED_F19 = 'F19 [F19] died - respawning (cause: drowning (0s before death at [-129,48,395]))'
+const FACE75_MOB_F2 = 'F2 [F2] died - respawning (cause: server: was shot by Skeleton [kind=mob by Skeleton] | inferred: skeleton@3.3 (0s before death at [-128,41,434]) [the inference corroborates the server verdict])'
+const FACE76_EXPLOSION_F14 = 'F14 [F14] died - respawning (cause: server: was blown up by Creeper [kind=explosion by Creeper] | inferred: skeleton@14.0 (0s before death at [-137,64,419]) [the inference names a BYSTANDER - the exploder removed itself at detonation, the nearest-harm scan read the next-nearest hostile (a real witness, not the killer; the server killer stays the authority)])'
+
+test('the face-77 cell through the seat - the drown majority owns the book, the inferred-only rides its own bucket', () => {
+  // face 77's own death book: 3 server drowns + 1 inferred-only drowning
+  // (the v0.672.0 law reads the clock raw into the same buckets) + 1 fall
+  // - the seat reads the census's own byKind cell, zero re-parsing
+  const c = deathKindCensus([
+    FACE77_DROWN_F4, FACE77_DROWN_F10, FACE77_DROWN_F10, FACE77_DROWN_F4,
+    FACE77_FALL_F2, FACE77_INFERRED_F19
+  ])
+  assert.deepEqual(c.byKind, { drown: 5, fall: 1 })
+  assert.equal(c.inferredOnlyCount, 1)
+  const b = deathKindBill(c)
+  assert.deepEqual(b, { kind: 'drown', owns: 5, ofDeaths: 6, shareOfDeaths: 0.833 })
+  assert.equal(
+    deathKindBillRow(b),
+    "the deaths' own kind (v0.783.0): drown owns 5 of 6 death(s) (83.3%) - THE KIND'S OWN SEAT: one kind's own deaths own the book - the kind's own front prices the deaths the raw split rode unnamed"
+  )
+  // the riders stay a MEASURE even in the owner case (the seat's own
+  // precedent) - the decompose's branch law leaves the companion
+  // unprinted when the seat is owned (pinned in the WIRING assert)
+  const m = deathKindRiders(c)
+  assert.equal(m.leader, 'drown')
+  assert.equal(m.runner, 'fall')
+})
+
+test("the face-75 duet - the tie law holds the seat silent, the riders measure the mix, the byte order pins 'explosion' < 'fall'", () => {
+  // face 75's own book: drown=5 mob=5 fall=1 - 5 <= 6, no solo majority
+  const c = deathKindCensus([
+    FACE77_DROWN_F4, FACE77_DROWN_F10, FACE77_DROWN_F4, FACE77_DROWN_F10, FACE77_DROWN_F4,
+    FACE75_MOB_F2, FACE75_MOB_F2, FACE75_MOB_F2, FACE75_MOB_F2, FACE75_MOB_F2,
+    FACE77_FALL_F2
+  ])
+  assert.deepEqual(c.byKind, { drown: 5, mob: 5, fall: 1 })
+  assert.equal(deathKindBill(c), null) // the tie law: the seat owns nothing
+  const r = deathKindRiders(c)
+  assert.equal(r.duet, true)
+  assert.equal(r.leader, 'drown')
+  assert.equal(r.runner, 'mob') // 5 vs 5 - the name's own byte breaks the rank order
+  assert.equal(
+    deathKindRidersRow(r),
+    "the deaths' own kind riders (v0.783.0): no solo kind owns the majority - drown x5 + mob x5 own 10 of 11 death(s) (90.9%) - THE KIND'S OWN MIX: the seat's tie law held, the mix is the shape - the deaths' own crowd prices the kinds the solo law refused to name"
+  )
+  // the byte order pin: an equal-count mix ranks by the name's own byte
+  const bytes = deathKindRiders(deathKindCensus([FACE77_FALL_F2, FACE76_EXPLOSION_F14]))
+  assert.equal(bytes.leader, 'explosion') // 'explosion' < 'fall' byte-true
+  assert.equal(bytes.duet, true)
+})
+
+test('the byte-exact rows and the junk battery - the unknown fence, the non-finite cells, the honest silence', () => {
+  // face 76's own single death: explosion owns 1 of 1 (100.0%)
+  const solo = deathKindBill(deathKindCensus([FACE76_EXPLOSION_F14]))
+  assert.equal(
+    deathKindBillRow(solo),
+    "the deaths' own kind (v0.783.0): explosion owns 1 of 1 death(s) (100.0%) - THE KIND'S OWN SEAT: one kind's own deaths own the book - the kind's own front prices the deaths the raw split rode unnamed"
+  )
+  // the unknown fence: a death nobody named a kind for closes no seat
+  const fenced = { byKind: { drown: 2, unknown: 3 } }
+  assert.deepEqual(deathKindBill(fenced), { kind: 'drown', owns: 2, ofDeaths: 2, shareOfDeaths: 1 })
+  // the junk battery - the honest silence every time
+  const junk = [null, undefined, 42, 'prose', [], { byKind: null }, { byKind: 'x' }, { byKind: [] }, { byKind: {} }, { byKind: { drown: 0 } }, { byKind: { drown: -1 } }, { byKind: { drown: NaN } }, { byKind: { drown: Infinity } }]
+  for (const j of junk) {
+    assert.equal(deathKindBill(j), null)
+    assert.equal(deathKindRiders(j), null)
+  }
+  // a lone kind prices no mix (the riders' own fence)
+  assert.equal(deathKindRiders({ byKind: { mob: 3 } }), null)
+  // the rows' own junk law - the honest silence's row
+  assert.equal(deathKindBillRow(null), null)
+  assert.equal(deathKindBillRow({}), null)
+  assert.equal(deathKindBillRow({ kind: '', owns: 1, ofDeaths: 2, shareOfDeaths: 0.5 }), null)
+  assert.equal(deathKindBillRow({ kind: 'drown', owns: 3, ofDeaths: 2, shareOfDeaths: 1.5 }), null)
+  assert.equal(deathKindRidersRow(null), null)
+  assert.equal(deathKindRidersRow({}), null)
+  assert.equal(deathKindRidersRow({ leader: 'drown', leaderOwns: 0, runner: 'mob', runnerOwns: 1, ofDeaths: 1, pairOwns: 1, shareOfDeaths: 1 }), null)
+})
+
+test('the WIRING assert - the decompose branch rides the seat, the prose lives only in the lib', () => {
+  const src = fs.readFileSync(new URL('../../scripts/fleet-mining/decompose.mjs', import.meta.url), 'utf8')
+  assert.ok(src.includes('const kb = deathKindBill(kinds)'), 'the seat rides the census cell')
+  assert.ok(src.includes('if (kb) console.log(`  ${deathKindBillRow(kb)}`)'), 'the owner row rides the branch')
+  assert.ok(src.includes('const kr = deathKindRiders(kinds)'), 'the riders ride the same branch law')
+  // the lib prose: the row tails live in the lib, never duplicated in decompose
+  assert.ok(!src.includes("THE KIND'S OWN SEAT"), 'the prose stays in the lib')
 })

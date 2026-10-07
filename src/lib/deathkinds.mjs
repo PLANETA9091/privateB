@@ -252,3 +252,103 @@ export function deathKindCensus (lines) {
   }
   return { total, byKind, byBot, vertical, verticalCount: vertical.length, unparsed, inferredOnly, inferredOnlyCount: inferredOnly.length, otherVerbs, inference }
 }
+
+// (v0.783.0) THE DEATHS' OWN KIND - the death book's own kind seat. The
+// v0.425.0 census priced every death's kind and the raw causes line
+// printed the buckets - no row ever named WHICH kind owns the death
+// book (face 77's own line rode raw: 'death causes: drown=4 fall=1' -
+// the drown's majority sat unnamed while the mine read the water's
+// levy by hand). THE SEAT LAW (the census's own byKind cell only, zero
+// re-parsing - the v0.782.0 bill's own precedent, the cells instead of
+// the events): the top kind owns the book under the strict-majority
+// law (a tie owns nothing - the storm-has-no-seat precedent); the
+// unnamed 'unknown' bucket stays outside (the v0.780.0 fence - a death
+// nobody named a kind for closes no seat); the inferred-only rows ride
+// their OWN buckets (the v0.672.0 law read the clock raw into the same
+// buckets - the seat reads those buckets byte-true, no
+// re-adjudication). Junk never invents a seat: a missing or non-object
+// census, a non-finite or non-positive cell, or a tied spread reads
+// the honest silence (null - the decompose's own guard skips the row).
+// The labels are the emitter's own kind vocabulary byte-true (drown,
+// fall, mob, suffocate, lava, explosion, starve, freeze, other).
+const DEATH_KIND_SEAT_FENCE = new Set(['unknown'])
+
+function deathKindTally (census) {
+  if (!census || typeof census !== 'object' || Array.isArray(census)) return null
+  const byKind = census.byKind
+  if (!byKind || typeof byKind !== 'object' || Array.isArray(byKind)) return null
+  const tallies = {}
+  let total = 0
+  for (const [kind, n] of Object.entries(byKind)) {
+    if (DEATH_KIND_SEAT_FENCE.has(kind)) continue
+    if (!Number.isFinite(n) || n <= 0) continue
+    total += n
+    tallies[kind] = (tallies[kind] || 0) + n
+  }
+  return total > 0 ? { tallies, total } : null
+}
+
+export function deathKindBill (census) {
+  const t = deathKindTally(census)
+  if (!t) return null
+  let topUnits = 0
+  let topKind = null
+  for (const [kind, n] of Object.entries(t.tallies)) {
+    if (n > topUnits) { topUnits = n; topKind = kind }
+  }
+  if (topKind === null || topUnits <= t.total - topUnits) return null
+  return { kind: topKind, owns: topUnits, ofDeaths: t.total, shareOfDeaths: +(topUnits / t.total).toFixed(3) }
+}
+
+// (v0.783.0) the kind seat's own row - THE KIND'S OWN SEAT: the seat
+// names WHICH kind owns the death book; the kind's own front prices
+// the cure (a drown crowd is the water's own levy, an explosion crowd
+// the blast's own tax, a mob crowd the siege's own win). Junk never
+// prints a seat (the honest silence's own row law).
+export function deathKindBillRow (bill) {
+  if (!bill || typeof bill !== 'object') return null
+  const { kind, owns, ofDeaths, shareOfDeaths } = bill
+  if (typeof kind !== 'string' || !kind ||
+      !Number.isFinite(owns) || owns <= 0 ||
+      !Number.isFinite(ofDeaths) || ofDeaths <= 0 || owns > ofDeaths ||
+      !Number.isFinite(shareOfDeaths)) return null
+  return `the deaths' own kind (v0.783.0): ${kind} owns ${owns} of ${ofDeaths} death(s) (${(shareOfDeaths * 100).toFixed(1)}%) - THE KIND'S OWN SEAT: one kind's own deaths own the book - the kind's own front prices the deaths the raw split rode unnamed`
+}
+
+// (v0.783.0) THE DEATHS' OWN KIND RIDERS - the kind seat's own
+// silence's companion. The seat names the solo kind under the
+// strict-majority law; a no-majority death mix rode raw with no row
+// naming the shape. THE RIDER LAW (the census's own byKind cell only,
+// zero re-parsing - the seat's own precedent): a MEASURE, never a
+// verdict-owner - the top two kinds' concentration prices the shape
+// the solo law refused to name (the seat's owner case leaves the
+// companion unprinted - the decompose's own branch law). Junk never
+// invents a shape: a missing or non-object census, a non-finite or
+// non-positive cell, or fewer than two kinds reads the honest silence
+// (null). The order is deterministic (count desc, then the name's own
+// byte: 'drown' < 'explosion' < 'fall' < 'freeze' < 'lava' < 'mob' <
+// 'other' < 'starve' < 'suffocate').
+export function deathKindRiders (census) {
+  const t = deathKindTally(census)
+  if (!t) return null
+  const ranked = Object.entries(t.tallies).sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1))
+  if (ranked.length < 2) return null
+  const [leader, leaderOwns] = ranked[0]
+  const [runner, runnerOwns] = ranked[1]
+  const pairOwns = leaderOwns + runnerOwns
+  return { leader, leaderOwns, runner, runnerOwns, ofDeaths: t.total, pairOwns, shareOfDeaths: +(pairOwns / t.total).toFixed(3), duet: leaderOwns === runnerOwns }
+}
+
+// (v0.783.0) the kind riders' own row - THE KIND'S OWN MIX: a measure
+// of the shape, never a named owner (the seat's tie law holds); the
+// pair prices the concentration the solo law refused to seat. Junk
+// never prints a shape (the honest silence's own row law).
+export function deathKindRidersRow (r) {
+  if (!r || typeof r !== 'object') return null
+  const { leader, leaderOwns, runner, runnerOwns, ofDeaths, pairOwns, shareOfDeaths } = r
+  if (typeof leader !== 'string' || !leader || typeof runner !== 'string' || !runner ||
+      !Number.isFinite(leaderOwns) || leaderOwns <= 0 || !Number.isFinite(runnerOwns) || runnerOwns <= 0 ||
+      !Number.isFinite(ofDeaths) || ofDeaths <= 0 || !Number.isFinite(pairOwns) || pairOwns > ofDeaths ||
+      !Number.isFinite(shareOfDeaths)) return null
+  return `the deaths' own kind riders (v0.783.0): no solo kind owns the majority - ${leader} x${leaderOwns} + ${runner} x${runnerOwns} own ${pairOwns} of ${ofDeaths} death(s) (${(shareOfDeaths * 100).toFixed(1)}%) - THE KIND'S OWN MIX: the seat's tie law held, the mix is the shape - the deaths' own crowd prices the kinds the solo law refused to name`
+}
