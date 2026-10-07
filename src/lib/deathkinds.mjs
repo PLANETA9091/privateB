@@ -115,6 +115,7 @@ function isVertical (kind, verb) {
  * Classify the fleet's death announce lines by the server's own kind.
  * @param {string[]} lines the full fleet19.log lines
  * @returns {{total: number, byKind: Object<string, number>, byBot: Object<string, number>,
+ *   byAttacker: Object<string, number>,
  *   vertical: Array<{bot: string, verb: string, kind: string, attacker: string|null,
  *   pos: number[]|null, corroboration: string}>, verticalCount: number, unparsed: string[],
  *   inference: {total: number, corroborates: number, blind: number, contradicts: number,
@@ -132,6 +133,15 @@ export function deathKindCensus (lines) {
   const unparsed = []
   const inferredOnly = []
   const otherVerbs = {}
+  // (v0.788.0) THE MOB BOOK'S OWN ATTACKER - the server-verdict mob rows'
+  // attacker tally (the v0.674.0 other-verbs precedent: add-and-tally
+  // inside the census's own verdict branch, the cell the lens reads).
+  // The ' by <attacker>' tail is the server's own named killer (vanilla's
+  // own entity-name bytes - 'Zombie', 'Skeleton', 'Drowned'); the
+  // inferred-only rows stay OUTSIDE (their name bytes are the inference's
+  // own lowercase - the other capture depth; the v0.117.0 doctrine: the
+  // server verdict stays the authority, the inference stays the fallback).
+  const byAttacker = {}
   // (v0.713.0) THE INFERENCE'S OWN BILL - the two-way read of every
   // server-verdict row's inferred tail: the verdict bracket's own word
   // (corroborates / blind / contradicts / bystander / unknown / absent)
@@ -219,6 +229,11 @@ export function deathKindCensus (lines) {
     // count, the doctrine untouched; a verb rule joins deathcause.mjs on
     // the evidence the census surfaces).
     if (kind === 'other') otherVerbs[verb] = (otherVerbs[verb] || 0) + 1
+    // (v0.788.0) the mob book's own attacker - the server's named killer
+    // rides its own tally (the mob kind is the seat's own subject; the
+    // other kinds carry no 'by' tail - the group only exists for the mob
+    // family, the grammar's own fence)
+    if (kind === 'mob' && attacker) byAttacker[attacker] = (byAttacker[attacker] || 0) + 1
     if (bot) byBot[bot] = (byBot[bot] || 0) + 1
     // (v0.713.0) the inference's own bill rides every server-verdict row
     const bracket = corroborationOf(tail)
@@ -250,7 +265,7 @@ export function deathKindCensus (lines) {
       })
     }
   }
-  return { total, byKind, byBot, vertical, verticalCount: vertical.length, unparsed, inferredOnly, inferredOnlyCount: inferredOnly.length, otherVerbs, inference }
+  return { total, byKind, byBot, vertical, verticalCount: vertical.length, unparsed, inferredOnly, inferredOnlyCount: inferredOnly.length, otherVerbs, byAttacker, inference }
 }
 
 // (v0.784.0) THE DEATHS' OWN KIND - the death book's own kind seat. The
@@ -351,4 +366,98 @@ export function deathKindRidersRow (r) {
       !Number.isFinite(ofDeaths) || ofDeaths <= 0 || !Number.isFinite(pairOwns) || pairOwns > ofDeaths ||
       !Number.isFinite(shareOfDeaths)) return null
   return `the deaths' own kind riders (v0.784.0): no solo kind owns the majority - ${leader} x${leaderOwns} + ${runner} x${runnerOwns} own ${pairOwns} of ${ofDeaths} death(s) (${(shareOfDeaths * 100).toFixed(1)}%) - THE KIND'S OWN MIX: the seat's tie law held, the mix is the shape - the deaths' own crowd prices the kinds the solo law refused to name`
+}
+
+// (v0.788.0) THE MOB BOOK'S OWN ATTACKER - the mob kind's own attacker
+// seat. The kind seat (v0.784.0) names WHICH kind owns the death book;
+// the mob kind's own ' by <attacker>' tail - the server's own named
+// killer - rode raw after it (face 79's own read: 'mob=9' with the
+// Zombie/Skeleton/Drowned split unnamed - the mine priced the surge's
+// species by hand). THE SEAT LAW (the census's own byAttacker cell only,
+// zero re-parsing - the v0.674.0 add-and-tally cell, the v0.784.0 kind
+// seat's own precedent): the strict-majority law, one attacker owns the
+// mob book only above half (a tie owns nothing); the inferred-only rows
+// stay OUTSIDE (their name bytes are the inference's own lowercase - the
+// other capture depth; the v0.117.0 doctrine: the server verdict stays
+// the authority). Junk never invents an attacker: a missing or
+// non-object cell, a non-finite or non-positive count, or a tied spread
+// reads the honest silence (null - the decompose's own guard skips the
+// row). The labels are the server's own entity-name bytes byte-true
+// ('Zombie', 'Skeleton', 'Drowned', ...).
+function mobAttackerTally (census) {
+  if (!census || typeof census !== 'object' || Array.isArray(census)) return null
+  const byAttacker = census.byAttacker
+  if (!byAttacker || typeof byAttacker !== 'object' || Array.isArray(byAttacker)) return null
+  const tallies = {}
+  let total = 0
+  for (const [attacker, n] of Object.entries(byAttacker)) {
+    if (!Number.isFinite(n) || n <= 0) continue
+    total += n
+    tallies[attacker] = (tallies[attacker] || 0) + n
+  }
+  return total > 0 ? { tallies, total } : null
+}
+
+export function mobAttackerBill (census) {
+  const t = mobAttackerTally(census)
+  if (!t) return null
+  let topUnits = 0
+  let topAttacker = null
+  for (const [attacker, n] of Object.entries(t.tallies)) {
+    if (n > topUnits) { topUnits = n; topAttacker = attacker }
+  }
+  if (topAttacker === null || topUnits <= t.total - topUnits) return null
+  return { attacker: topAttacker, owns: topUnits, ofKills: t.total, shareOfKills: +(topUnits / t.total).toFixed(3) }
+}
+
+// (v0.788.0) the attacker seat's own row - THE ATTACKER'S OWN SEAT: the
+// seat names WHICH server-named killer owns the mob book; the attacker's
+// own front prices the cure (a zombie crowd is the night's own levy - the
+// armor and the light lanes price it; a drowned crowd the water's). Junk
+// never prints a seat (the honest silence's own row law).
+export function mobAttackerBillRow (bill) {
+  if (!bill || typeof bill !== 'object') return null
+  const { attacker, owns, ofKills, shareOfKills } = bill
+  if (typeof attacker !== 'string' || !attacker ||
+      !Number.isFinite(owns) || owns <= 0 ||
+      !Number.isFinite(ofKills) || ofKills <= 0 || owns > ofKills ||
+      !Number.isFinite(shareOfKills)) return null
+  return `the mob book's own attacker (v0.788.0): ${attacker} owns ${owns} of ${ofKills} mob kill(s) (${(shareOfKills * 100).toFixed(1)}%) - THE ATTACKER'S OWN SEAT: one server-named killer owns the mob book - the attacker's own front prices the kills the raw split rode unnamed`
+}
+
+// (v0.788.0) THE MOB BOOK'S OWN ATTACKER RIDERS - the attacker seat's own
+// silence's companion. The seat names the solo killer under the
+// strict-majority law; a no-majority kill mix rode raw with no row naming
+// the shape. THE RIDER LAW (the census's own byAttacker cell only, zero
+// re-parsing - the seat's own precedent): a MEASURE, never a verdict-owner
+// - the top two killers' concentration prices the shape the solo law
+// refused to name (the seat's owner case leaves the companion unprinted -
+// the decompose's own branch law). Junk never invents a shape: a missing
+// or non-object cell, a non-finite or non-positive count, or fewer than
+// two killers reads the honest silence (null). The order is deterministic
+// (count desc, then the name's own byte: 'Creeper' < 'Drowned' <
+// 'Enderman' < 'Skeleton' < 'Spider' < 'Zombie').
+export function mobAttackerRiders (census) {
+  const t = mobAttackerTally(census)
+  if (!t) return null
+  const ranked = Object.entries(t.tallies).sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1))
+  if (ranked.length < 2) return null
+  const [leader, leaderOwns] = ranked[0]
+  const [runner, runnerOwns] = ranked[1]
+  const pairOwns = leaderOwns + runnerOwns
+  return { leader, leaderOwns, runner, runnerOwns, ofKills: t.total, pairOwns, shareOfKills: +(pairOwns / t.total).toFixed(3), duet: leaderOwns === runnerOwns }
+}
+
+// (v0.788.0) the attacker riders' own row - THE ATTACKER'S OWN MIX: a
+// measure of the shape, never a named owner (the seat's tie law holds);
+// the pair prices the concentration the solo law refused to seat. Junk
+// never prints a shape (the honest silence's own row law).
+export function mobAttackerRidersRow (r) {
+  if (!r || typeof r !== 'object') return null
+  const { leader, leaderOwns, runner, runnerOwns, ofKills, pairOwns, shareOfKills } = r
+  if (typeof leader !== 'string' || !leader || typeof runner !== 'string' || !runner ||
+      !Number.isFinite(leaderOwns) || leaderOwns <= 0 || !Number.isFinite(runnerOwns) || runnerOwns <= 0 ||
+      !Number.isFinite(ofKills) || ofKills <= 0 || !Number.isFinite(pairOwns) || pairOwns > ofKills ||
+      !Number.isFinite(shareOfKills)) return null
+  return `the mob book's own attacker riders (v0.788.0): no solo killer owns the majority - ${leader} x${leaderOwns} + ${runner} x${runnerOwns} own ${pairOwns} of ${ofKills} mob kill(s) (${(shareOfKills * 100).toFixed(1)}%) - THE ATTACKER'S OWN MIX: the seat's tie law held, the mix is the shape - the mob's own crowd prices the killers the solo law refused to name`
 }

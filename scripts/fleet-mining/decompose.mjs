@@ -94,7 +94,7 @@ import { memHbCensus, RSS_JUMP_STORM_M, ENT_JUMP_STORM_N } from '../../src/lib/m
 import { stormCensus } from '../../src/lib/stormcensus.mjs' // (v0.409.0) the storm EVENT story's field read (verdicts + valve + hb)
 import { gcPoolCensus } from '../../src/lib/gcpool.mjs' // (v0.421.0) the GC Pinned hunt's pool read (the old/ext/ab split)
 import { voidCensus } from '../../src/lib/voidcensus.mjs' // (v0.423.0) the out-of-world stamp's field read
-import { deathKindCensus, deathKindBill, deathKindBillRow, deathKindRiders, deathKindRidersRow } from '../../src/lib/deathkinds.mjs' // (v0.425.0) the vertical-death front's mechanical leg; (v0.784.0) WHICH kind owns the death book
+import { deathKindCensus, deathKindBill, deathKindBillRow, deathKindRiders, deathKindRidersRow, mobAttackerBill, mobAttackerBillRow, mobAttackerRiders, mobAttackerRidersRow } from '../../src/lib/deathkinds.mjs' // (v0.425.0) the vertical-death front's mechanical leg; (v0.784.0) WHICH kind owns the death book; (v0.788.0) WHICH server-named killer owns the mob book
 import { houndCensus } from '../../src/lib/houndcensus.mjs' // (v0.433.0) the hound presence's field read
 import { faceFate } from '../../src/lib/facefate.mjs' // (v0.546.0) the frozen book's READER side - the face's own fate named before the censuses speak
 
@@ -181,6 +181,16 @@ if (sweep.keywordOnly.length) {
   else {
     const kr = deathKindRiders(kinds)
     if (kr) console.log(`  ${deathKindRidersRow(kr)}`)
+  }
+  // (v0.788.0) THE MOB BOOK'S OWN ATTACKER - WHICH server-named killer
+  // owns the mob kind's own book (the seat + the riders, one row never
+  // both - the branch law; the owner case leaves the companion unprinted;
+  // a mob-less face reads the honest silence).
+  const mab = mobAttackerBill(kinds)
+  if (mab) console.log(`  ${mobAttackerBillRow(mab)}`)
+  else {
+    const mar = mobAttackerRiders(kinds)
+    if (mar) console.log(`  ${mobAttackerRidersRow(mar)}`)
   }
   // (v0.713.0) THE INFERENCE'S OWN BILL - the two-way read of the
   // inference's tails across the whole face (the server kind stays the
