@@ -327,3 +327,70 @@ test('frozen-census: the WIRING - the promise\'s LIVES tail consults BOTH void l
   assert.ok(src.includes('allVoids === 0 ? \' - the promise LIVES'), 'the LIVES tail rides the combined voids')
   assert.ok(src.includes('fc.gateBypassed.byCls.critical'), 'the endings row prints the class split')
 })
+
+// ---- (v0.762.0) THE FORECAST'S OWN VOID: the relog line's own bypass echo
+// is the hold voided BEFORE the return (the born-void seat). Face 67's F17
+// chain: the relog declared the critical bypass, the fresh client refroze,
+// the loop breaks rode - no arrival line ever printed and the endings row
+// stayed silent over a hold that WAS voided. The seat rides the census's
+// ALREADY-parsed relog cells (zero new regexes) and its own row (never the
+// promise's rate - the lanes may witness ONE void, the forecast never
+// doubles the arrival's count).
+
+test('frozen-census: the forecast seat - face 67\'s F17 critical echo byte-exact (v0.762.0)', () => {
+  const line = 'F17 [F17] water: frozen client relog (#1 consecutive) (frozen while head-wet (1 verdict) - the drowning clock owns this client) - ending the session, the reconnect lane rebuilds the physics; the drowning sentry holds non-critical pages 10s (the frozen-return gate) - o2=0 health=20 window=wet-critical fast - o2=0 - the critical bypass voids the armed hold on the next page (the loop fuel)'
+  const c = frozenCensus([line])
+  assert.deepEqual(c.gateForecast, {
+    n: 1,
+    byBot: { F17: 1 },
+    byCls: { critical: 1, wetCycler: 0 },
+    o2: { min: 0, max: 0, reset: 0, unknown: 0 },
+    streakMax: 1
+  })
+  // the inline lane keeps its own count (byte-compat with the v0.759.0 row)
+  assert.deepEqual(c.relogs.bypass, { critical: 1, wetCycler: 0 })
+})
+
+test('frozen-census: the forecast seat - the wet-cycler echo rides the reset seat (v0.762.0)', () => {
+  const line = 'F4 [F4] water: frozen client relog (#2 consecutive) (frozen while head-wet (2 verdicts) - the drowning clock owns this client) - ending the session, the reconnect lane rebuilds the physics; the drowning sentry holds non-critical pages 10s (the frozen-return gate) - o2=reset(-1) health=20 window=wet-critical fast - o2=reset(-1) - the wet-cycler bypass voids the armed hold on the next page (the sentinel is not safety evidence)'
+  const c = frozenCensus([line])
+  assert.equal(c.gateForecast.n, 1)
+  assert.deepEqual(c.gateForecast.byCls, { critical: 0, wetCycler: 1 })
+  assert.deepEqual(c.gateForecast.o2, { min: null, max: null, reset: 1, unknown: 0 })
+  assert.equal(c.gateForecast.streakMax, 2)
+})
+
+test('frozen-census: the forecast fences - the bare relog reads silence, the promise never doubles (v0.762.0)', () => {
+  // the bare relog (no echo tail) - the born-void seat stays silent
+  const bare = 'F9 [F9] water: frozen client relog (#1 consecutive) (frozen while head-wet (1 verdict) - the drowning clock owns this client) - ending the session, the reconnect lane rebuilds the physics; the drowning sentry holds non-critical pages 10s (the frozen-return gate) - o2=12 health=20 window=wet-critical fast'
+  const cb = frozenCensus([bare])
+  assert.deepEqual(cb.gateForecast, {
+    n: 0,
+    byBot: {},
+    byCls: { critical: 0, wetCycler: 0 },
+    o2: { min: null, max: null, reset: 0, unknown: 0 },
+    streakMax: null
+  })
+  // THE DOUBLE-COUNT FENCE: one face may ride the echo AND the arrival (the
+  // same logical void's two witnesses) - the promise's rate keeps its
+  // arrival law, the forecast seat never enters the kept/total cells
+  const echo = 'F17 [F17] water: frozen client relog (#1 consecutive) (frozen while head-wet (1 verdict) - the drowning clock owns this client) - ending the session, the reconnect lane rebuilds the physics; the drowning sentry holds non-critical pages 10s (the frozen-return gate) - o2=0 health=20 window=wet-critical fast - o2=0 - the critical bypass voids the armed hold on the next page (the loop fuel)'
+  const arrival = 'F17 [F17] water: frozen-return gate bypassed (critical read o2=0) - the armed hold voids on arrival, the rescue owns the clock (relog streak 1)'
+  const clear = `F17 [F17] water: frozen-return gate clears - the rescue completed with living physics`
+  const both = frozenCensus([echo, arrival, clear])
+  assert.equal(both.gateForecast.n, 1, 'the echo rides its own seat')
+  assert.equal(both.gateBypassed.n, 1, 'the arrival rides its own seat')
+  assert.deepEqual(both.gatePromise, { kept: 1, voided: 1, total: 2, pct: 50 }, 'the promise\'s rate prices the ARRIVALS only - the forecast never doubles it')
+  // the junk battery
+  assert.equal(frozenCensus(null).gateForecast.n, 0)
+  assert.equal(frozenCensus(undefined).gateForecast.n, 0)
+  assert.equal(frozenCensus(42).gateForecast.n, 0)
+  assert.equal(frozenCensus([42, {}, 'junk line']).gateForecast.n, 0)
+})
+
+test('frozen-census: the WIRING - the forecast row rides the decompose beside the endings row (v0.762.0)', () => {
+  const src = readFileSync(new URL('../../scripts/fleet-mining/decompose.mjs', import.meta.url), 'utf8')
+  assert.ok(src.includes('the forecast\'s own void (v0.762.0)'), 'the forecast row prints its version tag')
+  assert.ok(src.includes('fc.gateForecast.n > 0'), 'the row gates on the born-void seat')
+  assert.ok(src.includes('the hold was born voided'), 'the born-void prose rides the row')
+})

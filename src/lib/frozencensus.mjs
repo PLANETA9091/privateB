@@ -301,6 +301,17 @@ export function frozenCensus (lines) {
   // wet-cycler sentinel) and the o2 book grows the reset seat (the
   // sentinel is evidence, not a gauge - the verdicts' own o2 book law).
   const gateBypassed = { n: 0, byBot: {}, byCls: { critical: 0, wetCycler: 0 }, o2: { min: null, max: null, reset: 0, unknown: 0 }, streakMax: null }
+  // (v0.762.0) THE FORECAST'S OWN VOID: the relog line's own bypass echo
+  // ('the critical bypass voids the armed hold on the next page') is the
+  // hold voided BEFORE the return - the born-void seat. The arrival lane
+  // (gateBypassed) prices the void at arrival; the echo may be the only
+  // witness a face gets (face 67: the fresh client refroze and the loop
+  // breaks rode - no arrival line ever printed). The echo's cells are
+  // ALREADY parsed (the relog line's own o2/class/streak) - zero new
+  // regexes, the seat rides the parseFrozenRelog return. The promise's
+  // rate keeps its arrival law (the lanes may witness ONE void - the
+  // forecast never doubles it; its own row reads the born-void instead).
+  const gateForecast = { n: 0, byBot: {}, byCls: { critical: 0, wetCycler: 0 }, o2: { min: null, max: null, reset: 0, unknown: 0 }, streakMax: null }
   const gateClears = { n: 0, byBot: {} }
   const apexRests = { n: 0, byBot: {} }
   const dupKicks = { n: 0, byBot: {} }
@@ -339,6 +350,19 @@ export function frozenCensus (lines) {
         }
         if (rp.bypass === 'critical') bypass.critical++
         else if (rp.bypass === 'wet-cycler') bypass.wetCycler++
+        if (rp.bypass === 'critical' || rp.bypass === 'wet-cycler') {
+          gateForecast.n++
+          gateForecast.byBot[rp.bot] = (gateForecast.byBot[rp.bot] || 0) + 1
+          if (rp.bypass === 'wet-cycler') gateForecast.byCls.wetCycler++
+          else gateForecast.byCls.critical++
+          const fov = o2Value(rp.o2)
+          if (fov !== null) {
+            if (gateForecast.o2.min === null || fov < gateForecast.o2.min) gateForecast.o2.min = fov
+            if (gateForecast.o2.max === null || fov > gateForecast.o2.max) gateForecast.o2.max = fov
+          } else if (rp.o2 === 'reset(-1)') gateForecast.o2.reset++
+          else gateForecast.o2.unknown++
+          if (rp.streak !== null && (gateForecast.streakMax === null || rp.streak > gateForecast.streakMax)) gateForecast.streakMax = rp.streak
+        }
       }
       continue
     }
@@ -408,6 +432,7 @@ export function frozenCensus (lines) {
     freezeNamed,
     gateHolds: gateHolds.n,
     gateBypassed,
+    gateForecast,
     gateClears,
     gatePromise,
     apexRests,

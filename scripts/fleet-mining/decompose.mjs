@@ -2950,6 +2950,21 @@ console.log('  plan lines:', count(/materials plan|plan progress/i))
         : ''
       console.log(`  gate endings: bypassed ${fc.gateBypassed.n}${gbTail}, clears ${fc.gateClears.n}${fc.gatePromise ? ` - the promise kept ${fc.gatePromise.kept}/${fc.gatePromise.total} (${fc.gatePromise.pct}%)` : ''} - the hold's promise priced at arrival`)
     }
+    if (fc.gateForecast.n > 0) {
+      // (v0.762.0) THE FORECAST'S OWN VOID: the relog line's own echo is the
+      // hold voided BEFORE the return (the born-void seat). Face 67's F17
+      // chain: the relog declared the critical bypass, the fresh client
+      // refroze, the loop breaks rode - no arrival line ever printed and the
+      // endings row stayed silent over a hold that WAS voided. The seat
+      // rides its own row (never the promise's rate - the lanes may witness
+      // ONE void, the forecast never doubles the arrival's count).
+      const fo = fc.gateForecast.o2
+      const fLo = fo.min !== null ? String(fo.min) : '?'
+      const fHi = fo.max !== null ? String(fo.max) : '?'
+      const fb = Object.entries(fc.gateForecast.byBot).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([k, n]) => `${k}=${n}`).join(' ')
+      const arrivals = fc.gateBypassed.n > 0 || fc.gateClears.n > 0
+      console.log(`  the forecast's own void (v0.762.0): ${fc.gateForecast.n} (critical ${fc.gateForecast.byCls.critical} / wet-cycler ${fc.gateForecast.byCls.wetCycler}: o2 at the relog ${fLo}..${fHi}${fo.reset > 0 ? `, reset ${fo.reset}` : ''}${fo.unknown > 0 ? `, unknown ${fo.unknown}` : ''}${fc.gateForecast.streakMax !== null ? `, streak max #${fc.gateForecast.streakMax}` : ''})${fb ? `, top bots: ${fb}` : ''} - the relog declared the hold's bypass before the return (the hold was born voided) - ${arrivals ? 'the arrivals priced their own read (the forecast never doubles the promise)' : 'no arrival rode - the promise prices no rate, the born void owns the read'}`)
+    }
     if (fc.apexRests.n > 0) {
       const ab = Object.entries(fc.apexRests.byBot).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([k, n]) => `${k} ${n}`).join(', ')
       console.log(`  apex rests (the exemption): ${fc.apexRests.n}${ab ? `, top bots: ${ab}` : ''}`)
