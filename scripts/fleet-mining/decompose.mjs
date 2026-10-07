@@ -72,7 +72,7 @@ import { bridgeBook, bridgePocketBill, bridgePocketBillRow, bridgePocketRiders, 
 import { bridgeRefusalCensus, bridgeRefusalRow } from '../../src/lib/climbbridge.mjs' // (v0.665.0) THE CLIMB BRIDGE'S FIELD READ - the refusal book's own grains wired to the mining surface: the gate, the pit donor, the plant clear, the shadow gate's defers
 import { planTopCensus } from '../../src/lib/plantop.mjs' // (v0.440.0) the named board - the stuck slot's own name
 import { sentryCensus, sentrySightSeat, sentrySightSeatRow, sentrySightRiders, sentrySightRidersRow } from '../../src/lib/sentry.mjs' // (v0.422.0) the drowning sentry's per-pass read (the water lane's first census); (v0.797.0) WHICH sight class owns the ground-truth book
-import { rescueClockCensus } from '../../src/lib/rescueclock.mjs' // (v0.431.0) the rescue lane's price leg (durations + the frozen blindness)
+import { rescueClockCensus, rescueBlindSeat, rescueBlindSeatRow, rescueBlindRiders, rescueBlindRidersRow } from '../../src/lib/rescueclock.mjs' // (v0.431.0) the rescue lane's price leg (durations + the frozen blindness); (v0.799.0) WHICH blind class owns the frozen-standdown book
 import { swirlBill, criedWolf } from '../../src/lib/swirlbill.mjs' // (v0.726.0) the instant churn's own bill - the rescue lane's zero-close loop (the trigger's drowning, the lane's surface-safe, the same breath); (v0.736.0) the cried-wolf join - the churn's verdict bot that died the trigger-blind death
 import { skyWalk } from '../../src/lib/skywalk.mjs' // (v0.727.0) the crowded sky's own walk - the decide starve's own hand on the walk refusals (the one-parser join: walkfail + decideweather)
 import { frozenCensus } from '../../src/lib/frozencensus.mjs' // (v0.426.0) the freeze family's census (the F10 frozen-while-head-wet class's read)
@@ -488,6 +488,16 @@ console.log('  per-bot ends:', Object.entries(ledger.perBot).map(([b, r]) => `${
     if (rc.blind.lines > 0 || rc.blind.bracketlessStanddowns > 0) {
       const p = rc.blind.passes
       console.log(`  the frozen blindness: brackets ${rc.blind.lines} (passes n${p.n}, avg ${p.n > 0 ? (p.sum / p.n).toFixed(1) : 'n/a'}, max ${p.max}), full-blind (0 shore + 0 probes) ${rc.blind.fullBlind}${rc.blind.fullBlind > 0 ? ' - THE FROZEN DIVE GATHERS NOTHING before the reconnect lane takes over' : ''}, bracketless ${rc.blind.bracketlessStanddowns}`)
+      // (v0.799.0) THE FROZEN STANDDOWN'S OWN SEAT - one additive branch
+      // beside the blindness row (one row never both - the branch law):
+      // the seat names the solo owner under the strict-majority law, the
+      // riders measure the mix the solo law refused to seat.
+      const blindSeat = rescueBlindSeat(rc)
+      if (blindSeat) console.log(`  ${rescueBlindSeatRow(blindSeat)}`)
+      else {
+        const blindRiders = rescueBlindRiders(rc)
+        if (blindRiders) console.log(`  ${rescueBlindRidersRow(blindRiders)}`)
+      }
     }
     if (rc.unparsed > 0) console.log(`  unparsed: ${rc.unparsed} refused blind: token(s) - the escape hatch`)
   }

@@ -107,3 +107,116 @@ export function rescueClockCensus (lines) {
   }
   return out
 }
+
+// (v0.799.0) THE FROZEN STANDDOWN'S OWN SEAT - WHICH blind class owns the
+// frozen-standdown book. The clock's own blind cell rode raw since
+// v0.431.0 ('the frozen blindness: brackets 8 (passes n8, avg 14.4, max
+// 16), full-blind (0 shore + 0 probes) 8 - THE FROZEN DIVE GATHERS
+// NOTHING before the reconnect lane takes over, bracketless 5' - face 84,
+// 37694318753, the zero-death calm: 13 frozen standdowns and no row ever
+// said WHO owns the book, while the cell's own numbers carried the
+// answer). THE SEAT LAW (the clock's own blind cell only, zero
+// re-parsing - the v0.797.0 sight seat's own shape, the v0.792.0
+// attacker seat's own law): the strict-majority law, a solo class owns
+// the book only above half (a tie owns nothing); the book is the blind
+// cell's own sum (fullBlind + the bracketed-sighted remainder + the
+// bracketless); junk never invents a class (a missing or non-object
+// census/blind cell, a non-finite or negative counter, a sighted
+// remainder below zero, or a zero book reads the honest silence). THREE
+// classes: 'full-blind' (the bracket's own zeros - the gather-nothing
+// episode), 'sighted' (the bracket rode a shore/probe counter above
+// zero), 'bracketless' (the standdown the bracket never printed - the
+// F17 17.2s shape, v0.431.0's own receipt). THE FOUR-FACE MATRIX (the
+// held faces, byte-exact): face 84 (37694318753) 'full-blind owns 8 of
+// 13 frozen standdown(s) (61.5%)' - the bare majority, the calm face's
+// 5 bracketless ride the book; face 83 (37689818269) 20 of 20 (100.0%)
+// (the wet face's own whale); face 82 (37685069081) 5 of 5; face 79
+// (37668633803) 4 of 4 - full-blind owns every owner case the field
+// ever produced (the sighted class is the grammar's honest fence,
+// unproven in the field - the bracket's zeros are the design's own
+// receipt, v0.431.0's own answer).
+const blindTally = (census) => {
+  const b = census && typeof census === 'object' ? census.blind : null
+  if (!b || typeof b !== 'object') return null
+  const { lines, fullBlind, bracketlessStanddowns } = b
+  for (const v of [lines, fullBlind, bracketlessStanddowns]) {
+    if (!Number.isFinite(v) || v < 0) return null
+  }
+  const sighted = lines - fullBlind
+  if (sighted < 0) return null
+  const tallies = {}
+  for (const [cls, n] of [['full-blind', fullBlind], ['sighted', sighted], ['bracketless', bracketlessStanddowns]]) {
+    if (n > 0) tallies[cls] = n
+  }
+  const book = fullBlind + sighted + bracketlessStanddowns
+  if (book <= 0) return null
+  return { tallies, book }
+}
+
+// (v0.799.0) the seat itself - the strict-majority law on the blind
+// cell's own classes (the sentrySightSeat's own shape).
+export function rescueBlindSeat (census) {
+  const t = blindTally(census)
+  if (!t) return null
+  let topUnits = 0
+  let topClass = null
+  for (const [cls, n] of Object.entries(t.tallies)) {
+    if (n > topUnits) { topUnits = n; topClass = cls }
+  }
+  if (topClass === null || topUnits <= t.book - topUnits) return null
+  return { blind: topClass, owns: topUnits, ofStanddowns: t.book, share: +(topUnits / t.book).toFixed(3) }
+}
+
+// (v0.799.0) the seat's own row - THE FROZEN BOOK'S OWN SEAT: the seat
+// names WHICH blind class owns the frozen-standdown book; the class's
+// own front prices the reconnect lane (the full-blind majority is the
+// gather-nothing design's own receipt - the v0.431.0 prose priced the
+// counters, the seat prices the owner). Junk never prints a seat (the
+// honest silence's own row law).
+export function rescueBlindSeatRow (seat) {
+  if (!seat || typeof seat !== 'object') return null
+  const { blind, owns, ofStanddowns, share } = seat
+  if (typeof blind !== 'string' || !blind ||
+      !Number.isFinite(owns) || owns <= 0 ||
+      !Number.isFinite(ofStanddowns) || ofStanddowns <= 0 || owns > ofStanddowns ||
+      !Number.isFinite(share)) return null
+  return `the frozen standdown's own seat (v0.799.0): ${blind} owns ${owns} of ${ofStanddowns} frozen standdown(s) (${(share * 100).toFixed(1)}%) - THE FROZEN BOOK'S OWN SEAT: one blind class's own episodes own the standdown book - the class's own front prices the reconnect lane the raw split rode unnamed`
+}
+
+// (v0.799.0) THE FROZEN STANDDOWN'S OWN RIDERS - the seat's own
+// silence's companion. The seat names the solo class under the
+// strict-majority law; a no-majority blind mix rode raw with no row
+// naming the shape. THE RIDER LAW (the clock's own blind cell only,
+// zero re-parsing - the seat's own precedent): a MEASURE, never a
+// verdict-owner - the top two classes' concentration prices the shape
+// the solo law refused to name (the seat's owner case leaves the
+// companion unprinted - the decompose's own branch law). Junk never
+// invents a shape: a missing or non-object census/blind cell, a
+// non-finite or negative counter, or fewer than two counted classes
+// reads the honest silence (null). The order is deterministic (count
+// desc, then the class's own byte: 'bracketless' < 'full-blind' <
+// 'sighted').
+export function rescueBlindRiders (census) {
+  const t = blindTally(census)
+  if (!t) return null
+  const ranked = Object.entries(t.tallies).sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1))
+  if (ranked.length < 2) return null
+  const [leader, leaderOwns] = ranked[0]
+  const [runner, runnerOwns] = ranked[1]
+  const pairOwns = leaderOwns + runnerOwns
+  return { leader, leaderOwns, runner, runnerOwns, ofStanddowns: t.book, pairOwns, share: +(pairOwns / t.book).toFixed(3), duet: leaderOwns === runnerOwns }
+}
+
+// (v0.799.0) the blind riders' own row - THE FROZEN BOOK'S OWN MIX: a
+// measure of the shape, never a named owner (the seat's tie law holds);
+// the pair prices the concentration the solo law refused to seat. Junk
+// never prints a shape (the honest silence's own row law).
+export function rescueBlindRidersRow (r) {
+  if (!r || typeof r !== 'object') return null
+  const { leader, leaderOwns, runner, runnerOwns, ofStanddowns, pairOwns, share } = r
+  if (typeof leader !== 'string' || !leader || typeof runner !== 'string' || !runner ||
+      !Number.isFinite(leaderOwns) || leaderOwns <= 0 || !Number.isFinite(runnerOwns) || runnerOwns <= 0 ||
+      !Number.isFinite(ofStanddowns) || ofStanddowns <= 0 || !Number.isFinite(pairOwns) || pairOwns > ofStanddowns ||
+      !Number.isFinite(share)) return null
+  return `the frozen standdown's own riders (v0.799.0): no solo class owns the majority - ${leader} x${leaderOwns} + ${runner} x${runnerOwns} own ${pairOwns} of ${ofStanddowns} frozen standdown(s) (${(share * 100).toFixed(1)}%) - THE FROZEN BOOK'S OWN MIX: the seat's tie law held, the mix is the shape - the classes' own crowd prices the standdown the solo law refused to name`
+}

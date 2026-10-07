@@ -7,10 +7,12 @@
 // the pass lines, the start lines all REJECTED).
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { RESCUE_BLIND_RE, parseRescueBlind, rescueClockCensus } from '../../src/lib/rescueclock.mjs'
+import fs from 'node:fs'
+import { RESCUE_BLIND_RE, parseRescueBlind, rescueClockCensus, rescueBlindSeat, rescueBlindSeatRow, rescueBlindRiders, rescueBlindRidersRow } from '../../src/lib/rescueclock.mjs'
 
 const BRACKET = 'F10 [F10] water: rescue standing down (frozen physics - the walk gate reopens, the reconnect lane owns a dead client) [blind: 12 passes, 0 shore scans hit, 0 standing probes - no ground truth ever gathered] in 8.4s'
 const BRACKETLESS = 'F17 [F17] water: rescue standing down (frozen physics - the walk gate reopens, the reconnect lane owns a dead client) in 17.2s'
+const SIGHTED_BRACKET = 'F4 [F4] water: rescue standing down (frozen physics - the walk gate reopens) [blind: 7 passes, 2 shore scans hit, 0 standing probes - no ground truth ever gathered] in 5.0s'
 const COMPLETE = 'F9 [F9] water: rescue complete in 1.3s'
 const RELEASED = 'F15 [F15] water: rescue released (surface-safe, open water - no land known; the walk gate reopens) in 6.2s'
 const TIMEOUT = 'F10 [F10] water: rescue timeout (still wet, 141 passes, 0 probes, tail wet/wet/dry) in 25.1s'
@@ -113,4 +115,101 @@ test('census: the float tail pins - one decimal or none, the parser takes the em
   const c = rescueClockCensus(['F2 [F2] water: rescue complete in 0.0s', 'F2 [F2] water: rescue complete in 3s'])
   assert.strictEqual(c.durations.complete.n, 2, 'the loose tail still reads - the emitter never prints it, the ledger\'s own rescueEndSeconds law')
   assert.strictEqual(c.durations.complete.sum, 3)
+})
+
+// (v0.799.0) THE FROZEN STANDDOWN'S OWN SEAT - WHICH blind class owns the
+// frozen-standdown book. The face verbatims (the blind cells' own
+// splits): face 84 (37694318753, the calm) full-blind 8 + bracketless 5
+// of 13 - the bare majority; face 83 (37689818269, the wet) 20 of 20;
+// face 82 (37685069081) 5 of 5; face 79 (37668633803) 4 of 4.
+test('the face-84 calm cell through the seat law: full-blind owns 8 of 13 (61.5%) - the frozen book\'s own owner', () => {
+  const c = rescueClockCensus([...Array(8).fill(BRACKET), ...Array(5).fill(BRACKETLESS)])
+  assert.strictEqual(c.blind.lines, 8)
+  assert.strictEqual(c.blind.fullBlind, 8)
+  assert.strictEqual(c.blind.bracketlessStanddowns, 5)
+  const s = rescueBlindSeat(c)
+  assert.deepEqual(s, { blind: 'full-blind', owns: 8, ofStanddowns: 13, share: 0.615 })
+  assert.equal(
+    rescueBlindSeatRow(s),
+    "the frozen standdown's own seat (v0.799.0): full-blind owns 8 of 13 frozen standdown(s) (61.5%) - THE FROZEN BOOK'S OWN SEAT: one blind class's own episodes own the standdown book - the class's own front prices the reconnect lane the raw split rode unnamed"
+  )
+  // the measure-not-owner law: the riders stay a MEASURE even in the
+  // owner case - the decompose's branch law leaves the companion unprinted
+  const r = rescueBlindRiders(c)
+  assert.deepEqual(r, { leader: 'full-blind', leaderOwns: 8, runner: 'bracketless', runnerOwns: 5, ofStanddowns: 13, pairOwns: 13, share: 1, duet: false })
+})
+
+test('the tie law holds the seat silent and the byte order pins bracketless < full-blind - the duet and the below-half triad', () => {
+  // the duet tie: full-blind x2 + bracketless x2 - a tie owns nothing,
+  // the mix measures the shape, the rank tie breaks on the class's own byte
+  const tie = rescueClockCensus([...Array(2).fill(BRACKET), ...Array(2).fill(BRACKETLESS)])
+  assert.equal(rescueBlindSeat(tie), null)
+  const tR = rescueBlindRiders(tie)
+  assert.deepEqual(tR, { leader: 'bracketless', leaderOwns: 2, runner: 'full-blind', runnerOwns: 2, ofStanddowns: 4, pairOwns: 4, share: 1, duet: true })
+  assert.equal(
+    rescueBlindRidersRow(tR),
+    "the frozen standdown's own riders (v0.799.0): no solo class owns the majority - bracketless x2 + full-blind x2 own 4 of 4 frozen standdown(s) (100.0%) - THE FROZEN BOOK'S OWN MIX: the seat's tie law held, the mix is the shape - the classes' own crowd prices the standdown the solo law refused to name"
+  )
+  // the below-half fence: the triad 2+1+2 - the top pair measures, the
+  // sighted x1 rides outside (the real sighted bracket through the parser)
+  const triad = rescueClockCensus([...Array(2).fill(BRACKET), SIGHTED_BRACKET, ...Array(2).fill(BRACKETLESS)])
+  assert.equal(rescueBlindSeat(triad), null)
+  const xR = rescueBlindRiders(triad)
+  assert.deepEqual(xR, { leader: 'bracketless', leaderOwns: 2, runner: 'full-blind', runnerOwns: 2, ofStanddowns: 5, pairOwns: 4, share: 0.8, duet: true }, 'the top pair\'s own tie flags the duet even when the sighted x1 rides outside')
+  assert.equal(
+    rescueBlindRidersRow(xR),
+    "the frozen standdown's own riders (v0.799.0): no solo class owns the majority - bracketless x2 + full-blind x2 own 4 of 5 frozen standdown(s) (80.0%) - THE FROZEN BOOK'S OWN MIX: the seat's tie law held, the mix is the shape - the classes' own crowd prices the standdown the solo law refused to name"
+  )
+})
+
+test('the cells\'-own-sum law: the single-class fence and the junk battery never invent a class', () => {
+  // the single-class book: one bracketless standdown owns its own book
+  const solo = rescueClockCensus([BRACKETLESS])
+  const s = rescueBlindSeat(solo)
+  assert.deepEqual(s, { blind: 'bracketless', owns: 1, ofStanddowns: 1, share: 1 })
+  assert.equal(
+    rescueBlindSeatRow(s),
+    "the frozen standdown's own seat (v0.799.0): bracketless owns 1 of 1 frozen standdown(s) (100.0%) - THE FROZEN BOOK'S OWN SEAT: one blind class's own episodes own the standdown book - the class's own front prices the reconnect lane the raw split rode unnamed"
+  )
+  // the junk battery: the zero book, the missing cell, the non-object,
+  // the negative counter, the sighted remainder below zero
+  const battery = [
+    rescueClockCensus('not an array'),
+    {},
+    { blind: null },
+    { blind: { lines: -1, fullBlind: 0, bracketlessStanddowns: 0 } },
+    { blind: { lines: 1, fullBlind: 2, bracketlessStanddowns: 0 } },
+    { blind: { lines: 0, fullBlind: 0, bracketlessStanddowns: 0 } }
+  ]
+  for (const junk of battery) {
+    assert.equal(rescueBlindSeat(junk), null, JSON.stringify(junk))
+    assert.equal(rescueBlindRiders(junk), null, JSON.stringify(junk))
+  }
+  // the row guards: junk never prints a row
+  assert.equal(rescueBlindSeatRow(null), null)
+  assert.equal(rescueBlindSeatRow({ blind: 'x', owns: 0, ofStanddowns: 1, share: 0 }), null)
+  assert.equal(rescueBlindSeatRow({ blind: 'x', owns: 2, ofStanddowns: 1, share: 2 }), null)
+  assert.equal(rescueBlindRidersRow(null), null)
+  assert.equal(rescueBlindRidersRow({ leader: 'a', leaderOwns: 0, runner: 'b', runnerOwns: 1, ofStanddowns: 2, pairOwns: 1, share: 0.5 }), null)
+})
+
+test('the real parser\'s own join: the sighted bracket splits the classes, the WIRING assert anchored to the branch', () => {
+  // the sighted bracket (shore 2) splits the book - full-blind keeps the
+  // strict majority over the sighted class, the grammar's honest fence
+  const c = rescueClockCensus([...Array(2).fill(BRACKET), SIGHTED_BRACKET])
+  assert.strictEqual(c.blind.lines, 3)
+  assert.strictEqual(c.blind.fullBlind, 2, 'the 2/0 line is not full-blind - a shore scan hit twice')
+  const s = rescueBlindSeat(c)
+  assert.deepEqual(s, { blind: 'full-blind', owns: 2, ofStanddowns: 3, share: 0.667 })
+  assert.equal(
+    rescueBlindSeatRow(s),
+    "the frozen standdown's own seat (v0.799.0): full-blind owns 2 of 3 frozen standdown(s) (66.7%) - THE FROZEN BOOK'S OWN SEAT: one blind class's own episodes own the standdown book - the class's own front prices the reconnect lane the raw split rode unnamed"
+  )
+  // the WIRING assert: the branch rides the census cell, the prose lives
+  // only in the lib (the shooter seat v0.792.0 precedent)
+  const src = fs.readFileSync(new URL('../../scripts/fleet-mining/decompose.mjs', import.meta.url), 'utf8')
+  assert.ok(src.includes('const blindSeat = rescueBlindSeat(rc)'), 'the seat rides the census cell')
+  assert.ok(src.includes('if (blindSeat) console.log(`  ${rescueBlindSeatRow(blindSeat)}`)'), 'the owner row rides the branch')
+  assert.ok(src.includes('const blindRiders = rescueBlindRiders(rc)'), 'the riders ride the same branch law')
+  assert.ok(!src.includes("THE FROZEN BOOK'S OWN SEAT:"), 'the prose stays in the lib')
 })
