@@ -68,7 +68,7 @@ import { veinLedger, tierGuardBill } from '../../src/lib/veinledger.mjs' // (v0.
 import { commonsLedger } from '../../src/lib/commonsledger.mjs' // (v0.502.0) the commons ledger - the ask's answer: the sweeps, the walk anatomy, the deliveries
 import { droughtTimeline, droughtTimelineRow } from '../../src/lib/droughttimeline.mjs' // (v0.738.0) the pump's own timeline - the tithe's banks vs the dry reads' positions
 import { reachRadius, reachRadiusRow, reachClock, reachClockRow } from '../../src/lib/reachmap.mjs' // (v0.740.0) the reach's own radius - the last mile's refused distances; (v0.742.0) the last mile's own clock - the refused walks' elapsed ms (the raw walk's own rent)
-import { bridgeBook } from '../../src/lib/bridgebook.mjs' // (v0.496.0) the bridge book - the vertical walk's fill lane (the refusals' why-flip, the cobble signature, the server's own veto; SLOT COLLISION #17: 0.495.0 taken by fire-0008's THE TABLE GATE mid-fire)
+import { bridgeBook, bridgePocketBill, bridgePocketBillRow, bridgePocketRiders, bridgePocketRidersRow } from '../../src/lib/bridgebook.mjs' // (v0.496.0) the bridge book - the vertical walk's fill lane (the refusals' why-flip, the cobble signature, the server's own veto; SLOT COLLISION #17: 0.495.0 taken by fire-0008's THE TABLE GATE mid-fire); (v0.786.0) WHICH bot owns the pocket tax
 import { bridgeRefusalCensus, bridgeRefusalRow } from '../../src/lib/climbbridge.mjs' // (v0.665.0) THE CLIMB BRIDGE'S FIELD READ - the refusal book's own grains wired to the mining surface: the gate, the pit donor, the plant clear, the shadow gate's defers
 import { planTopCensus } from '../../src/lib/plantop.mjs' // (v0.440.0) the named board - the stuck slot's own name
 import { sentryCensus } from '../../src/lib/sentry.mjs' // (v0.422.0) the drowning sentry's per-pass read (the water lane's first census)
@@ -3000,6 +3000,15 @@ console.log('  plan lines:', count(/materials plan|plan progress/i))
     }
     const top = bb.rows.slice(0, 3).map(r => `${r.bot} ${r.unavailable + r.placed + r.serverRefused} (un ${r.unavailable}/pl ${r.placed}/veto ${r.serverRefused})`).join(', ')
     if (top) console.log(`  the burners: ${top}`)
+    // (v0.786.0) THE POCKET TAX'S OWN SEAT - WHICH bot owns the climb's
+    // empty-pocket tax (the seat + the riders, one row never both - the
+    // branch law; the owner case leaves the companion unprinted).
+    const pkb = bridgePocketBill(bb)
+    if (pkb) console.log(`  ${bridgePocketBillRow(pkb)}`)
+    else {
+      const pkr = bridgePocketRiders(bb)
+      if (pkr) console.log(`  ${bridgePocketRidersRow(pkr)}`)
+    }
   }
 }
 // (v0.665.0) THE CLIMB BRIDGE'S FIELD READ - the refusal book's own grains the

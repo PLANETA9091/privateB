@@ -154,3 +154,94 @@ export function bridgeBook (lines) {
     rows
   }
 }
+
+// (v0.786.0) THE POCKET TAX'S OWN BURNER - the unavailable book's own bot
+// seat. The BRIDGE BOOK's refusal row named the pocket class the climb tax
+// ('the climb arrives empty-handed - the carried fill is the front') while
+// the WHO rode raw: the burners row sorts by the whole book's mass
+// (placed first), the pocket class's own burner sat unnamed (face 78's own
+// read: 'pocket 12 (86%)' across 6 bots, zero rows naming the bot). THE
+// SEAT LAW (the census's own rows cells only, zero re-parsing - the
+// v0.783.0 launches.byBot precedent): the strict-majority law, a solo
+// burner owns the pocket tax only above half (a tie owns nothing - the
+// v0.784.0 seat law); the pocket class is the seat's own subject (the
+// floor class rides its own terrain story, the other class keeps the
+// totals' honest bucket). Junk never invents a burner: a missing or
+// non-array rows cell, a non-finite or non-positive pocket count reads
+// the honest silence (null).
+function pocketTally (bb) {
+  if (!bb || typeof bb !== 'object' || Array.isArray(bb) || !Array.isArray(bb.rows)) return null
+  const tallies = {}
+  let total = 0
+  for (const r of bb.rows) {
+    if (!r || typeof r !== 'object' || typeof r.bot !== 'string' || !r.bot) continue
+    const n = r.pocket
+    if (!Number.isFinite(n) || n <= 0) continue
+    total += n
+    tallies[r.bot] = (tallies[r.bot] || 0) + n
+  }
+  return total > 0 ? { tallies, total } : null
+}
+
+export function bridgePocketBill (bb) {
+  const t = pocketTally(bb)
+  if (!t) return null
+  let topUnits = 0
+  let topBot = null
+  for (const [bot, n] of Object.entries(t.tallies)) {
+    if (n > topUnits) { topUnits = n; topBot = bot }
+  }
+  if (topBot === null || topUnits <= t.total - topUnits) return null
+  return { bot: topBot, owns: topUnits, ofPockets: t.total, shareOfPockets: +(topUnits / t.total).toFixed(3) }
+}
+
+// (v0.786.0) the pocket seat's own row - THE POCKET TAX'S OWN BURNER: the
+// seat names WHICH bot owns the climb's empty-pocket tax; the bot's own
+// supply front prices the cure (the carried fill is the front - the bot
+// that arrives empty-handed owns the walk's own tax). Junk never prints a
+// seat (the honest silence's own row law).
+export function bridgePocketBillRow (bill) {
+  if (!bill || typeof bill !== 'object') return null
+  const { bot, owns, ofPockets, shareOfPockets } = bill
+  if (typeof bot !== 'string' || !bot ||
+      !Number.isFinite(owns) || owns <= 0 ||
+      !Number.isFinite(ofPockets) || ofPockets <= 0 || owns > ofPockets ||
+      !Number.isFinite(shareOfPockets)) return null
+  return `the pocket tax's own burner (v0.786.0): ${bot} owns ${owns} of ${ofPockets} pocket refusal(s) (${(shareOfPockets * 100).toFixed(1)}%) - THE POCKET TAX'S OWN BURNER: one bot's own empty pocket owns the climb tax - the bot's own supply front prices the tax the raw split rode unnamed`
+}
+
+// (v0.786.0) THE POCKET TAX'S OWN RIDERS - the pocket seat's own silence's
+// companion. The seat names the solo burner under the strict-majority law;
+// a no-majority pocket mix rode raw with no row naming the shape. THE RIDER
+// LAW (the census's own rows cells only, zero re-parsing - the seat's own
+// precedent): a MEASURE, never a verdict-owner - the top two burners'
+// concentration prices the shape the solo law refused to name (the seat's
+// owner case leaves the companion unprinted - the decompose's own branch
+// law). Junk never invents a shape: a missing or non-array rows cell, a
+// non-finite or non-positive pocket cell, or fewer than two burners reads
+// the honest silence (null). The order is deterministic (count desc, then
+// the bot's own byte asc).
+export function bridgePocketRiders (bb) {
+  const t = pocketTally(bb)
+  if (!t) return null
+  const ranked = Object.entries(t.tallies).sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1))
+  if (ranked.length < 2) return null
+  const [leader, leaderOwns] = ranked[0]
+  const [runner, runnerOwns] = ranked[1]
+  const pairOwns = leaderOwns + runnerOwns
+  return { leader, leaderOwns, runner, runnerOwns, ofPockets: t.total, pairOwns, shareOfPockets: +(pairOwns / t.total).toFixed(3), duet: leaderOwns === runnerOwns }
+}
+
+// (v0.786.0) the pocket riders' own row - THE POCKET TAX'S OWN CROWD: a
+// measure of the shape, never a named owner (the seat's tie law holds);
+// the pair prices the concentration the solo law refused to seat. Junk
+// never prints a shape (the honest silence's own row law).
+export function bridgePocketRidersRow (r) {
+  if (!r || typeof r !== 'object') return null
+  const { leader, leaderOwns, runner, runnerOwns, ofPockets, pairOwns, shareOfPockets } = r
+  if (typeof leader !== 'string' || !leader || typeof runner !== 'string' || !runner ||
+      !Number.isFinite(leaderOwns) || leaderOwns <= 0 || !Number.isFinite(runnerOwns) || runnerOwns <= 0 ||
+      !Number.isFinite(ofPockets) || ofPockets <= 0 || !Number.isFinite(pairOwns) || pairOwns > ofPockets ||
+      !Number.isFinite(shareOfPockets)) return null
+  return `the pocket tax's own riders (v0.786.0): no solo burner owns the majority - ${leader} x${leaderOwns} + ${runner} x${runnerOwns} own ${pairOwns} of ${ofPockets} pocket refusal(s) (${(shareOfPockets * 100).toFixed(1)}%) - THE POCKET TAX'S OWN CROWD: the seat's tie law held, the crowd is the shape - the tax's own spread prices the supply the solo law refused to name`
+}
