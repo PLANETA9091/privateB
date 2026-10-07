@@ -3,7 +3,7 @@
 import { readFileSync } from 'node:fs'
 import { rescueLedger, rescueEndSeconds, RESCUE_END_CLASSES } from '../../src/lib/rescue-ledger.mjs'
 import { orphanOwnerCensus } from '../../src/lib/orphanowner.mjs' // (v0.679.0) the orphan end's per-bot owner (the dead-client class names its bot)
-import { askWhyCensus, dryAskVerdict, dryAskVerdictRow } from '../../src/lib/askwhycensus.mjs' // (v0.652.0) THE ASK'S OWN WHY BOOK - the ask ladder's walk-failure whys joined to the dry terminals (the delivery side's v0.612.0 why-book law, the ask side's own seat); (v0.769.0) WHICH class owns the dry ask
+import { askWhyCensus, dryAskVerdict, dryAskVerdictRow, dryAskBotBill, dryAskBotBillRow, dryAskRiders, dryAskRidersRow } from '../../src/lib/askwhycensus.mjs' // (v0.652.0) THE ASK'S OWN WHY BOOK - the ask ladder's walk-failure whys joined to the dry terminals (the delivery side's v0.612.0 why-book law, the ask side's own seat); (v0.769.0) WHICH class owns the dry ask; (v0.772.0) WHICH walker owns the class's rows
 import { bankFlowCensus, bankYield } from '../../src/lib/bankcensus.mjs' // (v0.686.0) + the yield dial - the banked mass over the visit lane's own line count
 import { routeGateCensus, ROUTE_GATE_RIM_TRAP_REFUSALS } from '../../src/lib/routecensus.mjs' // (v0.388.0) the route gate's field read
 import { shooterCensus } from '../../src/lib/shootercensus.mjs' // (v0.390.0) the shooter band's field read
@@ -27,7 +27,7 @@ import { bankFailCensus } from '../../src/lib/bankfail.mjs' // (v0.411.0) the ba
 import { nopathBill } from '../../src/lib/nopathbill.mjs' // (v0.716.0) the no-path spike's own WHO read - the door family's no-path rides folded per bot per lane (the column's repeats vs the crowd's spread)
 import { decideBook } from '../../src/lib/decidebook.mjs' // (v0.720.0) the decide door's own book - the door leg's decide rides per bot AND per goal (the shared dead chest's cross-bot column vs the bot's rider repeats)
 import { dropWalkCensus } from '../../src/lib/dropwalk.mjs' // (v0.413.0) the vein sweep's per-fail drop-walk line
-import { mapTripCensus, parseWorldmapTail, mapTripGap, tripReceipt, tripVoice, pocketDrain, pocketDrainAttr, materialBalance, balanceReconcile, leakClock, pocketPeakClock, pocketPeakClockRow, RECEIPT_WINDOW_SAMPLES } from '../../src/lib/maptrip.mjs' // (v0.415.0) the materials plan's launch economics; (v0.445.0) the knowledge side + the gap composer; (v0.447.0) the delivery leg's yield; (v0.449.0) the window calibration; (v0.450.0) the voice roster; (v0.451.0) the pocket drain ledger; (v0.452.0) the drain attribution; (v0.453.0) the material balance; (v0.455.0) the lenses converge; (v0.458.0) the re-gather share; (v0.460.0) the no-leak's own name; (v0.472.0) the leak clock - the share's third split; (v0.771.0) the pocket's own peak clock
+import { mapTripCensus, parseWorldmapTail, mapTripGap, tripReceipt, tripVoice, pocketDrain, pocketDrainAttr, materialBalance, balanceReconcile, leakClock, pocketPeakClock, pocketPeakClockRow, RECEIPT_WINDOW_SAMPLES } from '../../src/lib/maptrip.mjs' // (v0.415.0) the materials plan's launch economics; (v0.445.0) the knowledge side + the gap composer; (v0.447.0) the delivery leg's yield; (v0.449.0) the window calibration; (v0.450.0) the voice roster; (v0.451.0) the pocket drain ledger; (v0.452.0) the drain attribution; (v0.453.0) the material balance; (v0.455.0) the lenses converge; (v0.458.0) the re-gather share; (v0.460.0) the no-leak's own name; (v0.472.0) the leak clock - the share's third split; (v0.772.0) the pocket's own peak clock
 import { deficitsCensus } from '../../src/lib/deficitrow.mjs' // (v0.417.0) the plan's harvest side (the deficits row's clock)
 import { smeltLedger, clipDebtRow, clipDebtSeat, clipDebtSeatRow, clipPaybackRow, clipDietRow, clockWindowRow, clockAskRow } from '../../src/lib/smeltledger.mjs' // (v0.461.0) the furnace lane's own words - the batches, the clips, the refusals; (v0.744.0) the clip's own debt - the units the chains left smelting; (v0.764.0) WHICH class owns the debt; (v0.745.0) the re-smelt shadow's payback - did a later chain ever return; (v0.747.0) the clip's own diet - the fuel side's own worth vs the vanilla bar; (v0.748.0) the clock's own window - the clock side's own worth vs the vanilla speed; (v0.749.0) the clock ask's own scale - the batch's own size vs the windows' whole worth
 import { furnacePut } from '../../src/lib/furnaceput.mjs' // (v0.664.0) THE FURNACE PUT'S OWN PAIR - the no-walk opens and the slot read-back's input x fuel pairing (the machine's own diet)
@@ -1573,6 +1573,16 @@ console.log('  fuel anchor:', count(/fuel anchor/), ' fuel commons:', count(/fue
   // silence
   const dav = dryAskVerdict(aw)
   if (dav) console.log(`  ${dryAskVerdictRow(dav)}`)
+  // (v0.772.0) WHICH walker owns the verdict's own class - one additive
+  // row in the verdict's own shadow (the cells are the census's own
+  // whysByBot, zero re-parsing; the bill's tie silence reads the riders'
+  // measure - one row, never both; the junk reads the honest silence)
+  const askBill = dryAskBotBill(aw)
+  if (askBill) console.log(`  ${dryAskBotBillRow(askBill)}`)
+  else {
+    const askRiders = dryAskRiders(aw)
+    if (askRiders) console.log(`  ${dryAskRidersRow(askRiders)}`)
+  }
 }
 console.log('  iron lines:', count(/iron/))
 console.log('  ladder lead lines:', count(/ladder/))
@@ -2434,7 +2444,7 @@ console.log('  plan lines:', count(/materials plan|plan progress/i))
           : ''
         console.log(`  the leak clock (v0.472.0): window t-${lc.tMax}s..t-${lc.tMin}s over ${lc.samples} sample(s) - death drops: early ${lc.legs.early.u}u/${lc.legs.early.n}, mid ${lc.legs.mid.u}u/${lc.legs.mid.n}, late ${lc.legs.late.u}u/${lc.legs.late.n}, unpositioned ${lc.unpositioned.u}u/${lc.unpositioned.n} - clock center ${lc.clockCenter} (0 = the face's start, 1 = its end); ${pb}${conc}`)
       }
-      // (v0.771.0) THE POCKET'S OWN PEAK CLOCK - the drain ledger's peak
+      // (v0.772.0) THE POCKET'S OWN PEAK CLOCK - the drain ledger's peak
       // learns its phase, the budget-floor verdict's lever claim ('the
       // pocket's drain is the lever, the budget is not') finally priced:
       // a LATE peak confirms the claim (the drain never got its window),

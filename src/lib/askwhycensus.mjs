@@ -213,7 +213,7 @@ export function askWhyClass (why) {
  */
 export function askWhyCensus (lines) {
   const list = Array.isArray(lines) ? lines : (typeof lines === 'string' ? lines.split('\n') : null)
-  const out = { terminals: 0, unitsDry: 0, whys: ZERO_CLASSES(), dryByWhy: ZERO_CLASSES(), decideSkins: ZERO_SKINS(), dryBySkin: ZERO_SKINS(), sides: ZERO_SIDES(), dryBySide: ZERO_SIDES(), governorRuns: ZERO_RUNS() }
+  const out = { terminals: 0, unitsDry: 0, whys: ZERO_CLASSES(), dryByWhy: ZERO_CLASSES(), decideSkins: ZERO_SKINS(), dryBySkin: ZERO_SKINS(), sides: ZERO_SIDES(), dryBySide: ZERO_SIDES(), governorRuns: ZERO_RUNS(), whysByBot: {} }
   if (!list) return out
   // per-bot pending whys since the bot's last terminal (the bot tag is the
   // join key - the cross-bot law: F5's whys never price F9's terminal)
@@ -234,6 +234,10 @@ export function askWhyCensus (lines) {
       const bot = raw.slice(0, raw.indexOf(' '))
       const klass = askWhyClass(whyM[1])
       out.whys[klass] += 1
+      // (v0.772.0) the bot-level cell rides beside the class tally - the
+      // ask seats' own source (zero re-parsing, the bill's own precedent)
+      if (!out.whysByBot[bot]) out.whysByBot[bot] = ZERO_CLASSES()
+      out.whysByBot[bot][klass] += 1
       // (v0.658.0) the governor's run anatomy: a governor why EXTENDS the
       // bot's open run, any other why CLOSES it (the refusal chain broke)
       if (klass === 'governor') govRun.set(bot, (govRun.get(bot) || 0) + 1)
@@ -346,4 +350,79 @@ export function dryAskVerdictRow (v) {
       !Number.isFinite(dryUnits) || dryUnits < 0 || !Number.isFinite(dryPriced) || dryPriced < 0 ||
       dryUnits > dryPriced || !Number.isFinite(shareOfDry)) return null
   return `the dry ask's own verdict (v0.769.0): ${cls} owns ${owns} of ${ofWhys} why row(s) (${(shareOfWhys * 100).toFixed(1)}%), the priced dry ${dryUnits} of ${dryPriced} unit(s) (${(shareOfDry * 100).toFixed(1)}%): ${lever}`
+}
+
+// (v0.772.0) THE ASK'S OWN SEATS - the owner class's own bot-level book.
+// The v0.769.0 verdict priced WHICH class owns the dry ask, never WHICH
+// walker owns the class's rows - face 71's own read rode the answer raw
+// (ceiling x19 with 'F3 x8 F12 x3 F18 x3 F4 x3 F8 x2' never seated). THE
+// SEAT LAW (the hop bleed's v0.767.0 bill + the v0.770.0 riders mirror,
+// zero re-parsing - the rows are the census's own whysByBot cell, the
+// owner class is the verdict's own): the bill seats the walker under the
+// strict-majority law on the OWNER CLASS'S OWN ROWS (a tie owns nothing -
+// the storm-has-no-seat precedent); the riders are the bill's silence's
+// own companion - a MEASURE of the top two walkers' concentration, never
+// a verdict-owner (the deterministic order: count desc, then the name's
+// own). Junk never invents a seat: a missing or junk census, a verdict
+// that never seats (the tie gate), a missing or junk whysByBot, or fewer
+// than two walkers reads the honest silence (null).
+function askBotRows (census, klass) {
+  const byBot = census.whysByBot && typeof census.whysByBot === 'object' && !Array.isArray(census.whysByBot) ? census.whysByBot : {}
+  const rows = []
+  for (const [bot, classes] of Object.entries(byBot)) {
+    if (typeof bot !== 'string' || !bot || !classes || typeof classes !== 'object' || Array.isArray(classes)) continue
+    const n = classes[klass]
+    if (!Number.isFinite(n) || n <= 0) continue
+    rows.push([bot, n])
+  }
+  return rows
+}
+
+export function dryAskBotBill (census) {
+  if (!census || typeof census !== 'object') return null
+  const verdict = dryAskVerdict(census)
+  if (!verdict) return null // no owner class -> no seat (the verdict's own gate)
+  const rows = askBotRows(census, verdict.cls)
+  let topUnits = 0
+  let topBot = null
+  for (const [bot, n] of rows) {
+    if (n > topUnits) { topUnits = n; topBot = bot }
+  }
+  if (topBot === null || topUnits <= verdict.owns - topUnits) return null
+  return { klass: verdict.cls, bot: topBot, owns: topUnits, ofRows: verdict.owns, shareOfRows: +(topUnits / verdict.owns).toFixed(3) }
+}
+
+export function dryAskRiders (census) {
+  if (!census || typeof census !== 'object') return null
+  const verdict = dryAskVerdict(census)
+  if (!verdict) return null
+  const ranked = askBotRows(census, verdict.cls).sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1))
+  if (ranked.length < 2) return null
+  const [leader, leaderOwns] = ranked[0]
+  const [runner, runnerOwns] = ranked[1]
+  const pairOwns = leaderOwns + runnerOwns
+  return { klass: verdict.cls, leader, leaderOwns, runner, runnerOwns, ofRows: verdict.owns, pairOwns, shareOfRows: +(pairOwns / verdict.owns).toFixed(3), duet: leaderOwns === runnerOwns }
+}
+
+// (v0.772.0) the seats' own rows - THE REPEAT ASKER'S OWN SEAT names WHO
+// owns the ask ladder's front (the verdict's own lever prices the cure);
+// THE SPIKE'S OWN SEAT measures the shape the solo law refused to seat.
+// Junk never prints a seat (the honest silence's own row law).
+export function dryAskBotBillRow (bill) {
+  if (!bill || typeof bill !== 'object') return null
+  const { klass, bot, owns, ofRows, shareOfRows } = bill
+  if (typeof klass !== 'string' || !klass || typeof bot !== 'string' || !bot ||
+      !Number.isFinite(owns) || owns <= 0 || !Number.isFinite(ofRows) || ofRows <= 0 || owns > ofRows ||
+      !Number.isFinite(shareOfRows)) return null
+  return `the dry ask's own bot bill (v0.772.0): ${bot} owns ${owns} of ${ofRows} ${klass} row(s) (${(shareOfRows * 100).toFixed(1)}%) - THE REPEAT ASKER'S OWN SEAT: one walker's own lane owns the ask ladder's front - the verdict's own lever prices the walker's asks`
+}
+
+export function dryAskRidersRow (r) {
+  if (!r || typeof r !== 'object') return null
+  const { klass, leader, leaderOwns, runner, runnerOwns, ofRows, pairOwns, shareOfRows } = r
+  if (typeof klass !== 'string' || !klass || typeof leader !== 'string' || !leader ||
+      typeof runner !== 'string' || !runner || !Number.isFinite(leaderOwns) || leaderOwns <= 0 ||
+      !Number.isFinite(runnerOwns) || runnerOwns <= 0 || !Number.isFinite(ofRows) || ofRows <= 0 ||
+      !Number.isFinite(pairOwns) || pairOwns > ofRows || !Number.isFinite(shareOfRows)) return null
+  return `the dry ask's own riders (v0.772.0): no solo asker owns the majority - ${leader} x${leaderOwns} + ${runner} x${runnerOwns} own ${pairOwns} of ${ofRows} ${klass} row(s) (${(shareOfRows * 100).toFixed(1)}%) - THE SPIKE'S OWN SEAT: the bill's tie law held, the concentration is still real - the pair prices the asks the solo law refused to name`
 }

@@ -5,7 +5,7 @@
 // riding NO census anywhere in the mining surface.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { askWhyCensus, askWhyClass, decideSkin, askSide, governorRunBucket, dryAskVerdict, dryAskVerdictRow, ASK_TERMINAL_RE, ASK_WHY_RE, ASK_WHY_CLASSES, ASK_WHY_LEVERS, DECIDE_SKIN_CLASSES, ASK_SIDES, GOVERNOR_RUN_BUCKETS } from '../../src/lib/askwhycensus.mjs'
+import { askWhyCensus, askWhyClass, decideSkin, askSide, governorRunBucket, dryAskVerdict, dryAskVerdictRow, dryAskBotBill, dryAskBotBillRow, dryAskRiders, dryAskRidersRow, ASK_TERMINAL_RE, ASK_WHY_RE, ASK_WHY_CLASSES, ASK_WHY_LEVERS, DECIDE_SKIN_CLASSES, ASK_SIDES, GOVERNOR_RUN_BUCKETS } from '../../src/lib/askwhycensus.mjs'
 
 test('THE ASK WHY CENSUS: the storm face re-priced byte-exact (the decide, the ceiling, the water, the dry terminals)', () => {
   // the v0.650.0 face's own shapes, verbatim (the tags, the parens, the prose)
@@ -112,7 +112,7 @@ test('THE ASK WHY CENSUS: the class order owns the why (the throttle prose can n
 
 test('THE ASK WHY CENSUS: the junk battery (the parser judges nothing it cannot read)', () => {
   // the junk-safe law: non-strings judge nothing, junk shapes never match
-  assert.deepEqual(askWhyCensus(null), { terminals: 0, unitsDry: 0, whys: { ceiling: 0, water: 0, governor: 0, decide: 0, timeout: 0, goalChanged: 0, unnamed: 0 }, dryByWhy: { ceiling: 0, water: 0, governor: 0, decide: 0, timeout: 0, goalChanged: 0, unnamed: 0 }, decideSkins: { noPath: 0, decideBudget: 0, unnamed: 0 }, dryBySkin: { noPath: 0, decideBudget: 0, unnamed: 0 }, sides: { fuel: { noPath: 0, decideBudget: 0, unnamed: 0 }, food: { noPath: 0, decideBudget: 0, unnamed: 0 }, iron: { noPath: 0, decideBudget: 0, unnamed: 0 } }, dryBySide: { fuel: { noPath: 0, decideBudget: 0, unnamed: 0 }, food: { noPath: 0, decideBudget: 0, unnamed: 0 }, iron: { noPath: 0, decideBudget: 0, unnamed: 0 } }, governorRuns: { len1: 0, len2: 0, len3: 0, len4plus: 0 } })
+  assert.deepEqual(askWhyCensus(null), { terminals: 0, unitsDry: 0, whys: { ceiling: 0, water: 0, governor: 0, decide: 0, timeout: 0, goalChanged: 0, unnamed: 0 }, dryByWhy: { ceiling: 0, water: 0, governor: 0, decide: 0, timeout: 0, goalChanged: 0, unnamed: 0 }, decideSkins: { noPath: 0, decideBudget: 0, unnamed: 0 }, dryBySkin: { noPath: 0, decideBudget: 0, unnamed: 0 }, sides: { fuel: { noPath: 0, decideBudget: 0, unnamed: 0 }, food: { noPath: 0, decideBudget: 0, unnamed: 0 }, iron: { noPath: 0, decideBudget: 0, unnamed: 0 } }, dryBySide: { fuel: { noPath: 0, decideBudget: 0, unnamed: 0 }, food: { noPath: 0, decideBudget: 0, unnamed: 0 }, iron: { noPath: 0, decideBudget: 0, unnamed: 0 } }, governorRuns: { len1: 0, len2: 0, len3: 0, len4plus: 0 }, whysByBot: {} })
   assert.deepEqual(askWhyCensus(undefined).terminals, 0)
   assert.deepEqual(askWhyCensus(42).terminals, 0)
   assert.equal(askWhyCensus([null, 42, {}, 'not a line']).terminals, 0)
@@ -614,4 +614,109 @@ test('v0.769.0 the verdict rides the decompose mine (WIRING)', async () => {
   const src = readFileSync(new URL('../../scripts/fleet-mining/decompose.mjs', import.meta.url), 'utf8')
   assert.equal(src.includes('dryAskVerdictRow'), true)
   assert.equal(src.includes("the dry ask's own verdict"), false) // the prose lives in the lib, never duplicated in the mine
+})
+
+// (v0.772.0) THE ASK'S OWN SEATS - the face-71 cell: the mine's own
+// distribution rebuilt as the census's own lines (37627512023, the held
+// artifact): ceiling 19 (F3 x8, F12 x3, F18 x3, F4 x3, F8 x2), decide 9
+// (nine single-ask walkers), timeout 3 (F12, F13, F18). The verdict seats
+// the ceiling class (19 of 31); the bill's tie law held (F3 8 of 19 = no
+// majority) and the riders measure prices the spike (F3 x8 + F12 x3 own
+// 11 of 19, 57.9%). The v0.769.0 verdict's own cells stay byte-untouched
+// beside the seats.
+function face71AskLines () {
+  const lines = []
+  const add = (bot, raw, n) => { for (let i = 0; i < n; i++) lines.push(`${bot} fuel commons: chest walk failed (${raw})`) }
+  add('F3', 'fleet goal ceiling 1200', 8); add('F12', 'fleet goal ceiling 1200', 3)
+  add('F18', 'fleet goal ceiling 1200', 3); add('F4', 'fleet goal ceiling 1200', 3)
+  add('F8', 'fleet goal ceiling 1200', 2)
+  for (const bot of ['F6', 'F10', 'F1', 'F5', 'F7', 'F2', 'F16', 'F15', 'F19']) add(bot, 'No path to the goal!', 1)
+  add('F12', 'walk to chest (retry): timeout after 28090ms', 1)
+  add('F13', 'walk to chest (retry): timeout after 28090ms', 1)
+  add('F18', 'walk to chest (retry): timeout after 28090ms', 1)
+  return lines
+}
+
+test('v0.772.0 the face-71 seats cell - the spike rides in the bill\'s own silence', () => {
+  const c = askWhyCensus(face71AskLines())
+  // the verdict's own cells byte-untouched (the ceiling owns 19 of 31)
+  assert.deepEqual(c.whys, { ceiling: 19, water: 0, governor: 0, decide: 9, timeout: 3, goalChanged: 0, unnamed: 0 })
+  const dav = dryAskVerdict(c)
+  assert.equal(dav.cls, 'ceiling')
+  assert.equal(dav.owns, 19)
+  // the bot-level cell rides the census return (additive)
+  assert.equal(c.whysByBot.F3.ceiling, 8)
+  assert.equal(c.whysByBot.F3.decide, 0)
+  // the bill's tie law held: F3 owns 8 of 19 - no majority
+  assert.equal(dryAskBotBill(c), null)
+  // the companion prices the spike, never an owner (F12 wins the runner
+  // tier's own tie by the name's own order - F12 < F18 < F4)
+  assert.deepEqual(dryAskRiders(c), { klass: 'ceiling', leader: 'F3', leaderOwns: 8, runner: 'F12', runnerOwns: 3, ofRows: 19, pairOwns: 11, shareOfRows: 0.579, duet: false })
+  assert.equal(dryAskRidersRow(dryAskRiders(c)), 'the dry ask\'s own riders (v0.772.0): no solo asker owns the majority - F3 x8 + F12 x3 own 11 of 19 ceiling row(s) (57.9%) - THE SPIKE\'S OWN SEAT: the bill\'s tie law held, the concentration is still real - the pair prices the asks the solo law refused to name')
+})
+
+// (v0.772.0) the bill's own case: one walker owns the owner class's own
+// majority - the seat names the repeat asker, the companion waits (the
+// decompose's own branch law - one row, never both).
+test('v0.772.0 the bill\'s own case + the branch law', () => {
+  const lines = face71AskLines()
+  for (let i = 0; i < 4; i++) lines.push('F3 fuel commons: chest walk failed (fleet goal ceiling 1200)') // F3 ceiling 8 -> 12 of 23
+  const c = askWhyCensus(lines)
+  const dav = dryAskVerdict(c)
+  assert.equal(dav.owns, 23)
+  const bill = dryAskBotBill(c)
+  assert.deepEqual(bill, { klass: 'ceiling', bot: 'F3', owns: 12, ofRows: 23, shareOfRows: 0.522 })
+  assert.equal(dryAskBotBillRow(bill), 'the dry ask\'s own bot bill (v0.772.0): F3 owns 12 of 23 ceiling row(s) (52.2%) - THE REPEAT ASKER\'S OWN SEAT: one walker\'s own lane owns the ask ladder\'s front - the verdict\'s own lever prices the walker\'s asks')
+  // the decompose's own branch: the bill's row wins, the companion waits
+  const branch = (c2) => (dryAskBotBill(c2) ? 'bill' : dryAskRiders(c2) ? 'riders' : 'silence')
+  assert.equal(branch(c), 'bill')
+  assert.equal(branch(askWhyCensus(face71AskLines())), 'riders')
+  // a tie verdict (no owner class) seats nothing and measures nothing
+  const tie = askWhyCensus([
+    'F1 fuel commons: chest walk failed (fleet goal ceiling 1200)',
+    'F2 fuel commons: chest walk failed (No path to the goal!)',
+  ])
+  assert.equal(dryAskBotBill(tie), null)
+  assert.equal(dryAskRiders(tie), null)
+})
+
+// (v0.772.0) the seats junk battery: the missing/junk census, the missing
+// or junk whysByBot, the single-walker book, the broken rows - the honest
+// silence everywhere.
+test('v0.772.0 the seats junk battery', () => {
+  for (const junk of [undefined, null, 'nope', 42]) {
+    assert.equal(dryAskBotBill(junk), null)
+    assert.equal(dryAskRiders(junk), null)
+  }
+  // a census without the bot-level cell (the pre-v0.772.0 shape) never seats
+  const bare = { whys: { ceiling: 3 }, dryByWhy: {} }
+  assert.equal(dryAskBotBill(bare), null)
+  assert.equal(dryAskRiders(bare), null)
+  // junk bot entries are skipped, not priced
+  const c = askWhyCensus(face71AskLines())
+  c.whysByBot[''] = { ceiling: 99 } // the botless entry
+  c.whysByBot.JUNK = 'nope' // the classless entry
+  c.whysByBot.BAD = { ceiling: -1 } // the negative count
+  assert.equal(dryAskBotBill(c), null) // F3 still 8 of 19 - no majority
+  assert.deepEqual(dryAskRiders(c).leader, 'F3')
+  for (const bad of [undefined, null, 'nope', 42,
+    { klass: '', bot: 'F3', owns: 8, ofRows: 19, shareOfRows: 0.421 },
+    { klass: 'ceiling', bot: '', owns: 8, ofRows: 19, shareOfRows: 0.421 },
+    { klass: 'ceiling', bot: 'F3', owns: 0, ofRows: 19, shareOfRows: 0 },
+    { klass: 'ceiling', bot: 'F3', owns: 20, ofRows: 19, shareOfRows: 1.053 },
+  ]) { assert.equal(dryAskBotBillRow(bad), null); assert.equal(dryAskRidersRow(bad), null) }
+})
+
+// (v0.772.0) the WIRING assert: the decompose mine prints the seats in the
+// verdict's own shadow (the bill's branch, the riders' else), the source's
+// own guards read the census's own cells; the prose lives in the lib,
+// never duplicated in the mine.
+test('v0.772.0 the seats ride the decompose mine (WIRING)', async () => {
+  const { readFileSync } = await import('node:fs')
+  const src = readFileSync(new URL('../../scripts/fleet-mining/decompose.mjs', import.meta.url), 'utf8')
+  assert.equal(src.includes('dryAskBotBillRow'), true)
+  assert.equal(src.includes('dryAskRidersRow'), true)
+  assert.equal(src.includes('else {'), true) // the riders only speak in the bill's silence
+  assert.equal(src.includes("the dry ask's own bot bill"), false) // the prose lives in the lib
+  assert.equal(src.includes("the dry ask's own riders"), false) // never duplicated in the mine
 })
