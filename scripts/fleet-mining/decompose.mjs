@@ -13,7 +13,7 @@ import { sealDeathCensus, strandedPiles, BIG_PILE_U, thirdsVerdict } from '../..
 import { sealCensus, SEAL_FAMILIES } from '../../src/lib/sealcensus.mjs' // (v0.397.0) the keep families' field read
 import { hopCensus } from '../../src/lib/hopcensus.mjs' // (v0.399.0) the walk-deliveries class's field read
 import { openDeafCensus, chestFateLedger } from '../../src/lib/opendeaf.mjs' // (v0.438.0) the open-timeout zeros against the valve + the main-late spikes; (v0.448.0) the returns to the autopsied chests
-import { zeroClockCensus, budgetFloorVerdict } from '../../src/lib/zeroclock.mjs' // (v0.441.0) the hop zeros' face-phase anatomy
+import { zeroClockCensus, budgetFloorVerdict, noPathClockVerdict } from '../../src/lib/zeroclock.mjs' // (v0.441.0) the hop zeros' face-phase anatomy; (v0.766.0) the walk lattice's own clock - the no-path class's phase verdict
 import { budgetSpread, budgetGoalSplit } from '../../src/lib/budgetspread.mjs' // (v0.473.0) the budget-zero family's per-bot half - the sizing lever's spread read (fuel commons + iron commune, the trip kind rides the line); (v0.475.0) the goal-size split - the miscalibration read
 import { o2Gap, reentryGaps, REENTRY_IMMEDIATE_MAX } from '../../src/lib/o2gap.mjs' // (v0.477.0) the rescue-relation split - the o2 census's missing half (stale vs live rescues) + the sentry's last-known read joined per drown death; (v0.746.0) the re-entry's own gap - the stale class's own clock (immediate vs delayed)
 import { sensorToll } from '../../src/lib/sensortoll.mjs' // (v0.707.0) the sensor's own toll - the reset(-1) skin's mass across the family's three skins
@@ -1739,6 +1739,19 @@ if (zeroClock.zeros.length > 0) {
   else if (bf.verdict === 'mid') console.log(`  THE BUDGET-FLOOR VERDICT: MID-dominant (${bf.n}) - the chain budgets bite mid-run; the budget sizing is the lever`)
   else if (bf.verdict === 'early') console.log(`  THE BUDGET-FLOOR VERDICT: EARLY-dominant (${bf.n}) - the floor bites from the start; the chain's opening budget is the lever`)
   else if (bf.verdict === 'mixed') console.log(`  THE BUDGET-FLOOR VERDICT: mixed (${bf.n}) - no dominance, no verdict claimed`)
+  // (v0.766.0) THE WALK LATTICE'S OWN CLOCK - the v0.760.0 row named the
+  // walk lattice the hop-bleed's front (face 68: no-path 15/28), never
+  // WHEN the lattice starves. The no-path class's own phase book under
+  // the budget-floor verdict's own 2:1 dominance law; no dominance (the
+  // mixed spread, the unplaced-heavy class) reads the honest silence.
+  const npv = noPathClockVerdict(zeroClock)
+  if (npv) {
+    const ph = npv.byPhase
+    const tri = `early ${ph.early} / mid ${ph.mid} / late ${ph.late} / unplaced ${ph.unplaced}`
+    if (npv.verdict === 'late') console.log(`  the walk lattice's own clock (v0.766.0): no-path is LATE-dominant (${ph.late} of ${npv.n}; ${tri}) - the deadline's own signature: the late face's chest ring starves the lattice - arm the walk lane earlier`)
+    else if (npv.verdict === 'mid') console.log(`  the walk lattice's own clock (v0.766.0): no-path is MID-dominant (${ph.mid} of ${npv.n}; ${tri}) - the mid-run churn is the lever - the lattice's own paths need the mid-face`)
+    else if (npv.verdict === 'early') console.log(`  the walk lattice's own clock (v0.766.0): no-path is EARLY-dominant (${ph.early} of ${npv.n}; ${tri}) - the machinery's own opening defect - the walk lane's opening paths are the lever`)
+  }
   // (v0.473.0) THE BUDGET SPREAD - the sizing lever's per-bot half: does
   // the zero-delivery budget bite ONE bot (a local defect - the bot's own
   // route or chest) or SPREAD across the lane (the fleet-wide sizing

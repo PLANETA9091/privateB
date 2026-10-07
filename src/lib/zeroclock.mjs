@@ -100,3 +100,22 @@ export function budgetFloorVerdict (census) {
   if (p.early * 2 > bf.n) return { verdict: 'early', n: bf.n, byPhase: p }
   return { verdict: 'mixed', n: bf.n, byPhase: p }
 }
+
+// (v0.766.0) THE WALK LATTICE'S OWN CLOCK - the v0.760.0 verdict named the
+// walk lattice the hop-bleed's front (face 68: no-path owned 15 of 28),
+// never WHEN the lattice starves. The no-path class's own phase book under
+// the budget-floor verdict's own 2:1 dominance law: LATE dominance = the
+// deadline's own signature (the late face's chest ring starves the lattice
+// - arm the walk lane earlier, the paths are not the defect); MID = the
+// mid-run churn is the lever; EARLY = the machinery's own opening defect.
+// No dominance (the mixed spread), an unplaced-heavy class, an empty or
+// absent book -> the honest silence (null - the storm has no seat).
+export function noPathClockVerdict (census) {
+  const np = census && census.byClass ? census.byClass['no-path'] : null
+  if (!np || np.n === 0) return null
+  const p = np.byPhase
+  if (p.late * 2 > np.n) return { verdict: 'late', n: np.n, byPhase: p }
+  if (p.mid * 2 > np.n) return { verdict: 'mid', n: np.n, byPhase: p }
+  if (p.early * 2 > np.n) return { verdict: 'early', n: np.n, byPhase: p }
+  return null
+}

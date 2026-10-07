@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { zeroClockCensus, budgetFloorVerdict } from '../../src/lib/zeroclock.mjs'
+import { zeroClockCensus, budgetFloorVerdict, noPathClockVerdict } from '../../src/lib/zeroclock.mjs'
 
 // THE ROUND-TRIP LAW: the zero lines are hopcensus's own pinned forms (the
 // held face-22/28/29 verbatims), the anchors are opendeaf's own pinned
@@ -134,4 +134,70 @@ test('the budget-floor verdict: late dominance = the floor design, mid dominance
 test('determinism: the same lines census to the same bytes', () => {
   const lines = [A(1, 20, 0), Z('F6', 'no-path', '-136,72,405'), A(2, 240, 0), Z('F8', 'budget-floor', '-123,81,403'), A(3, 700, 0)]
   assert.equal(JSON.stringify(zeroClockCensus(lines)), JSON.stringify(zeroClockCensus(lines)))
+})
+
+// (v0.766.0) THE WALK LATTICE'S OWN CLOCK - the v0.760.0 row named the
+// walk lattice the hop-bleed's front (face 68: no-path 15/28), never WHEN
+// the lattice starves. Face 68's own cell: 13 of 15 no-paths rode the late
+// third (early 0 / mid 2) -> LATE dominance; the decide-timeout neighbor
+// (0/7/4) is mixed and must not leak into the read.
+test('v0.766.0 the walk lattice clock: face 68\'s own cell (no-path LATE-dominant 13 of 15)', () => {
+  const lines = [A(1, 20, 0), A(2, 240, 0)]
+  for (let i = 0; i < 2; i++) lines.push(Z(`F${10 + i}`, 'no-path', `-123,70,39${i}`)) // 2 mid
+  lines.push(A(3, 460, 0))
+  for (let i = 0; i < 13; i++) lines.push(Z(`F${1 + i}`, 'no-path', `-12${i % 10},70,39${i % 10}`)) // 13 late
+  lines.push(A(4, 700, 0))
+  for (let i = 0; i < 11; i++) lines.push(Z(`F${2 + i}`, 'decide-timeout', `-14${i % 10},70,37${i % 10}`)) // the mixed neighbor rides unplaced (no anchors after)
+  const c = zeroClockCensus(lines)
+  const v = noPathClockVerdict(c)
+  assert.equal(v.verdict, 'late')
+  assert.equal(v.n, 15)
+  assert.deepEqual(v.byPhase, { early: 0, mid: 2, late: 13, unplaced: 0 })
+  assert.equal(budgetFloorVerdict(c).verdict, 'none') // the floor's own lane untouched
+})
+
+// (v0.766.0) the mid and the early cells - the same 2:1 law at the other
+// phases (the machinery's own defect vs the mid-run churn).
+test('v0.766.0 the mid and the early dominance cells', () => {
+  const mid = [A(1, 20, 0), A(2, 240, 0)]
+  for (let i = 0; i < 4; i++) mid.push(Z(`F${1 + i}`, 'no-path', `-13${i},70,40${i}`))
+  mid.push(A(3, 460, 0))
+  mid.push(Z('F9', 'no-path', '-120,70,400'))
+  mid.push(A(4, 700, 0))
+  const vm = noPathClockVerdict(zeroClockCensus(mid))
+  assert.equal(vm.verdict, 'mid')
+  assert.deepEqual(vm.byPhase, { early: 0, mid: 4, late: 1, unplaced: 0 })
+  const early = [A(1, 20, 0)]
+  for (let i = 0; i < 3; i++) early.push(Z(`F${1 + i}`, 'no-path', `-13${i},70,40${i}`))
+  early.push(A(2, 240, 0), A(3, 700, 0))
+  const ve = noPathClockVerdict(zeroClockCensus(early))
+  assert.equal(ve.verdict, 'early')
+  assert.equal(ve.byPhase.early, 3)
+})
+
+// (v0.766.0) the honest silences: the mixed spread (no 2:1), the empty or
+// absent book, the junk census - no seat invented.
+test('v0.766.0 the lattice clock\'s honest silences + junk battery', () => {
+  const mixed = [A(1, 20, 0)]
+  mixed.push(Z('F1', 'no-path', '-130,70,400'), Z('F2', 'no-path', '-131,70,401'))
+  mixed.push(A(2, 240, 0))
+  mixed.push(Z('F3', 'no-path', '-132,70,402'), Z('F4', 'no-path', '-133,70,403'))
+  mixed.push(A(3, 460, 0))
+  mixed.push(Z('F5', 'no-path', '-134,70,404'), Z('F6', 'no-path', '-135,70,405'), Z('F7', 'no-path', '-136,70,406'))
+  mixed.push(A(4, 700, 0))
+  assert.equal(noPathClockVerdict(zeroClockCensus(mixed)), null) // 2/2/3 over 7 - no dominance
+  assert.equal(noPathClockVerdict(null), null)
+  assert.equal(noPathClockVerdict({}), null)
+  assert.equal(noPathClockVerdict({ byClass: {} }), null)
+  assert.equal(noPathClockVerdict({ byClass: { 'no-path': { n: 0, byPhase: { early: 0, mid: 0, late: 0, unplaced: 0 } } } }), null)
+})
+
+// (v0.766.0) the WIRING assert: the decompose mine prints the lattice
+// clock rows beside the budget-floor verdict (the section's own law - the
+// prose lives in the mine, the verdict object in the lib).
+test('v0.766.0 the lattice clock rides the decompose mine (WIRING)', async () => {
+  const { readFileSync } = await import('node:fs')
+  const src = readFileSync(new URL('../../scripts/fleet-mining/decompose.mjs', import.meta.url), 'utf8')
+  assert.equal(src.includes('noPathClockVerdict'), true)
+  assert.equal(src.includes("the walk lattice's own clock (v0.766.0)"), true)
 })
