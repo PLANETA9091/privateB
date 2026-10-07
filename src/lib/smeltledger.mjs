@@ -120,7 +120,7 @@ export const SMELT_TOOK_RE = /^\[(F\d+)\] took (\d+) x ([a-z_]+) \((\d+)\/(\d+)\
 // clock clips, no row (the window is always numeric - no unknown gap
 // class exists here).
 
-// (v0.749.0) THE PLAN'S OWN MARGIN - THE RECORD'S OWN CORRECTION (the
+// (v0.750.0) THE PLAN'S OWN MARGIN - THE RECORD'S OWN CORRECTION (the
 // v0.745.0 precedent). The v0.748.0 read treated the clip line's ~C as
 // 'completed unit(s)' and priced the shortfall against the vanilla bar
 // as an unknown idle (fuel/input gaps mid-window - the next read's
@@ -179,7 +179,7 @@ export function smeltLedger (lines) {
     fuelClipFuelItems: {}, // (v0.747.0) the clip fuel by item (fc[3])
     fuelClipCapacity: 0, // (v0.747.0) the vanilla capacity that fuel carried (sum fc[2] x fuelYieldOf(fc[3]))
     clockClipWindowSec: 0, // (v0.748.0) the window seconds the clock clip lines carried verbatim (cc[2] - matched and dropped before); kept INTEGER here, the capacity's division lives once at the row (the accumulation's own float drift is the trap)
-    clockClipIdleSec: 0, // (v0.749.0) the machine's own unpaid seconds inside the plan's windows (per clip max(0, W - 10 x cap); the plan's own 11s bar is the cause, never a fuel/input gap - the emitter caps the put at floor(W/11) BEFORE the put)
+    clockClipIdleSec: 0, // (v0.750.0) the machine's own unpaid seconds inside the plan's windows (per clip max(0, W - 10 x cap); the plan's own 11s bar is the cause, never a fuel/input gap - the emitter caps the put at floor(W/11) BEFORE the put)
     byBot: {}
   }
   // (v0.745.0) the outstanding clip debt per bot|item, in walk order
@@ -244,7 +244,7 @@ export function smeltLedger (lines) {
       // (v0.748.0) the clock's own window - the seconds the line carried
       // verbatim (cc[2]), the clock class's own worth leg
       ledger.clockClipWindowSec += Number(cc[2])
-      // (v0.749.0) the plan's own margin - the emitter prices the cap at
+      // (v0.750.0) the plan's own margin - the emitter prices the cap at
       // PUT time (smelting.mjs: clockCapItems = max(1, floor(W / 11)), the
       // 11s bar being 'vanilla 10s + lag margin'), so the ~C is what the
       // plan PUT, never what the furnace completed; the machine's own
@@ -326,7 +326,7 @@ export function clipDietRow (ledger) {
   return `the clip's own diet: the fuel clips burned ${ledger.fuelClipFuel} fuel-unit(s) (${items}) for ${ledger.fuelClipCompleted} completed unit(s) - the vanilla capacity ${ledger.fuelClipCapacity} paid ${pct}% (${verdict})`
 }
 
-// (v0.749.0) ONE verdict line, only when a clock clip stood at all (zero
+// (v0.750.0) ONE verdict line, only when a clock clip stood at all (zero
 // clock clips = the honest silence). THE CORRECTED READ (the record's own
 // correction - the ~C is the plan's own put cap, floor(W/11) at the
 // emitter, never the furnace's completed count): the row prices the

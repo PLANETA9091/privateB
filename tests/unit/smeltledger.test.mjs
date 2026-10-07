@@ -341,7 +341,7 @@ test('clip-diet: the honest silences, the unknown-fuel gap and the junk fences',
   assert.equal(junked.fuelClipFuel, 0)
 })
 
-// ---- (v0.749.0) THE PLAN'S OWN MARGIN (the clock window's own correction) ----
+// ---- (v0.750.0) THE PLAN'S OWN MARGIN (the clock window's own correction) ----
 
 test('clock-window: the 58th\'s six windows - 190s, 16 unit(s) put, capacity 19, 35s of the plan\'s own idle', () => {
   const lines = [
@@ -362,7 +362,7 @@ test('clock-window: the 58th\'s six windows - 190s, 16 unit(s) put, capacity 19,
   assert.equal(l.clipDebtClock, 121)
   // the window's own read - integer seconds, one division at the row
   assert.equal(l.clockClipWindowSec, 190, '83+47+24+18+13+5 - the line\'s own seconds, matched and dropped before')
-  // (v0.749.0) the plan's own margin: per clip max(0, W - 10 x cap)
+  // (v0.750.0) the plan's own margin: per clip max(0, W - 10 x cap)
   // 83-70=13, 47-40=7, 24-20=4, 18-10=8, 13-10=3, 5-10<0=0 -> 35
   assert.equal(l.clockClipIdleSec, 35)
   // the ~C is the plan's own cap - floor(W/11) at the emitter, verified per window

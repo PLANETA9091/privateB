@@ -2395,7 +2395,7 @@ console.log('  plan lines:', count(/materials plan|plan progress/i))
     const dietRow = clipDietRow(sl)
     if (dietRow) console.log(`  ${dietRow}`)
     // (v0.748.0) the clock's own window - the clock side's own worth vs
-    // the vanilla speed; (v0.749.0) THE RECORD'S OWN CORRECTION - the ~C
+    // the vanilla speed; (v0.750.0) THE RECORD'S OWN CORRECTION - the ~C
     // is the plan's own put cap (floor(W/11) at the emitter), the row
     // prices the plan's own margin in the machine's own idle seconds
     const windowRow = clockWindowRow(sl)
