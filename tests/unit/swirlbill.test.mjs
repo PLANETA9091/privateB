@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { swirlBill, SWIRL_MIN_INSTANT, SWIRL_SHARE } from '../../src/lib/swirlbill.mjs'
+import { swirlBill, criedWolf, SWIRL_MIN_INSTANT, SWIRL_SHARE, CRIED_WOLF_VERDICT } from '../../src/lib/swirlbill.mjs'
 
 // THE ERA BYTE-EXACT - the 47th (run 37524391418, the hard-kill face on the
 // v0.722.0 tree) rode the instant churn: F13 83 drowning-rescue starts with
@@ -107,4 +107,84 @@ test('junk never invents - the honest silences and the blob skin', () => {
   // non-array junk never throws
   const junk = swirlBill(null)
   assert.equal(junk.starts, 0)
+})
+
+// ---- (v0.735.0) THE CRIED-WOLF DEATH - the churn's own aftermath join ----
+
+// THE 52ND'S OWN BYTES (run 37549177806, the v0.733.0 tree's face): F6 rode
+// 44 rescue starts, closed 43 in 0.0s (97.7% - the era's biggest false-alarm
+// volume, the instant churn's FIRST verdict) - and died the real drowning
+// with the trigger silent (the drown context's own words: o2 reset(-1), feet
+// water, head water, rescue never, leg climb rise assist, wet 27s). The
+// o2Gap per-bot cell that faces the join (the grammar's own output shape).
+
+const F6_START = 'F6 [F6] water: drowning rescue start (drowning, oxygen 2)'
+const F6_INSTANT = 'F6 [F6] water: rescue complete in 0.0s'
+
+test('the cried-wolf rides by its own bytes - the 52nd\'s F6 join', () => {
+  // F6's own face counts: 44 starts, 43 instant closes (the 44th a real
+  // swim - the churn's verdict rides the concentration bars unchanged)
+  const face = [...Array(44).fill(F6_START), ...Array(43).fill(F6_INSTANT)]
+  const bill = swirlBill(face)
+  assert.equal(bill.verdicts.length, 1)
+  assert.equal(bill.verdicts[0].bot, 'F6')
+  assert.equal(bill.verdicts[0].instant, 43)
+  assert.equal(bill.verdicts[0].of, 44)
+  // the o2 gap's own per-bot cell for the same bot (the never class)
+  const o2PerBot = {
+    F6: { rescueKind: 'never', o2: 'reset(-1)', feet: 'water', head: 'water', wetS: 27 }
+  }
+  const rows = criedWolf(bill.verdicts, o2PerBot)
+  assert.equal(rows.length, 1)
+  assert.deepEqual(rows[0], {
+    bot: 'F6', instant: 43, of: 44, share: 43 / 44, verdict: CRIED_WOLF_VERDICT
+  })
+})
+
+test('the live fence - the lane WAS flying at the death, the join stays out', () => {
+  // F2's own 52nd read: died the drown death with rescue active (the lane
+  // flew blind) - the dead-in-rescue class, never the cried-wolf's
+  const face = [...Array(44).fill(F6_START), ...Array(43).fill(F6_INSTANT)]
+  const bill = swirlBill(face)
+  const rows = criedWolf(bill.verdicts, { F6: { rescueKind: 'live' } })
+  assert.deepEqual(rows, [])
+})
+
+test('the stale fence - the re-entry class stays the v0.477.0 split\'s own', () => {
+  const face = [...Array(44).fill(F6_START), ...Array(43).fill(F6_INSTANT)]
+  const bill = swirlBill(face)
+  const rows = criedWolf(bill.verdicts, { F6: { rescueKind: 'stale', rescueAgo: 42 } })
+  assert.deepEqual(rows, [])
+})
+
+test('the no-death fence - the churn alone stays the v0.726.0 cell\'s own', () => {
+  // the 47th's F13: the churn's maiden verdict bot, died of drown MID-rescue
+  // (the abort's own class) - no 'never' death, the join never invents one
+  const face = [...Array(83).fill(F6_START.replace('F6', 'F13')), ...Array(78).fill(F6_INSTANT.replace('F6', 'F13'))]
+  const bill = swirlBill(face)
+  assert.equal(bill.verdicts.length, 1)
+  // the bot absent from the o2 gap's per-bot map entirely
+  assert.deepEqual(criedWolf(bill.verdicts, {}), [])
+  // another bot's death never joins (the join is per-bot)
+  assert.deepEqual(criedWolf(bill.verdicts, { F1: { rescueKind: 'never' } }), [])
+})
+
+test('the volume fence - a never-death without the churn verdict stays the o2 census\'s own row', () => {
+  // the 52nd's F2 class: the instant count under the volume bar (9 of 20
+  // starts - both bars hold it out) - even a 'never' death is the trigger's
+  // blindness alone, no false-alarm volume
+  const face = [...Array(20).fill(F6_START.replace('F6', 'F2')), ...Array(SWIRL_MIN_INSTANT - 1).fill(F6_INSTANT.replace('F6', 'F2'))]
+  const bill = swirlBill(face)
+  assert.equal(bill.instant, 9)
+  assert.equal(bill.verdicts.length, 0)
+  assert.deepEqual(criedWolf(bill.verdicts, { F2: { rescueKind: 'never' } }), [])
+})
+
+test('junk never throws - the zero shapes hold', () => {
+  assert.deepEqual(criedWolf(null, {}), [])
+  assert.deepEqual(criedWolf([], null), [])
+  assert.deepEqual(criedWolf('blob', { F6: { rescueKind: 'never' } }), [])
+  assert.deepEqual(criedWolf([{ bot: 'F6', instant: 43, of: 44, share: 43 / 44 }], 'blob'), [])
+  // a verdict row that is not an object never trips the fold
+  assert.deepEqual(criedWolf([null, 42, 'F6'], { F6: { rescueKind: 'never' } }), [])
 })
