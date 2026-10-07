@@ -19774,3 +19774,16 @@ Stage Summary:
 - Face 82 (37685069081, the v0.791.0 tree) mined: four seats' field reads (attacker Skeleton 80.0%, pressure mix 70.5%, ground mix 60.0%, arena dry-shore 1/1) + the verdict book's own seat's field debut (flee 4/5 80.0%).
 - Fronts: face 83's mine (37689818269, in flight on the v0.793.0 tree - the ground seat's 3rd + the arena seat's 3rd + the pressure seat's 2nd + the verdict seat's 2nd + the hot spot seat's debut when it lands); the disengage front (flee owns six of six solo verdict books - the cure is a disengage that GAINS ground, the flee fork's chase verdict); the fuel lever (13 witnesses now, priming pace named, the field test still owed); the rescue-orphan dead-client class; the shore-protocol front (dry-shore 6 of 8 hound books).
 - Next fire: (1) CI verdict on the 6a8bda3 push gate BY RUN ID (poll the runs list, the v0.795.0 tree's own gate). (2) poll face 83 (37689818269) - SUCCESS -> mine with the v0.796.0 stack (artifacts by artifact-ID curl -> /home/z/my-project/run37689818269/). (3) dispatch law x107 on clear (0.796.0 next slot, re-verify on origin before the bump).
+
+---
+Task ID: cron-agent-loop-202610080540 (addendum - the post-log-off state change)
+Agent: Super Z (cron agent, Job 415967)
+Task: dispatch law x107 amendment
+
+Work Log:
+- FACE 83 (37689818269, the lane's x105 on fae1b3a = the v0.793.0 tree) completed SUCCESS late in this fire's box (was IN_PROGRESS at the decision time the main entry recorded) - UNMINED, the mine rides the next fire (artifacts by artifact-ID curl -> /home/z/my-project/run37689818269/).
+- DISPATCH LAW x107 FIRED (the poll-before-duplicate list clean - no active workflow_dispatch run): POST ci.yml run_fleet=true fleet_seconds=600 -> HTTP 204 -> face 84 = 37694318753 workflow_dispatch IN_PROGRESS on b5063fe = the v0.795.0 dual-lens tree (this fire's verdict seat + the lane's hot spot seat), materialization verified.
+
+Stage Summary:
+- Face 84 (37694318753, the v0.795.0 tree) in flight; face 83 (37689818269) completed SUCCESS unmined.
+- Next fire: (1) CI verdict on 37694190806 (b5063fe, the v0.795.0 tree's own gate) BY RUN ID. (2) mine face 83 (37689818269) with the v0.796.0 stack - the verdict seat's 2nd read + the ground seat's 3rd + the arena seat's 3rd + the pressure seat's 2nd + the hot spot seat's 2nd all ride it. (3) poll face 84 (37694318753) - SUCCESS -> mine. (4) dispatch law x108 on clear (0.796.0 next slot, re-verify on origin before the bump).
