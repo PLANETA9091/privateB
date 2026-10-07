@@ -5,7 +5,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { NIGHT_WALK_START, NIGHT_WALK_END, TORCH_EVERY, walkForbidden, stormWalkForbidden, isNight, torchesFrom, torchDue, surfaceHoldVerdict, SURFACE_HOLD_PURPOSES, TICKS_PER_SEC, forecastForbidden } from '../../src/lib/nightsafety.mjs'
+import { NIGHT_WALK_START, NIGHT_WALK_END, TORCH_EVERY, walkForbidden, stormWalkForbidden, isNight, torchesFrom, torchDue, surfaceHoldVerdict, SURFACE_HOLD_PURPOSES, TICKS_PER_SEC, forecastForbidden, stormTallySkip, MOB_STORM_DEATHS } from '../../src/lib/nightsafety.mjs'
 
 test('walkForbidden: vanilla clock boundaries (dusk margin 12400, dawn margin 23600)', () => {
   assert.equal(walkForbidden(0), false, 'sunrise is a walk time')
@@ -183,4 +183,38 @@ test('forecastForbidden: junk degrades to the now-verdict, never widens a refusa
   assert.equal(forecastForbidden({ timeOfDay: 13000, msAhead: NaN }), true, 'junk horizon -> walkForbidden(13000) -> the now-verdict holds')
   assert.equal(forecastForbidden({ timeOfDay: 12000, msAhead: -5000 }), false, 'a negative horizon collapses to now')
   assert.equal(forecastForbidden({ timeOfDay: 12000, msAhead: 10000, ticksPerSec: NaN }), false, 'junk rate -> the 20/s constant (12000 + 200 = 12200, light)')
+})
+
+// ---- (v0.751.0) THE STORM'S OWN TALLY - the body-count side of the sky policy ----
+//
+// CI run 37580611393 (the face-60 dispatch) is the field proof the clock gates
+// cannot see: a fresh day world passes the night guard, the storm arrives
+// MID-TEST, two Zombie kills plus a silent hang burn the raw 390s timeout, and
+// the whole integration job dies looking like a pipeline failure (the big fleet
+// leg never ran - the face was lost). The tally reads the corpses: MOB_STORM_DEATHS
+// mob kills absorbed by one unarmoured single-bot chain = the storm owns the
+// window, the honest skip. Junk never widens the refusal (the refusal here is
+// the skip - junk keeps the chain running, the same law the walk gates follow).
+
+test('stormTallySkip: the threshold is the second mob kill (MOB_STORM_DEATHS = 2)', () => {
+  assert.equal(MOB_STORM_DEATHS, 2, 'one kill is misfortune, two is the storm (the face-60 anatomy)')
+  assert.equal(stormTallySkip(0), false, 'no corpses - the chain runs')
+  assert.equal(stormTallySkip(1), false, 'the first kill is not yet the storm')
+  assert.equal(stormTallySkip(2), true, 'the second kill trips the gate (the face-60 death pair)')
+  assert.equal(stormTallySkip(3), true, 'beyond the threshold stays tripped')
+})
+
+test('stormTallySkip: junk and negatives never widen the skip', () => {
+  for (const n of [undefined, null, NaN, '2', {}, Infinity]) {
+    assert.equal(stormTallySkip(n), false, `junk count ${String(n)} -> false (the chain keeps running)`)
+  }
+  assert.equal(stormTallySkip(-1), false, 'a negative count is junk')
+  assert.equal(stormTallySkip(2, NaN), false, 'junk threshold -> false (junk never widens a refusal)')
+  assert.equal(stormTallySkip(2, -1), false, 'a negative threshold is junk')
+})
+
+test('stormTallySkip: a custom threshold prices a tighter chain', () => {
+  assert.equal(stormTallySkip(1, 1), true, 'threshold 1 trips on the first kill')
+  assert.equal(stormTallySkip(1, 3), false, 'threshold 3 tolerates the first kill')
+  assert.equal(stormTallySkip(3, 3), true, 'threshold 3 trips exactly at three')
 })

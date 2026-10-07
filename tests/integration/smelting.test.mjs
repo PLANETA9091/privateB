@@ -32,6 +32,11 @@ const toolsMod = await import(path.join(root, 'src', 'bots', 'tools.mjs'))
 // (v0.363.0) the placement rings + the flooded-alcove trigger live in a unit-pinned
 // lib - the integration helper imports the same shapes the unit tests pin
 const { RING1_OFFSETS, RING2_OFFSETS, floodedAlcove, carvedCellIsDry, carvedCellFlooded } = await import(path.join(root, 'src', 'lib', 'placement-rings.mjs'))
+// (v0.751.0) the storm's own tally gate - a MODULE-SCOPE handle (the craftItem
+// lesson, v0.93.0: a bare module-scope reference to a test-body dynamic import
+// is a module-scope miss, invisible while the sky is clear and fatal exactly
+// when the gate is needed)
+const { stormTallySkip } = await import(path.join(root, 'src', 'lib', 'nightsafety.mjs'))
 const HOST = process.env.MC_HOST || '127.0.0.1'
 const PORT = Number(process.env.MC_PORT || 25565)
 
@@ -43,10 +48,18 @@ fs.mkdirSync(logDir, { recursive: true })
 const logFile = path.join(logDir, 'smelt.log')
 const logStream = fs.createWriteStream(logFile, { flags: 'a' })
 logStream.on('error', () => { /* stream already ended */ })
+// (v0.751.0) THE STORM'S OWN TALLY: the miner's canonical died line carries the
+// server-kind authority (`[kind=mob by Zombie]`); the sink counts the mob kills
+// so the chain's phase boundaries can hand out the storm skip (nightsafety.stormTallySkip)
+// instead of burning the raw 390s timeout - CI run 37580611393's exact class
+// (two Zombie kills mid-test, then a silent hang, then a pipeline-look-alike failure).
+let stormMobDeaths = 0
 const log = m => {
+  if (/\bdied - respawning\b.*\[kind=mob\b/.test(m)) stormMobDeaths++
   if (!logStream.writableEnded) { try { logStream.write(`${new Date().toISOString()} ${m}\n`) } catch { /* closed */ } }
   console.log(`[smelt-test] ${m}`)
 }
+const stormLeft = () => !stormTallySkip(stormMobDeaths)
 
 const countOf = (bot, name) => bot.inventory.items().filter(i => i.name === name).reduce((a, i) => a + i.count, 0)
 
@@ -492,6 +505,14 @@ test('smelting pipeline: craft a furnace, place it, smelt sand into glass', { ti
   assert.ok(toolRes.ok, 'tool bootstrap must succeed before the smelting chain')
   // the rest of the chain needs ~150s minimum (8 cobble + furnace craft/place + 2 smelts):
   // a bootstrap that ate the budget is an environment condition, not a pipeline failure
+  // (v0.751.0) the storm's own tally rides EVERY phase boundary next to the clock:
+  // the night guard reads the sky at spawn only - a storm that arrives MID-TEST is
+  // read from the corpses instead (the face-60 anatomy: 2 Zombie kills, then the
+  // raw timeout; an environment flake must not look like a pipeline failure).
+  if (!stormLeft()) {
+    t.skip(`the storm's own tally: ${stormMobDeaths} mob kill(s) absorbed - the single unarmoured chain is feeding the storm, smelting chain not exercised this run`)
+    return
+  }
   if (budgetLeft() < 150000) {
     t.skip(`bootstrap ate the budget (${Math.round(budgetLeft() / 1000)}s left) - smelting chain not exercised this run`)
     return
@@ -544,6 +565,10 @@ test('smelting pipeline: craft a furnace, place it, smelt sand into glass', { ti
   // the job-queue collector walks to VERIFIED reachable stone. On churned worlds a
   // single strategy can hit a cave-riddled patch - alternating keeps the budget busy.
   // The phase deadline is BUDGET-CAPPED: the furnace + smelt phases still need ~100s.
+  if (!stormLeft()) {
+    t.skip(`the storm's own tally: ${stormMobDeaths} mob kill(s) absorbed - the single unarmoured chain is feeding the storm, smelting chain not exercised this run`)
+    return
+  }
   const cobbleBudgetMs = Math.min(150000, budgetLeft() - 100000)
   if (cobbleBudgetMs < 40000) {
     t.skip(`no budget left for the cobble phase (${Math.round(budgetLeft() / 1000)}s left) - smelting chain not exercised this run`)
@@ -631,6 +656,10 @@ test('smelting pipeline: craft a furnace, place it, smelt sand into glass', { ti
     // the carve attempts on fumes (face 36721007616 asserted with ~100s of
     // "budget" the spin had already burned). The v0.184.0 comment's own law:
     // an environment flake must not look like a pipeline failure.
+    if (!stormLeft()) {
+      t.skip(`the storm's own tally: ${stormMobDeaths} mob kill(s) absorbed - the single unarmoured chain is feeding the storm, chain not exercised`)
+      return
+    }
     if (budgetLeft() < 60000) {
       t.skip(`no budget left for the table phase (${Math.round(budgetLeft() / 1000)}s left) - chain not exercised`)
       return
@@ -786,6 +815,10 @@ test('smelting pipeline: craft a furnace, place it, smelt sand into glass', { ti
     return
   }
   log(`smelting input: ${inputName} x${countOf(bot, inputName)} -> ${expectOut}`)
+  if (!stormLeft()) {
+    t.skip(`the storm's own tally: ${stormMobDeaths} mob kill(s) absorbed - the single unarmoured chain is feeding the storm, chain verified up to the placed furnace`)
+    return
+  }
   const smeltSeconds = Math.min(150, Math.floor((budgetLeft() - 30000) / 1000))
   if (smeltSeconds < 20) {
     t.skip(`no budget left for the smelt phase (${Math.round(budgetLeft() / 1000)}s left) - chain verified up to the placed furnace`)

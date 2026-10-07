@@ -59,6 +59,37 @@ export function isNight (timeOfDay) {
   return timeOfDay >= 12610 && timeOfDay < 23460
 }
 
+// ---- (v0.751.0) THE STORM'S OWN TALLY - the body-count side of the sky policy ----
+//
+// The gates above read the sky BEFORE the walk (the clock, the thunder); this one
+// reads the CORPSES DURING the chain. Field proof (CI run 37580611393, the face-60
+// dispatch): a fresh world starts the day, the night guard passes, and the storm
+// arrives MID-TEST anyway - 'SmeltTest was slain by Zombie' twice inside three
+// minutes, then the single-bot chain sat silent until the raw 390s timeout killed
+// the whole integration job and the big fleet leg never ran (the face was lost to
+// a flake that looked like a pipeline failure). The night guard's own doctrine
+// says it: 'one unarmoured bootstrap bot cannot survive the storm'. The tally is
+// that doctrine's mid-flight form: an unarmoured single-bot chain that has
+// absorbed MOB_STORM_DEATHS mob kills is not testing the pipeline any more - it
+// is feeding the storm, and the honest verdict is the same skip the night guard
+// hands out, not a timeout.
+/** Mob kills a single unarmoured bootstrap chain may absorb before the storm owns the window. */
+export const MOB_STORM_DEATHS = 2
+
+/**
+ * Has the storm's own body count reached the skip threshold?
+ * @param {number} mobDeaths mob-kind deaths absorbed by the chain so far (the
+ *   miner's server-kind authority: `kind=mob` on the canonical died line)
+ * @param {number} [threshold] skip threshold (default MOB_STORM_DEATHS)
+ * @returns {boolean} junk-safe: non-finite/negative counts and thresholds never
+ *   widen a refusal (here the refusal is the skip - junk keeps the chain running)
+ */
+export function stormTallySkip (mobDeaths, threshold = MOB_STORM_DEATHS) {
+  if (!Number.isFinite(mobDeaths) || !Number.isFinite(threshold)) return false
+  if (mobDeaths < 0 || threshold < 0) return false
+  return mobDeaths >= threshold
+}
+
 // ---- (v0.193.0) THE TOD FORECAST - the vanilla clock, projected forward ----
 //
 // The run46 delivery hole (16/19 'final bank deferred: night', tod 12400-13106)
