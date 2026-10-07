@@ -32,7 +32,7 @@ const toolsMod = await import(path.join(root, 'src', 'bots', 'tools.mjs'))
 // (v0.363.0) the placement rings + the flooded-alcove trigger live in a unit-pinned
 // lib - the integration helper imports the same shapes the unit tests pin
 const { RING1_OFFSETS, RING2_OFFSETS, floodedAlcove, carvedCellIsDry, carvedCellFlooded } = await import(path.join(root, 'src', 'lib', 'placement-rings.mjs'))
-// (v0.751.0) the storm's own tally gate - a MODULE-SCOPE handle (the craftItem
+// (v0.752.0) the storm's own tally gate - a MODULE-SCOPE handle (the craftItem
 // lesson, v0.93.0: a bare module-scope reference to a test-body dynamic import
 // is a module-scope miss, invisible while the sky is clear and fatal exactly
 // when the gate is needed)
@@ -48,7 +48,7 @@ fs.mkdirSync(logDir, { recursive: true })
 const logFile = path.join(logDir, 'smelt.log')
 const logStream = fs.createWriteStream(logFile, { flags: 'a' })
 logStream.on('error', () => { /* stream already ended */ })
-// (v0.751.0) THE STORM'S OWN TALLY: the miner's canonical died line carries the
+// (v0.752.0) THE STORM'S OWN TALLY: the miner's canonical died line carries the
 // server-kind authority (`[kind=mob by Zombie]`); the sink counts the mob kills
 // so the chain's phase boundaries can hand out the storm skip (nightsafety.stormTallySkip)
 // instead of burning the raw 390s timeout - CI run 37580611393's exact class
@@ -505,7 +505,7 @@ test('smelting pipeline: craft a furnace, place it, smelt sand into glass', { ti
   assert.ok(toolRes.ok, 'tool bootstrap must succeed before the smelting chain')
   // the rest of the chain needs ~150s minimum (8 cobble + furnace craft/place + 2 smelts):
   // a bootstrap that ate the budget is an environment condition, not a pipeline failure
-  // (v0.751.0) the storm's own tally rides EVERY phase boundary next to the clock:
+  // (v0.752.0) the storm's own tally rides EVERY phase boundary next to the clock:
   // the night guard reads the sky at spawn only - a storm that arrives MID-TEST is
   // read from the corpses instead (the face-60 anatomy: 2 Zombie kills, then the
   // raw timeout; an environment flake must not look like a pipeline failure).

@@ -185,7 +185,7 @@ test('forecastForbidden: junk degrades to the now-verdict, never widens a refusa
   assert.equal(forecastForbidden({ timeOfDay: 12000, msAhead: 10000, ticksPerSec: NaN }), false, 'junk rate -> the 20/s constant (12000 + 200 = 12200, light)')
 })
 
-// ---- (v0.751.0) THE STORM'S OWN TALLY - the body-count side of the sky policy ----
+// ---- (v0.752.0) THE STORM'S OWN TALLY - the body-count side of the sky policy ----
 //
 // CI run 37580611393 (the face-60 dispatch) is the field proof the clock gates
 // cannot see: a fresh day world passes the night guard, the storm arrives

@@ -59,7 +59,7 @@ export function isNight (timeOfDay) {
   return timeOfDay >= 12610 && timeOfDay < 23460
 }
 
-// ---- (v0.751.0) THE STORM'S OWN TALLY - the body-count side of the sky policy ----
+// ---- (v0.752.0) THE STORM'S OWN TALLY - the body-count side of the sky policy ----
 //
 // The gates above read the sky BEFORE the walk (the clock, the thunder); this one
 // reads the CORPSES DURING the chain. Field proof (CI run 37580611393, the face-60
