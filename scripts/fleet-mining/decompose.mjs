@@ -67,6 +67,7 @@ import { torchBook } from '../../src/lib/torchbook.mjs' // (v0.500.0) the torch 
 import { veinLedger } from '../../src/lib/veinledger.mjs' // (v0.501.0) the vein ledger - the sweep's terminals, walk yield, gallery digs, refusals and the tier guard
 import { commonsLedger } from '../../src/lib/commonsledger.mjs' // (v0.502.0) the commons ledger - the ask's answer: the sweeps, the walk anatomy, the deliveries
 import { droughtTimeline, droughtTimelineRow } from '../../src/lib/droughttimeline.mjs' // (v0.738.0) the pump's own timeline - the tithe's banks vs the dry reads' positions
+import { reachRadius, reachRadiusRow } from '../../src/lib/reachmap.mjs' // (v0.740.0) the reach's own radius - the last mile's refused distances (the walk's own price)
 import { bridgeBook } from '../../src/lib/bridgebook.mjs' // (v0.496.0) the bridge book - the vertical walk's fill lane (the refusals' why-flip, the cobble signature, the server's own veto; SLOT COLLISION #17: 0.495.0 taken by fire-0008's THE TABLE GATE mid-fire)
 import { bridgeRefusalCensus, bridgeRefusalRow } from '../../src/lib/climbbridge.mjs' // (v0.665.0) THE CLIMB BRIDGE'S FIELD READ - the refusal book's own grains wired to the mining surface: the gate, the pit donor, the plant clear, the shadow gate's defers
 import { planTopCensus } from '../../src/lib/plantop.mjs' // (v0.440.0) the named board - the stuck slot's own name
@@ -86,7 +87,7 @@ import { relogBill } from '../../src/lib/relogbill.mjs' // (v0.715.0) the relog'
 import { freezeBill } from '../../src/lib/freezebill.mjs' // (v0.724.0) the freeze gate's own ladder - the frozen relog's streak/gate/vitals bytes folded per bot (the doubling's own futility read)
 import { kickBill } from '../../src/lib/kickbill.mjs' // (v0.717.0) the kick's own churn - the kick cells joined to the relog cells (the pair, the split, the repeats over both lanes)
 import { kickKindCensus } from '../../src/lib/kickkinds.mjs' // (v0.730.0) the kick's own kinds - the kicked clients' reason census (the translate byte per kind; the dup class reconciles with the frozen census's dupKicks)
-import { dupClock, unseenLosses, surplusKicks, burstDoor } from '../../src/lib/dupclock.mjs' // (v0.729.0) the duplicate's own clock - the server log's join side (the losses, the cadence, the bursts, the storm; v0.734.0 the unseen loss's own column, v0.735.0 the surplus kick's own side, v0.739.0 the burst's own door)
+import { dupClock, unseenLosses, surplusKicks, burstDoor } from '../../src/lib/dupclock.mjs' // (v0.729.0) the duplicate's own clock - the server log's join side (the losses, the cadence, the bursts, the storm; v0.734.0 the unseen loss's own column, v0.735.0 the surplus kick's own side, v0.740.0 the burst's own door)
 import { pinBill } from '../../src/lib/pinbill.mjs' // (v0.722.0) the pinned seat's own bill - the water lane's launches per bot per target (the 70%/10+ concentration names the seat)
 import { memHbCensus, RSS_JUMP_STORM_M, ENT_JUMP_STORM_N } from '../../src/lib/memhb.mjs' // (v0.408.0) the OOM precursors' field read
 import { stormCensus } from '../../src/lib/stormcensus.mjs' // (v0.409.0) the storm EVENT story's field read (verdicts + valve + hb)
@@ -1373,14 +1374,14 @@ console.log('  hazard memorized:', count(/hazard memorized/))
         const burstTail = plain.map((b) => `${b.bot} lost ${b.n} session(s) in ${b.spanS}s (${b.first}..${b.last})`).join('; ')
         console.log(`  THE DUPLICATE BURST: ${burstTail} - the re-spawn lane's own loop (the patience is not the cure)`)
       }
-      // (v0.739.0) THE BURST'S OWN DOOR - the plain burst's own near-miss:
+      // (v0.740.0) THE BURST'S OWN DOOR - the plain burst's own near-miss:
       // the whole-gap spread can fail the metronome's bar on the lead-in
       // alone while the tail locks the fixed period. The door names the
       // timer the bar never saw. No door reads the honest silence.
       const door = burstDoor(dc.bursts.list)
       if (door) {
         const doorTail = door.list.map((d) => `${d.bot} lost ${d.n} session(s) in ${d.spanS}s - a ${d.leadInS}s lead-in then a locked clock (tail ${d.tailN} gap(s), median ${d.tailMedianS}s, spread ${d.tailMinS}..${d.tailMaxS}s)`).join('; ')
-        console.log(`  the burst's own door (v0.739.0): ${doorTail} - the metronome's spread bar never saw the timer past the door`)
+        console.log(`  the burst's own door (v0.740.0): ${doorTail} - the metronome's spread bar never saw the timer past the door`)
       }
     } else {
       const [topBot, topN] = Object.entries(dc.losses.byBot).sort((a, b) => b[1] - a[1])[0]
@@ -3232,6 +3233,13 @@ console.log('  plan lines:', count(/materials plan|plan progress/i))
       const top = Object.entries(t.dryChests).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([loc, n]) => `[${loc}] x${n}`).join(', ')
       console.log(`  the dry yard's own side: ${t.dryReads} located dry reads across ${Object.keys(t.dryChests).length} chest(s) (top ${top}) - the yard's inflow is the drought's front`)
     }
+    // (v0.740.0) the reach's own radius - the refused side of the
+    // sweep's reach: the distances the last mile's walks died at (the
+    // 53rd's 17 refusals all rode d=4.3-15.2 - one straight hop, one
+    // outlier); the reached side is the dry yard's line above
+    const rr = reachRadius(cl)
+    const rrRow = reachRadiusRow(rr)
+    if (rrRow) console.log(`  ${rrRow}`)
     if (t.scanSaw > 0) console.log(`  anchor scans that found no anchor: ${t.scanSaw} (saw ${t.scanSawSeen} chest(s), ${t.scanSawUsable} usable after the empty memory)`)
     // (v0.738.0) the pump's own timeline - the tithe's banked events
     // vs the dry reads' positions in the stream (the 53rd's motive:

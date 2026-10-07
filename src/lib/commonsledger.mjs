@@ -82,6 +82,17 @@
 // ledger's 'the rungs and the resupply' - the resupply leg delivered
 // ZERO; the 172 torches were the rungs' and the pockets' work alone.
 //
+// (v0.740.0) THE REACH'S OWN RADIUS - the refused side of the sweep's
+// reach, priced additively in the SAME COMMONS_LASTMILE_RE match (one
+// parser per shape): the raw walker's rejections carry the distance
+// the walk died at ('raw walk timeout after 2402ms (d=9.1)', 'raw
+// walk: no net progress for 8161ms (best d=4.3)', 'raw walk stalled
+// after Nms (d=D.D)' - deposit.mjs's own throw shapes); the capture
+// rides the already-matched tail into the lastMileD column (numbers,
+// one per refused walk). The reach's map now has both sides: the
+// reached-and-dry positions (v0.737.0's dryChests) and the refused
+// distances (this heal) - reachmap.mjs is the lens (the verdict row).
+//
 // (v0.737.0) THE DRY YARD'S OWN GRAMMAR - the field's four evolutions
 // the ledger went blind to (face 52 = run 37549177806: the chest
 // anatomy row read 'empty 0' while the log carried 154 dry reads -
@@ -151,8 +162,17 @@ export const COMMONS_DOOM_RE =
 export const COMMONS_EMPTY_RE = /^(\S+) fuel commons: chest holds no fuel(?: at \[([^\]]+)\])?$/
 // (v0.737.0) the last mile refused - 'F2 fuel commons: the last mile
 // refused (raw walk timeout after 2000ms (d=6.7))' - the walk's
-// last-mile class, its own anatomy
+// last-mile class, its own anatomy; (v0.740.0) the captured tail's
+// 'd=D.D' (or 'best d=D.D' - the no-net-progress class) rides the
+// lastMileD column via LASTMILE_D_RE below (the same match - no new
+// RE for the line shape)
 export const COMMONS_LASTMILE_RE = /^(\S+) fuel commons: the last mile refused \((.+)\)$/
+// (v0.740.0) the distance inside the already-captured last-mile tail:
+// 'raw walk timeout after 2402ms (d=9.1)' -> 9.1; 'raw walk: no net
+// progress for 8161ms (best d=4.3)' -> 4.3 (the BEST distance - how
+// close the walk got before it starved). Internal - the line's own
+// RE stays COMMONS_LASTMILE_RE (one parser per shape).
+const LASTMILE_D_RE = /\bd=([\d.]+)/
 // (v0.737.0) the anchor scan that found no anchor - read OUTSIDE the
 // sweep gate (no anchor = no sweep ever opened)
 // 'F2 fuel commons: the anchor scan saw 2 chest(s), 0 usable after the empty memory - no anchor'
@@ -221,7 +241,7 @@ function zeroBot () {
     scanSaw: 0, scanSawSeen: 0, scanSawUsable: 0,
     askDefers: 0, maxDeferSpan: 0,
     deaths: 0,
-    doomShapes: [], walkFailWhys: {}, dryChests: {}, lastMileWhys: {}
+    doomShapes: [], walkFailWhys: {}, dryChests: {}, lastMileWhys: {}, lastMileD: []
   }
 }
 
@@ -275,6 +295,7 @@ export function commonsLedger (lines) {
       for (const [w, n] of Object.entries(sw.walkFailWhys)) b.walkFailWhys[w] = (b.walkFailWhys[w] ?? 0) + n
       for (const [loc, n] of Object.entries(sw.dryChests)) b.dryChests[loc] = (b.dryChests[loc] ?? 0) + n
       for (const [w, n] of Object.entries(sw.lastMileWhys)) b.lastMileWhys[w] = (b.lastMileWhys[w] ?? 0) + n
+      for (const d of sw.lastMileD) b.lastMileD.push(d) // (v0.740.0) the reach's own distances ride per bot
     })
     rows.push({ type: 'sweep', bot, idx, lane: sw.lane, cls, units: sw.units, ...sw.anatomy })
   }
@@ -340,7 +361,8 @@ export function commonsLedger (lines) {
         doomShapes: [],
         walkFailWhys: {},
         dryChests: {},
-        lastMileWhys: {}
+        lastMileWhys: {},
+        lastMileD: [] // (v0.740.0) the refused walk's own distances (the raw walker's d=)
       }
       void b
       continue
@@ -409,6 +431,11 @@ export function commonsLedger (lines) {
       a.lastMile++
       const w = normalizeWhy(walkWhyClass(vm[2]))
       s.sweep.lastMileWhys[w] = (s.sweep.lastMileWhys[w] ?? 0) + 1
+      // (v0.740.0) the reach's own radius - the distance the walk died
+      // at rides the same match (the raw walker's d= / best d=); a bare
+      // tail (the old faces' shape) adds nothing - the honest gap
+      const dm = LASTMILE_D_RE.exec(vm[2])
+      if (dm) s.sweep.lastMileD.push(Number(dm[1]))
       continue
     }
     vm = COMMONS_OPENFAIL_RE.exec(line)
@@ -450,6 +477,7 @@ export function commonsLedger (lines) {
     for (const [w, n] of Object.entries(b.walkFailWhys)) totals.walkFailWhys[w] = (totals.walkFailWhys[w] ?? 0) + n
     for (const [loc, n] of Object.entries(b.dryChests)) totals.dryChests[loc] = (totals.dryChests[loc] ?? 0) + n
     for (const [w, n] of Object.entries(b.lastMileWhys)) totals.lastMileWhys[w] = (totals.lastMileWhys[w] ?? 0) + n
+    for (const d of b.lastMileD) totals.lastMileD.push(d) // (v0.740.0) the reach's own distances ride the totals
   }
   return { bots, totals, rows }
 }
