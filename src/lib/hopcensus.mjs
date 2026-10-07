@@ -110,7 +110,7 @@ export function hopCensus (lines) {
     if (e.dist !== null) { out.dists.n++; out.dists.sum += e.dist; if (e.dist > out.dists.max) out.dists.max = e.dist }
     out.events.push(e)
   }
-  return Object.assign(out, { bleed: hopZeroBleed(out.byWhy), botBill: hopZeroBotBill(out.events) }) // (v0.760.0) the bleed rides additively - the hop-zero's own split; (v0.767.0) the bot bill rides beside it
+  return Object.assign(out, { bleed: hopZeroBleed(out.byWhy), botBill: hopZeroBotBill(out.events), riders: hopZeroRiders(out.events) }) // (v0.760.0) the bleed rides additively - the hop-zero's own split; (v0.767.0) the bot bill rides beside it; (v0.770.0) the riders measure rides beside the bill
 }
 
 // (v0.760.0) THE HOP-ZERO'S OWN BLEED - the zero-hop total's honest split.
@@ -205,4 +205,51 @@ export function hopZeroBotBillRow (bill) {
       !Number.isFinite(ofBleed) || ofBleed <= 0 || owns > ofBleed ||
       !Number.isFinite(shareOfBleed)) return null
   return `the bleed's own bot bill (v0.767.0): ${bot} owns ${owns} of ${ofBleed} bleed(s) (${(shareOfBleed * 100).toFixed(1)}%) - THE REPEAT RIDER'S OWN SEAT: one walker's own lane owns the bleed - the class verdict's own lever prices the rider's walks`
+}
+
+// (v0.770.0) THE BLEED'S OWN RIDERS - the bill's silence's own companion.
+// The v0.767.0 bill names the solo rider under the strict-majority law;
+// face 70's own census rode the answer raw when the bill went silent
+// ('per bot: F4=16 F6=16 F13=11 F11=3 F1=2 F19=1 F18=1' - a duet at the
+// top, no majority, the tie law held) with no row naming the shape. THE
+// RIDER LAW (the census's own events only, zero re-parsing - the bill's
+// own precedent): a MEASURE, never a verdict-owner - the top two walkers'
+// concentration prices the shape the solo law refused to name (the bill's
+// owner case leaves the companion unprinted - the decompose's own branch
+// law); the honest non-defect ('nothing-to-deposit') never rides. Junk
+// never invents a shape: a missing or empty event list, a botless or
+// classless event, or fewer than two walkers reads the honest silence
+// (null). The order is deterministic (count desc, then the name's own).
+export function hopZeroRiders (events) {
+  const rows = Array.isArray(events) ? events : []
+  const byBot = {}
+  let bleed = 0
+  for (const e of rows) {
+    if (!e || typeof e !== 'object') continue
+    const why = e.klass && typeof e.klass === 'object' ? e.klass.why : null
+    if (typeof why !== 'string' || typeof e.bot !== 'string' || !e.bot) continue
+    if (why === 'nothing-to-deposit') continue // the honest non-defect never rides
+    bleed++
+    byBot[e.bot] = (byBot[e.bot] || 0) + 1
+  }
+  const ranked = Object.entries(byBot).sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1))
+  if (bleed <= 0 || ranked.length < 2) return null
+  const [leader, leaderOwns] = ranked[0]
+  const [runner, runnerOwns] = ranked[1]
+  const pairOwns = leaderOwns + runnerOwns
+  return { leader, leaderOwns, runner, runnerOwns, ofBleed: bleed, pairOwns, shareOfBleed: +(pairOwns / bleed).toFixed(3), duet: leaderOwns === runnerOwns }
+}
+
+// (v0.770.0) the riders' own row - THE DUET'S OWN SEAT: a measure of the
+// shape, never a named owner (the bill's tie law holds); the pair prices
+// the concentration the solo law refused to seat. Junk never prints a
+// shape (the honest silence's own row law).
+export function hopZeroRidersRow (r) {
+  if (!r || typeof r !== 'object') return null
+  const { leader, leaderOwns, runner, runnerOwns, ofBleed, pairOwns, shareOfBleed } = r
+  if (typeof leader !== 'string' || !leader || typeof runner !== 'string' || !runner ||
+      !Number.isFinite(leaderOwns) || leaderOwns <= 0 || !Number.isFinite(runnerOwns) || runnerOwns <= 0 ||
+      !Number.isFinite(ofBleed) || ofBleed <= 0 || !Number.isFinite(pairOwns) || pairOwns > ofBleed ||
+      !Number.isFinite(shareOfBleed)) return null
+  return `the bleed's own riders (v0.770.0): no solo rider owns the majority - ${leader} x${leaderOwns} + ${runner} x${runnerOwns} own ${pairOwns} of ${ofBleed} bleed(s) (${(shareOfBleed * 100).toFixed(1)}%) - THE DUET'S OWN SEAT: the bill's tie law held, the concentration is still real - the pair prices the walks the solo law refused to name`
 }

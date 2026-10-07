@@ -7,7 +7,7 @@
 
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { parseHopZero, hopCensus, classifyHopZero, HOP_ZERO_RE, hopZeroBleed, hopZeroBotBill, hopZeroBotBillRow } from '../../src/lib/hopcensus.mjs'
+import { parseHopZero, hopCensus, classifyHopZero, HOP_ZERO_RE, hopZeroBleed, hopZeroBotBill, hopZeroBotBillRow, hopZeroRiders, hopZeroRidersRow } from '../../src/lib/hopcensus.mjs'
 
 // face-22 verbatims (one per class, real bots/positions/dists)
 const GOAL_CHURN = 'F7 [F7] hop: chest at [-123,68,411] d=16 zero: chest unreachable (The goal was changed before it could be completed!)'
@@ -298,4 +298,85 @@ test('v0.767.0 the bill rides the decompose mine (WIRING)', async () => {
   const src = readFileSync(new URL('../../scripts/fleet-mining/decompose.mjs', import.meta.url), 'utf8')
   assert.equal(src.includes('hopZeroBotBillRow'), true)
   assert.equal(src.includes("the bleed's own bot bill"), false) // the prose lives in the lib, never duplicated in the mine
+})
+
+// (v0.770.0) THE BLEED'S OWN RIDERS - the face-70 cell: the mine's own
+// distribution rebuilt as the census's own events (37624132784, the held
+// artifact): budget-floor 42 (F4=16 F6=16 F13=10), no-path 5 (F11=3
+// F13=1 F18=1), walk-timeout 2 (F1=2), unreachable-other 1 (F19=1) - the
+// bill's tie law held (F4=16 F6=16, no majority) and the riders measure
+// prices the shape (the duet owns 32 of 50, 64.0%). The v0.760.0 class
+// seat's own cells stay byte-untouched beside the companion.
+function face70Events () {
+  const ev = []
+  const add = (bot, why, n) => { for (let i = 0; i < n; i++) ev.push({ bot, klass: { why } }) }
+  add('F4', 'budget-floor', 16); add('F6', 'budget-floor', 16); add('F13', 'budget-floor', 10)
+  add('F11', 'no-path', 3); add('F13', 'no-path', 1); add('F18', 'no-path', 1)
+  add('F1', 'walk-timeout', 2); add('F19', 'unreachable-other', 1)
+  return ev
+}
+
+test('v0.770.0 the face-70 riders cell - the duet rides in the bill\'s own silence', () => {
+  const ev = face70Events()
+  // the bill's tie law held: no solo rider owns a strict majority
+  assert.equal(hopZeroBotBill(ev), null)
+  // the companion prices the shape, never an owner
+  assert.deepEqual(hopZeroRiders(ev), { leader: 'F4', leaderOwns: 16, runner: 'F6', runnerOwns: 16, ofBleed: 50, pairOwns: 32, shareOfBleed: 0.64, duet: true })
+  assert.equal(hopZeroRidersRow(hopZeroRiders(ev)), 'the bleed\'s own riders (v0.770.0): no solo rider owns the majority - F4 x16 + F6 x16 own 32 of 50 bleed(s) (64.0%) - THE DUET\'S OWN SEAT: the bill\'s tie law held, the concentration is still real - the pair prices the walks the solo law refused to name')
+  // the census return rides the companion beside the bill (additive): the
+  // measure is computed from the events alone - the decompose's own branch
+  // (the bill wins) decides the row, the face-69 bill cell byte-untouched
+  const c = hopCensus(FACE69_ZERO_LINES)
+  assert.equal(c.botBill.bot, 'F4')
+  assert.deepEqual(c.riders, { leader: 'F4', leaderOwns: 7, runner: 'F14', runnerOwns: 1, ofBleed: 9, pairOwns: 8, shareOfBleed: 0.889, duet: false })
+})
+
+// (v0.770.0) the branch law: the bill's owner case prints the bill, the
+// silence prints the riders - one row, never both; a non-tie spread with
+// no majority still measures (the shape, duet false).
+test('v0.770.0 the branch law + the non-tie no-majority spread', () => {
+  const spread = hopZeroRiders(face70Events())
+  const billRow = hopZeroBotBill(face70Events())
+  assert.equal(billRow, null) // the tie never seats
+  const noMajority = hopZeroRiders([
+    ...Array.from({ length: 12 }, () => ({ bot: 'F2', klass: { why: 'budget-floor' } })),
+    ...Array.from({ length: 8 }, () => ({ bot: 'F9', klass: { why: 'no-path' } })),
+    ...Array.from({ length: 10 }, () => ({ bot: 'F5', klass: { why: 'walk-timeout' } })),
+  ])
+  assert.deepEqual(noMajority, { leader: 'F2', leaderOwns: 12, runner: 'F5', runnerOwns: 10, ofBleed: 30, pairOwns: 22, shareOfBleed: 0.733, duet: false })
+  // the decompose's own branch: the bill's row wins, the companion waits
+  const branch = (hopZero) => (hopZero.botBill ? 'bill' : hopZero.riders ? 'riders' : 'silence')
+  assert.equal(branch({ botBill: { bot: 'F4', owns: 7, ofBleed: 9, shareOfBleed: 0.778 }, riders: spread }), 'bill')
+  assert.equal(branch({ botBill: null, riders: spread }), 'riders')
+  assert.equal(branch({ botBill: null, riders: null }), 'silence')
+})
+
+// (v0.770.0) the riders junk battery: the missing/empty event list, the
+// botless or classless event, the single-walker bill's own case, the
+// broken measure row - the honest silence everywhere.
+test('v0.770.0 the riders junk battery', () => {
+  for (const junk of [undefined, null, 'nope', 42, [],
+    [{ klass: { why: 'no-path' } }], // the botless event
+    [{ bot: 'F4', klass: null }], // the classless event
+    [{ bot: 'F4', klass: { why: 'no-path' } }, { bot: null, klass: { why: 'no-path' } }], // one valid + one botless - a single walker reads the bill's own case
+    [{ bot: 'F4', klass: { why: 'nothing-to-deposit' } }, { bot: 'F6', klass: { why: 'nothing-to-deposit' } }], // the honest lane never rides
+  ]) assert.equal(hopZeroRiders(junk), null)
+  assert.equal(hopZeroRiders([{ bot: 'F4', klass: { why: 'budget-floor' } }]), null) // fewer than two walkers
+  for (const bad of [undefined, null, 'nope', 42,
+    { leader: 'F4', leaderOwns: 0, runner: 'F6', runnerOwns: 16, ofBleed: 50, pairOwns: 16, shareOfBleed: 0.32 },
+    { leader: 'F4', leaderOwns: 16, runner: '', runnerOwns: 16, ofBleed: 50, pairOwns: 32, shareOfBleed: 0.64 },
+    { leader: 'F4', leaderOwns: 16, runner: 'F6', runnerOwns: 16, ofBleed: 50, pairOwns: 51, shareOfBleed: 1.02 },
+  ]) assert.equal(hopZeroRidersRow(bad), null)
+})
+
+// (v0.770.0) the WIRING assert: the decompose mine prints the riders row
+// in the bill's own silence (the else-if branch), the source's own guard
+// reads the census's own measure; the prose lives in the lib, never
+// duplicated in the mine.
+test('v0.770.0 the riders ride the decompose mine (WIRING)', async () => {
+  const { readFileSync } = await import('node:fs')
+  const src = readFileSync(new URL('../../scripts/fleet-mining/decompose.mjs', import.meta.url), 'utf8')
+  assert.equal(src.includes('hopZeroRidersRow'), true)
+  assert.equal(src.includes('else if (hopZero.riders)'), true) // the companion only speaks in the bill's silence
+  assert.equal(src.includes("the bleed's own riders"), false) // the prose lives in the lib, never duplicated in the mine
 })
