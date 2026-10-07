@@ -82,6 +82,17 @@
 // ledger's 'the rungs and the resupply' - the resupply leg delivered
 // ZERO; the 172 torches were the rungs' and the pockets' work alone.
 //
+// (v0.742.0) THE LAST MILE'S OWN CLOCK - the reach's radius (v0.740.0)
+// priced WHERE the refused walk died (the d= bands); the CLOCK the walk
+// paid dying rode the same tail unread ('raw walk timeout after 2402ms',
+// 'raw walk: no net progress for 8161ms', 'raw walk stalled after Nms')
+// - the capture rides the SAME COMMONS_LASTMILE_RE match (one parser
+// per shape): LASTMILE_MS_RE (internal) reads the elapsed ms into the
+// lastMileMs column (numbers, one per refused walk); the bare tails
+// (the old faces' shape) add nothing. The reach's anatomy is whole:
+// the radius (where), the clock (what it paid) - reachmap.mjs's
+// reachClock is the lens (the verdict row).
+//
 // (v0.740.0) THE REACH'S OWN RADIUS - the refused side of the sweep's
 // reach, priced additively in the SAME COMMONS_LASTMILE_RE match (one
 // parser per shape): the raw walker's rejections carry the distance
@@ -173,6 +184,12 @@ export const COMMONS_LASTMILE_RE = /^(\S+) fuel commons: the last mile refused \
 // close the walk got before it starved). Internal - the line's own
 // RE stays COMMONS_LASTMILE_RE (one parser per shape).
 const LASTMILE_D_RE = /\bd=([\d.]+)/
+// (v0.742.0) the clock inside the same already-captured tail: 'raw
+// walk timeout after 2402ms' -> 2402; 'raw walk: no net progress for
+// 8161ms' -> 8161; 'raw walk stalled after 1224ms' -> 1224 (the
+// elapsed walk time the refusal threw away). Internal - one parser
+// per shape (the line's own RE stays COMMONS_LASTMILE_RE).
+const LASTMILE_MS_RE = /\b(?:after|for) (\d+)ms\b/
 // (v0.737.0) the anchor scan that found no anchor - read OUTSIDE the
 // sweep gate (no anchor = no sweep ever opened)
 // 'F2 fuel commons: the anchor scan saw 2 chest(s), 0 usable after the empty memory - no anchor'
@@ -241,7 +258,7 @@ function zeroBot () {
     scanSaw: 0, scanSawSeen: 0, scanSawUsable: 0,
     askDefers: 0, maxDeferSpan: 0,
     deaths: 0,
-    doomShapes: [], walkFailWhys: {}, dryChests: {}, lastMileWhys: {}, lastMileD: []
+    doomShapes: [], walkFailWhys: {}, dryChests: {}, lastMileWhys: {}, lastMileD: [], lastMileMs: []
   }
 }
 
@@ -296,6 +313,7 @@ export function commonsLedger (lines) {
       for (const [loc, n] of Object.entries(sw.dryChests)) b.dryChests[loc] = (b.dryChests[loc] ?? 0) + n
       for (const [w, n] of Object.entries(sw.lastMileWhys)) b.lastMileWhys[w] = (b.lastMileWhys[w] ?? 0) + n
       for (const d of sw.lastMileD) b.lastMileD.push(d) // (v0.740.0) the reach's own distances ride per bot
+      for (const ms of sw.lastMileMs) b.lastMileMs.push(ms) // (v0.742.0) the last mile's own clocks ride per bot
     })
     rows.push({ type: 'sweep', bot, idx, lane: sw.lane, cls, units: sw.units, ...sw.anatomy })
   }
@@ -362,7 +380,8 @@ export function commonsLedger (lines) {
         walkFailWhys: {},
         dryChests: {},
         lastMileWhys: {},
-        lastMileD: [] // (v0.740.0) the refused walk's own distances (the raw walker's d=)
+        lastMileD: [], // (v0.740.0) the refused walk's own distances (the raw walker's d=)
+        lastMileMs: [] // (v0.742.0) the refused walk's own clocks (the elapsed ms the refusal threw away)
       }
       void b
       continue
@@ -436,6 +455,10 @@ export function commonsLedger (lines) {
       // tail (the old faces' shape) adds nothing - the honest gap
       const dm = LASTMILE_D_RE.exec(vm[2])
       if (dm) s.sweep.lastMileD.push(Number(dm[1]))
+      // (v0.742.0) the last mile's own clock - the elapsed ms the
+      // refusal threw away rides the same match (after Nms / for Nms)
+      const msm = LASTMILE_MS_RE.exec(vm[2])
+      if (msm) s.sweep.lastMileMs.push(Number(msm[1]))
       continue
     }
     vm = COMMONS_OPENFAIL_RE.exec(line)
@@ -478,6 +501,7 @@ export function commonsLedger (lines) {
     for (const [loc, n] of Object.entries(b.dryChests)) totals.dryChests[loc] = (totals.dryChests[loc] ?? 0) + n
     for (const [w, n] of Object.entries(b.lastMileWhys)) totals.lastMileWhys[w] = (totals.lastMileWhys[w] ?? 0) + n
     for (const d of b.lastMileD) totals.lastMileD.push(d) // (v0.740.0) the reach's own distances ride the totals
+    for (const ms of b.lastMileMs) totals.lastMileMs.push(ms) // (v0.742.0) the last mile's own clocks ride the totals
   }
   return { bots, totals, rows }
 }

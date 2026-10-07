@@ -67,7 +67,7 @@ import { torchBook } from '../../src/lib/torchbook.mjs' // (v0.500.0) the torch 
 import { veinLedger } from '../../src/lib/veinledger.mjs' // (v0.501.0) the vein ledger - the sweep's terminals, walk yield, gallery digs, refusals and the tier guard
 import { commonsLedger } from '../../src/lib/commonsledger.mjs' // (v0.502.0) the commons ledger - the ask's answer: the sweeps, the walk anatomy, the deliveries
 import { droughtTimeline, droughtTimelineRow } from '../../src/lib/droughttimeline.mjs' // (v0.738.0) the pump's own timeline - the tithe's banks vs the dry reads' positions
-import { reachRadius, reachRadiusRow } from '../../src/lib/reachmap.mjs' // (v0.740.0) the reach's own radius - the last mile's refused distances (the walk's own price)
+import { reachRadius, reachRadiusRow, reachClock, reachClockRow } from '../../src/lib/reachmap.mjs' // (v0.740.0) the reach's own radius - the last mile's refused distances; (v0.742.0) the last mile's own clock - the refused walks' elapsed ms (the raw walk's own rent)
 import { bridgeBook } from '../../src/lib/bridgebook.mjs' // (v0.496.0) the bridge book - the vertical walk's fill lane (the refusals' why-flip, the cobble signature, the server's own veto; SLOT COLLISION #17: 0.495.0 taken by fire-0008's THE TABLE GATE mid-fire)
 import { bridgeRefusalCensus, bridgeRefusalRow } from '../../src/lib/climbbridge.mjs' // (v0.665.0) THE CLIMB BRIDGE'S FIELD READ - the refusal book's own grains wired to the mining surface: the gate, the pit donor, the plant clear, the shadow gate's defers
 import { planTopCensus } from '../../src/lib/plantop.mjs' // (v0.440.0) the named board - the stuck slot's own name
@@ -3272,6 +3272,12 @@ console.log('  plan lines:', count(/materials plan|plan progress/i))
     const rr = reachRadius(cl)
     const rrRow = reachRadiusRow(rr)
     if (rrRow) console.log(`  ${rrRow}`)
+    // (v0.742.0) the last mile's own clock - the refused walks' spend
+    // (the radius's twin: where the walk dies / what it paid dying);
+    // the bare refusals' faces read the honest silence (no row)
+    const rc = reachClock(cl)
+    const rcRow = reachClockRow(rc)
+    if (rcRow) console.log(`  ${rcRow}`)
     if (t.scanSaw > 0) console.log(`  anchor scans that found no anchor: ${t.scanSaw} (saw ${t.scanSawSeen} chest(s), ${t.scanSawUsable} usable after the empty memory)`)
     // (v0.738.0) the pump's own timeline - the tithe's banked events
     // vs the dry reads' positions in the stream (the 53rd's motive:

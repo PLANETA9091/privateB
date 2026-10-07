@@ -73,3 +73,39 @@ export function reachRadiusRow (r) {
   }
   return `${head}, ${bands} - ${r.bands.far} walk(s) died beyond the envelope's own band (d>10) - the approach's own price rides with the last mile's`
 }
+
+// (v0.742.0) THE LAST MILE'S OWN CLOCK - the radius's own twin: the
+// radius priced WHERE the refused walk died (the d= bands, v0.740.0);
+// the CLOCK the walk paid dying rode the same tail unread (the raw
+// walker's elapsed ms: 'raw walk timeout after 2402ms' / 'raw walk:
+// no net progress for 8161ms' / 'raw walk stalled after 1224ms' - the
+// commonsledger's lastMileMs column, the same match, no new RE for
+// the line shape). THE CURE'S OWN DATUM: the 53rd's inside-band
+// deaths rode 381ms..8161ms walks (the raw clock died YOUNG - the
+// envelope's own 2000ms floor could never buy the hop); the spend
+// distribution prices the raw walk's own rent per face.
+/**
+ * Read the last mile's own clock - the refused walks' elapsed-ms map
+ * off the commons ledger's totals. Pure census, no parsing.
+ * @param {null|{bots: Object, totals: object, rows: object[]}} ledger commonsLedger(lines)'s own result
+ * @returns {null|{refusals: number, withMs: number, msSum: number, msMax: number}}
+ */
+export function reachClock (ledger) {
+  if (!ledger || !ledger.totals) return null
+  const t = ledger.totals
+  const ms = Array.isArray(t.lastMileMs) ? t.lastMileMs.filter(v => Number.isFinite(v) && v >= 0) : []
+  return {
+    refusals: t.lastMile ?? 0,
+    withMs: ms.length,
+    msSum: ms.reduce((s, v) => s + v, 0),
+    msMax: ms.length ? Math.max(...ms) : 0
+  }
+}
+
+// ONE verdict line, only when a clock rode at all (zero captured ms =
+// the honest silence - the bare refusals' own law, no row invented).
+export function reachClockRow (c) {
+  if (!c || c.withMs === 0) return null
+  const secs = v => (v / 1000).toFixed(1)
+  return `the last mile's own clock: the refused walks spent ${secs(c.msSum)}s dying (max ${secs(c.msMax)}s across ${c.withMs} read(s)) - the raw walk's own rent`
+}
