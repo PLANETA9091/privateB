@@ -83,3 +83,50 @@ test('WIRING: decompose rides the calm paradox beside the rescue end-state', () 
   assert.match(src, /calmRescueParadox\(lines\)/)
   assert.match(src, /the calm paradox \(v0\.701\.0\)/)
 })
+
+// (v0.756.0) THE CHURN'S OWN METER - the paradox's clock leg. Face 63
+// (37589681027, the anatomy tree's first face) is the maiden read:
+// 0 deaths, 24 rescue starts, the hb clock's end 721s - 3.33 starts/100s.
+import { churnDensity, CHURN_METER_SCALE_S } from '../../src/lib/calmrescue.mjs'
+
+test('the churn\'s own meter (v0.756.0): face 63\'s own read prices the density', () => {
+  // The maiden field read: 24 starts over the 721s clock = 3.33/100s.
+  assert.equal(churnDensity(24, 721), 3.33)
+  assert.equal(CHURN_METER_SCALE_S, 100)
+  // The pace row's own 2-decimal rounding law.
+  assert.equal(churnDensity(35, 600), 5.83)
+  assert.equal(churnDensity(10, 600), 1.67)
+  // A custom scale prices in the caller's own unit (the junk law keeps
+  // the default the row's own style).
+  assert.equal(churnDensity(24, 721, { scale: 60 }), 2)
+})
+
+test('the churn\'s own meter (v0.756.0): the meter rides the paradox object', () => {
+  // The face-33 fixture (0 deaths, 35 starts) + one heartbeat line: the
+  // meter joins the hb clock by reuse (sealDeathCensus's clockEnd).
+  const lines = face33()
+  lines.push('[2026-10-07 10:00:00:123] F1 [F1 b] heartbeat] n=36 ts=600s')
+  const r = calmRescueParadox(lines)
+  assert.ok(r.paradox)
+  assert.ok(r.paradox.meter)
+  assert.equal(r.paradox.meter.clockEndS, 600)
+  assert.equal(r.paradox.meter.density, 5.83)
+  assert.equal(r.paradox.meter.scale, 100)
+  // A clockless face (no hb lines) reads the meter's own silence.
+  const clockless = calmRescueParadox(face33())
+  assert.ok(clockless.paradox)
+  assert.equal(clockless.paradox.meter, null)
+})
+
+test('the churn\'s own meter (v0.756.0): junk battery - no density from nothing', () => {
+  assert.equal(churnDensity(null, 600), null)
+  assert.equal(churnDensity('24', 600), null)
+  assert.equal(churnDensity(-1, 600), null)
+  assert.equal(churnDensity(24, null), null)
+  assert.equal(churnDensity(24, 0), null)
+  assert.equal(churnDensity(24, -5), null)
+  assert.equal(churnDensity(24, 600, { scale: 0 }), null)
+  assert.equal(churnDensity(NaN, 600), null)
+  // The zero-starts face prices honestly at 0 (a quiet lane is data).
+  assert.equal(churnDensity(0, 600), 0)
+})

@@ -353,7 +353,11 @@ const calm = calmRescueParadox(lines)
 if (calm && calm.paradox) {
   const p = calm.paradox
   const top = p.top ? `top ${p.top[0]}=${p.top[1]} of ${p.spenders} spender(s)` : 'no spender table'
-  console.log(`  the calm paradox (v0.701.0): 0 death(s) rode ${p.starts} rescue start(s) (${top}, ends complete ${p.ends.complete} / released ${p.ends.released} / standdown ${p.ends.frozenStanddown} / timeout ${p.ends.timeout} / unclosed ${p.ends.unclosed}) - the water lane churns on its own clock, the deaths are not its meter`)
+  // (v0.756.0) the churn's own meter - the density the row always named
+  // but never priced (starts per 100s of the face's own hb clock); a
+  // clockless face reads the meter's own silence (no tail, no invention).
+  const meterTail = p.meter ? ` - the churn's own meter (v0.756.0): ${p.starts} start(s) over the clock's ${p.meter.clockEndS}s = ${p.meter.density} starts/100s` : ''
+  console.log(`  the calm paradox (v0.701.0): 0 death(s) rode ${p.starts} rescue start(s) (${top}, ends complete ${p.ends.complete} / released ${p.ends.released} / standdown ${p.ends.frozenStanddown} / timeout ${p.ends.timeout} / unclosed ${p.ends.unclosed}) - the water lane churns on its own clock, the deaths are not its meter${meterTail}`)
 }
 // (v0.728.0) THE SAVED FACE - the starts' own collective verdict, the cell
 // the end histogram never held: the ledger prices every END, the calm

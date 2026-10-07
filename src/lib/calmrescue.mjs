@@ -28,6 +28,7 @@
 
 import { rescueLedger } from './rescue-ledger.mjs'
 import { deathKindCensus } from './deathkinds.mjs'
+import { sealDeathCensus } from './sealdeath.mjs'
 
 // THE PARADOX'S BAR - sustained churn, not a single strand: ten starts
 // is the lane running its own program (the 33rd's 35, the 14-era's 53);
@@ -74,7 +75,45 @@ export function calmRescueParadox (lines) {
         frozenStanddown: rescue.totals.frozenStanddown || 0,
         timeout: rescue.totals.timeout || 0,
         unclosed: rescue.totals.unclosed || 0
-      }
+      },
+      // (v0.756.0) the churn's own meter - the paradox's clock leg (the
+      // density the row always named but never priced); null on a
+      // clockless face (the meter's own silence).
+      meter: meterFrom(src, starts)
     }
   }
+}
+
+// (v0.756.0) the meter's own join: the face's hb clock (sealDeathCensus's
+// clockEnd) prices the churn's density - the one-parser law by reuse, no
+// new regexes, no second walk of the rescue shapes.
+function meterFrom (src, starts) {
+  const clockEndS = sealDeathCensus(src).clock.clockEnd
+  const density = churnDensity(starts, clockEndS)
+  if (density === null) return null
+  return { clockEndS, density, scale: CHURN_METER_SCALE_S }
+}
+
+// (v0.756.0) THE CHURN'S OWN METER - the paradox's clock leg arrives. The
+// v0.701.0 row named the meter's law ("the water lane churns on its own
+// clock, the deaths are not its meter") but priced no density: 35 starts
+// on the 33rd, 53 on the 14-era face, 24 on face 63 (37589681027, the
+// anatomy tree's first face, 0 deaths over a 721s clock) - raw counts,
+// never per-clock. The meter rides the face's OWN heartbeat clock
+// (sealDeathCensus's clockEnd - the last hb's ts, the death clock's own
+// end read; reused, zero new regexes): starts per CHURN_METER_SCALE_S
+// (100s - the pace row's own unit style), 2 decimals (the siege pace's
+// own rounding law). Face 63's maiden read: 24 starts over 721s =
+// 3.33 starts/100s. Junk law: a non-finite/negative start count, a
+// zero/non-finite clock end (the clock never invents - no division by
+// zero, the honest null), or a non-positive scale reads null; the
+// paradox without a clock (a pre-hb face) carries meter: null and the
+// row prints without the tail (the meter's own silence).
+export const CHURN_METER_SCALE_S = 100
+
+export function churnDensity (starts, clockEndS, { scale = CHURN_METER_SCALE_S } = {}) {
+  if (!Number.isFinite(starts) || starts < 0) return null
+  if (!Number.isFinite(clockEndS) || clockEndS <= 0) return null
+  if (!Number.isFinite(scale) || scale <= 0) return null
+  return Number(((starts / clockEndS) * scale).toFixed(2))
 }
