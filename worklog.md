@@ -18820,3 +18820,26 @@ Stage Summary:
 - FACE 60'S CORPSES ARE NOW HARNESS: the body-count gate turns any mid-test mob storm into the honest skip instead of a 390s pipeline-look-alike failure that loses the whole face.
 - Fronts: face 61's mine (the first fully-protected face - the day-lock's and the tally's joint debut); the economy front (face 59: banked 0 of 2006, leaks 68.3%, the door leg's chest-unreachable 54); the drought's sand seat; the re-entry delayed class's 2nd read.
 - Next fire: (1) CI verdict on the tree (the worklog push's own run) FIRST. (2) poll face 61 (37583836654) - SUCCESS -> mine with the v0.752.0 stack. (3) dispatch law x75 on clear (0.753.0 next slot).
+
+---
+Task ID: cron30-20261007-1500
+Agent: cron-agent (PLANETA9091)
+Task: standard cron fire 1500 - the tree's CI verdict, face 61's mine (the first fully-protected face), dispatch law x75 on clear
+
+Work Log:
+- Sandbox survived. Master synced 3d9ed3b (v0.752.0); next free 0.753.0. No lane pushes this fire.
+- CI lineage resolved at open: the tree CI 37584323574 (3d9ed3b, v0.752.0 THE STORM'S OWN TALLY + the lane's v0.751.0 DAY-LOCK aboard) read SUCCESS at ~t+32min - BOTH protections' tree is CI-green (the tally's +3 unit tests and the day-lock's workflow leg ran together; the integration job's fresh world went green after face 60's storm failure - the joint debut held).
+- FACE 61 MINED (37583836654 SUCCESS on fc768b9 - the first tree with both protections; 3278 fleet rows + 513 server rows; FLEET RESULT normal end deadline 600s): THE STORM'S REST - 3 deaths only (drown x2, fall x1, mob 0) vs face 59's 17; the deadline's own third AGAIN (early 0 / mid 1 / late 2 - the calm's deaths still rode the face's end); the misread's own witness again (drown->mob x2, both riding the dead sensor: F4 zombie@13.7, F14 zombie@8.7 - the inference CONTRADICTS the server's drown verdict); relogs 3 (F4=2, F14=1 - the two drowners); chase F14 zombie STUCK (9.9->9.8); the crowded sky 6/38 refusals starved at ents median 2327 (6/6 at/past half the ceiling); rss peak 498M.
+- THE FURNACE BOOK'S FULLEST READ (16 batches vs face 59's 1): the debt 270u smelting (fuel 162 / clock 108; raw_copper 231, cobblestone 29); the payback 15 chain(s) returned, 34 of 270 re-announced, 0 unanswered; the diet 95% (capacity's own tail unpaid); THE WINDOW LENS'S 2ND READ with the corrected verdict: 562s of window for 47 unit(s) put (the plan's own cap), the vanilla capacity 56.2 left 92s idle (the plan's own 11s bar is the tax); the ask's own scale: 56.2 = 36% of the 155 asked (the batch's own size owned the debt). All four entries + both corrections priced on one face.
+- THE ECONOMY'S ARC HEALED: mined 2436, banked 1838 (75.5% banked share, conversion 104.6%) vs face 59's banked 0 of 2006; the door leg 12 (vs 68), chest-unreachable 6 (vs 54), the door's rate 8% of 150 visit-lines, 12.3u/visit; pocket 682u, top F15 69u (10.1%).
+- THE DROUGHT'S SAND SEAT BROKE: 3 launches, ALL 3 DELIVERED (F8+15u, F4+2u, F15+12u; spans 91-93s) - the delivery leg worked for the first time in the streak; sand pocket 0 -> 16 (peak 36), first nonzero at t-400s; the map holds 332 sand positions (vs 118); skips 13 (shaft-locked 8, unreachable 5) still own the gate - the starvation is now the skips, not the launches.
+- The re-entry's own gap: the honest silence (immediate x0 / delayed x0 - the drown deaths did not re-drown).
+- Code fire: NO improvement this round - the lens library surveyed (bankdocket/o2gap/shieldledger/verdictflip all mature, the v0.750.0 correction closed the smeltledger's last self-declared subject); the fire's seat went to the verdicts + the mine + the dispatch. 0.753.0 stays free.
+- DISPATCH LAW x75 FIRED: poll-before-duplicate clear (face 61 completed SUCCESS, no dispatch runs active), POST 204, face 62 = run 37586368766 IN_PROGRESS on 3d9ed3b (the v0.752.0 tree's first face) - materialization verified.
+- Pushes: worklog only (this commit). CI: the tree verdict carried by 37584323574 SUCCESS; no new push-CI rides this fire beyond the worklog commit's own run.
+
+Stage Summary:
+- v0.752.0 (THE STORM'S OWN TALLY, 3d9ed3b) is master's tip, CI-green (37584323574); next free 0.753.0; face 62 in flight (my x75, on 3d9ed3b).
+- THE FIRST FULLY-PROTECTED FACE DELIVERED THE CALM AND THE HEALING: the storm rested (3 deaths, mob 0), the economy banked 75.5% (vs 0), the drought's launches all delivered, the furnace book priced all four entries + both corrections on 16 batches.
+- Fronts: face 62's mine (the tally's tree's own first face - the same stack, a fresh world); the drought's skip gate (shaft-locked 8 + unreachable 5 own the starvation now); the dead sensor's drown->mob confusion (3rd consecutive face); the smelt refusals' own anatomy (9 refusals: nothing to smelt 4, no fuel 2 - thin but recurring); 0.753.0's front unnamed - the lens library is mature, the next read names it.
+- Next fire: (1) poll face 62 (37586368766) - SUCCESS -> mine with the v0.752.0 stack. (2) dispatch law x76 on clear (0.753.0 next slot). (3) the code fire's seat returns - take ONE front from the face 62 mine.
