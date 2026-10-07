@@ -95,7 +95,7 @@ import { stormCensus } from '../../src/lib/stormcensus.mjs' // (v0.409.0) the st
 import { gcPoolCensus } from '../../src/lib/gcpool.mjs' // (v0.421.0) the GC Pinned hunt's pool read (the old/ext/ab split)
 import { voidCensus } from '../../src/lib/voidcensus.mjs' // (v0.423.0) the out-of-world stamp's field read
 import { deathKindCensus, deathKindBill, deathKindBillRow, deathKindRiders, deathKindRidersRow, mobAttackerBill, mobAttackerBillRow, mobAttackerRiders, mobAttackerRidersRow } from '../../src/lib/deathkinds.mjs' // (v0.425.0) the vertical-death front's mechanical leg; (v0.784.0) WHICH kind owns the death book; (v0.788.0) WHICH server-named killer owns the mob book
-import { houndCensus } from '../../src/lib/houndcensus.mjs' // (v0.433.0) the hound presence's field read
+import { houndCensus, houndArenaSeat, houndArenaSeatRow, houndArenaRiders, houndArenaRidersRow } from '../../src/lib/houndcensus.mjs' // (v0.433.0) the hound presence's field read; (v0.791.0) WHICH arena owns the hound kill book
 import { faceFate } from '../../src/lib/facefate.mjs' // (v0.546.0) the frozen book's READER side - the face's own fate named before the censuses speak
 
 const file = process.argv[2]
@@ -615,6 +615,16 @@ console.log(`  hound presence (any form): ${hound.presence} answer moment(s) - f
 console.log(`  hound defeats (the fleet won - mob down): ${hound.fightsWon}`, 'per-bot:', fmt(hound.fightsWonByBot), `| other fight exits: ${hound.fightEndsOther}`)
 console.log(`  hound episode detail: flee hops ${hound.fleeHops} / verdict flips ${hound.verdictFlips} / re-verdicts ${hound.reVerdicts}`)
 console.log(`  hound kills (the hound won): ${hound.kills} (dry-shore ${hound.killsDryShore} / in-water ${hound.killsInWater} / waterline ${hound.killsWaterline}) | drown contexts (the water did it): ${hound.drownContexts}`)
+  // (v0.791.0) THE HOUND KILL'S OWN ARENA - WHICH arena class owns the
+  // hound's own kill book (the seat + the riders, one row never both - the
+  // branch law; the owner case leaves the companion unprinted; a hound-less
+  // face reads the honest silence).
+  const haren = houndArenaSeat(hound)
+  if (haren) console.log(`  ${houndArenaSeatRow(haren)}`)
+  else {
+    const harr = houndArenaRiders(hound)
+    if (harr) console.log(`  ${houndArenaRidersRow(harr)}`)
+  }
 for (const s of hound.otherSamples) console.log("   ~ hound other:", s.slice(0, 140))
 // (v0.379.0) THE O2-RESET DEATH CENSUS - the sensor-class ledger gains its
 // third entry: the oxygen read RESET (reset(-1), the lost read rendered) and

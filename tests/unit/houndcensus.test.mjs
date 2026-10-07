@@ -8,7 +8,8 @@
 
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { houndCensus } from '../../src/lib/houndcensus.mjs'
+import fs from 'node:fs'
+import { houndCensus, houndArenaSeat, houndArenaSeatRow, houndArenaRiders, houndArenaRidersRow } from '../../src/lib/houndcensus.mjs'
 
 // face-27 verbatims (the forms the v0.371.0 rows never read)
 const FIGHT = 'F9 [F9] combat: fighting drowned (dist 4.1, hp 20.0, 1 nearby, proximity)'
@@ -180,4 +181,92 @@ test('the pollution class stays out: prose and single-tag lines never match', ()
   // only the double-tag anatomy answers - the unanchored copy is the hatch's proof
   assert.equal(c.shelter, 1)
   assert.equal(c.presence, 1)
+})
+
+// (v0.791.0) THE HOUND KILL'S OWN ARENA - the seat + the riders (the
+// v0.788.0 attacker-seat test shape; the census's own arena cells only,
+// zero re-parsing; the strict-majority law, a tie owns nothing; the arena
+// mass is the arena cells' own sum; junk never invents an arena).
+
+test("the face-81 arena book through the seat: dry-shore owns the hound book, the byte-exact row + the measure-not-owner law", () => {
+  // face 81's own read: 7 kills, dry-shore 5 / in-water 2 - the hound
+  // speared FIVE bots on DRY land
+  const census = houndCensus([KILL_DRY, KILL_DRY, KILL_DRY, KILL_DRY, KILL_DRY, KILL_WATER, KILL_WATER])
+  const seat = houndArenaSeat(census)
+  assert.deepEqual(seat, { arena: 'dry-shore', owns: 5, ofKills: 7, shareOfKills: 0.714 })
+  assert.equal(
+    houndArenaSeatRow(seat),
+    "the hound kill's own arena (v0.791.0): dry-shore owns 5 of 7 hound kill(s) (71.4%) - THE ARENA'S OWN SEAT: one arena's own kills own the hound book - the arena's own front prices the deaths the raw split rode unnamed"
+  )
+  // the measure-not-owner law: the riders stay a MEASURE beside the seat -
+  // the decompose's branch law (one row never both) leaves the companion
+  // unprinted in the owner case, the function's own shape never gates
+  const r = houndArenaRiders(census)
+  assert.equal(r.leader, 'dry-shore')
+  assert.equal(r.runner, 'in-water')
+  assert.equal(r.pairOwns, 7)
+  assert.equal(r.duet, false)
+})
+
+test("the tie owns nothing, the below-half fence, the duet byte order pin 'dry-shore' < 'in-water'", () => {
+  // the tie law: 2 + 2 owns nothing solo - the riders price the duet
+  const tie = houndCensus([KILL_DRY, KILL_DRY, KILL_WATER, KILL_WATER])
+  assert.equal(houndArenaSeat(tie), null)
+  const r = houndArenaRiders(tie)
+  assert.deepEqual(r, { leader: 'dry-shore', leaderOwns: 2, runner: 'in-water', runnerOwns: 2, ofKills: 4, pairOwns: 4, shareOfKills: 1, duet: true })
+  assert.equal(
+    houndArenaRidersRow(r),
+    "the hound kill's own arena riders (v0.791.0): no solo arena owns the majority - dry-shore x2 + in-water x2 own 4 of 4 hound kill(s) (100.0%) - THE ARENA'S OWN MIX: the seat's tie law held, the mix is the shape - the hound's own grounds price the arenas the solo law refused to name"
+  )
+  // the below-half fence: the top cell at exactly half reads no solo seat
+  // (the riders keep the shape, the byte order broke the rank tie)
+  const half = houndCensus([KILL_DRY, KILL_DRY, KILL_WATER, KILL_WATERLINE])
+  assert.equal(houndArenaSeat(half), null)
+  const rh = houndArenaRiders(half)
+  assert.equal(rh.leader, 'dry-shore')
+  assert.equal(rh.runner, 'in-water')
+  assert.equal(rh.pairOwns, 3)
+  assert.equal(rh.ofKills, 4)
+  assert.equal(rh.duet, false)
+})
+
+test("the arena book is the cells' own sum, the single-arena fence holds", () => {
+  // the census's own counting law: a junk-class kill trails the kills
+  // counter - the seat reads the ARENA cells' own book (7), never the
+  // kills counter (8)
+  const census = { ...houndCensus([KILL_DRY, KILL_DRY, KILL_DRY, KILL_DRY, KILL_DRY, KILL_WATER, KILL_WATER]), kills: 8 }
+  const seat = houndArenaSeat(census)
+  assert.equal(seat.ofKills, 7)
+  assert.equal(seat.owns, 5)
+  // the single-arena fence: one counted arena reads a seat but no riders
+  // (fewer than two classes - the honest silence's companion law)
+  const solo = houndCensus([KILL_DRY, KILL_DRY, KILL_DRY])
+  const soloSeat = houndArenaSeat(solo)
+  assert.deepEqual(soloSeat, { arena: 'dry-shore', owns: 3, ofKills: 3, shareOfKills: 1 })
+  assert.equal(houndArenaRiders(solo), null)
+})
+
+test('the junk battery + the WIRING assert - the decompose branch rides the cell, the prose lives only in the lib', () => {
+  // the junk battery: junk never invents an arena (the honest silence)
+  assert.equal(houndArenaSeat(null), null)
+  assert.equal(houndArenaSeat(undefined), null)
+  assert.equal(houndArenaSeat([1, 2]), null)
+  assert.equal(houndArenaSeat({}), null)
+  assert.equal(houndArenaSeat({ killsDryShore: 0, killsInWater: 0, killsWaterline: 0 }), null)
+  assert.equal(houndArenaSeat({ killsDryShore: -1, killsInWater: 1, killsWaterline: 1 }), null)
+  assert.equal(houndArenaSeat({ killsDryShore: NaN, killsInWater: NaN, killsWaterline: NaN }), null)
+  assert.equal(houndArenaSeatRow(null), null)
+  assert.equal(houndArenaSeatRow({ arena: '', owns: 1, ofKills: 1, shareOfKills: 1 }), null)
+  assert.equal(houndArenaSeatRow({ arena: 'dry-shore', owns: 2, ofKills: 1, shareOfKills: 2 }), null)
+  assert.equal(houndArenaRiders(null), null)
+  assert.equal(houndArenaRiders({}), null)
+  assert.equal(houndArenaRidersRow(null), null)
+  assert.equal(houndArenaRidersRow({ leader: 'dry-shore', leaderOwns: 0, runner: 'in-water', runnerOwns: 1, ofKills: 2, pairOwns: 1, shareOfKills: 0.5 }), null)
+  // the WIRING assert - the decompose branch rides the hound kills line,
+  // the prose lives only in the lib
+  const src = fs.readFileSync(new URL('../../scripts/fleet-mining/decompose.mjs', import.meta.url), 'utf8')
+  assert.ok(src.includes('const haren = houndArenaSeat(hound)'), 'the seat rides the census cell')
+  assert.ok(src.includes('if (haren) console.log(`  ${houndArenaSeatRow(haren)}`)'), 'the owner row rides the branch')
+  assert.ok(src.includes('const harr = houndArenaRiders(hound)'), 'the riders ride the same branch law')
+  assert.ok(!src.includes("THE ARENA'S OWN SEAT"), 'the prose stays in the lib')
 })

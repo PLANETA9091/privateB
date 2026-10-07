@@ -214,3 +214,97 @@ export function houndCensus (lines) {
   }
   return c
 }
+
+// (v0.791.0) THE HOUND KILL'S OWN ARENA - WHICH arena class owns the hound's
+// own kill book. The census row named the arenas' counts ('hound kills (the
+// hound won): 7 (dry-shore 5 / in-water 2 / waterline 0)' - face 81's own
+// read: the hound speared FIVE bots on DRY land) while the WHO rode raw: no
+// row ever said WHICH arena's own kills own the hound book. THE SEAT LAW
+// (the census's own arena cells only, zero re-parsing - the v0.784.0
+// kind-seat precedent, the v0.788.0 attacker seat's own shape): the
+// strict-majority law - a solo arena owns the hound book only above half (a
+// tie owns nothing); the arena mass is the arena cells' own sum (a junk
+// class may trail the kills counter - the census's own counting law, the
+// cell keeps its own book); junk never invents an arena (a missing or
+// non-object census, a non-finite or non-positive cell, or no counted arena
+// reads the honest silence - null, the decompose's own guard skips the row).
+function houndArenaTally (census) {
+  if (!census || typeof census !== 'object' || Array.isArray(census)) return null
+  const cells = {
+    'dry-shore': census.killsDryShore,
+    'in-water': census.killsInWater,
+    waterline: census.killsWaterline
+  }
+  const tallies = {}
+  let total = 0
+  for (const [arena, n] of Object.entries(cells)) {
+    if (!Number.isFinite(n) || n <= 0) continue
+    total += n
+    tallies[arena] = (tallies[arena] || 0) + n
+  }
+  return total > 0 ? { tallies, total } : null
+}
+
+export function houndArenaSeat (census) {
+  const t = houndArenaTally(census)
+  if (!t) return null
+  let topOwns = 0
+  let topArena = null
+  for (const [arena, n] of Object.entries(t.tallies)) {
+    if (n > topOwns) { topOwns = n; topArena = arena }
+  }
+  if (topArena === null || topOwns <= t.total - topOwns) return null
+  return { arena: topArena, owns: topOwns, ofKills: t.total, shareOfKills: +(topOwns / t.total).toFixed(3) }
+}
+
+// (v0.791.0) the arena seat's own row - THE ARENA'S OWN SEAT: the seat names
+// WHICH arena owns the hound book; the arena's own front prices the cure
+// (a dry-shore book is the shore protocol's own leak - the hound chased the
+// flee ashore and won on LAND; an in-water book the swim's). Junk never
+// prints a seat (the honest silence's own row law).
+export function houndArenaSeatRow (seat) {
+  if (!seat || typeof seat !== 'object') return null
+  const { arena, owns, ofKills, shareOfKills } = seat
+  if (typeof arena !== 'string' || !arena ||
+      !Number.isFinite(owns) || owns <= 0 ||
+      !Number.isFinite(ofKills) || ofKills <= 0 || owns > ofKills ||
+      !Number.isFinite(shareOfKills)) return null
+  return `the hound kill's own arena (v0.791.0): ${arena} owns ${owns} of ${ofKills} hound kill(s) (${(shareOfKills * 100).toFixed(1)}%) - THE ARENA'S OWN SEAT: one arena's own kills own the hound book - the arena's own front prices the deaths the raw split rode unnamed`
+}
+
+// (v0.791.0) THE HOUND KILL'S OWN ARENA RIDERS - the arena seat's own
+// silence's companion. The seat names the solo arena under the
+// strict-majority law; a no-majority arena mix rode raw with no row naming
+// the shape. THE RIDER LAW (the census's own arena cells only, zero
+// re-parsing - the seat's own precedent): a MEASURE, never a verdict-owner
+// - the top two arenas' concentration prices the shape the solo law refused
+// to name (the seat's owner case leaves the companion unprinted - the
+// decompose's own branch law). Junk never invents a shape: a missing or
+// non-object census, a non-finite or non-positive cell, or fewer than two
+// counted arenas reads the honest silence (null). The order is
+// deterministic (count desc, then the arena's own byte: 'dry-shore' <
+// 'in-water' < 'waterline').
+export function houndArenaRiders (census) {
+  const t = houndArenaTally(census)
+  if (!t) return null
+  const ranked = Object.entries(t.tallies).sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1))
+  if (ranked.length < 2) return null
+  const [leader, leaderOwns] = ranked[0]
+  const [runner, runnerOwns] = ranked[1]
+  const pairOwns = leaderOwns + runnerOwns
+  return { leader, leaderOwns, runner, runnerOwns, ofKills: t.total, pairOwns, shareOfKills: +(pairOwns / t.total).toFixed(3), duet: leaderOwns === runnerOwns }
+}
+
+// (v0.791.0) the arena riders' own row - THE ARENA'S OWN MIX: a measure of
+// the shape, never a named owner (the seat's tie law holds); the pair
+// prices the concentration the solo law refused to seat. Junk never prints
+// a shape (the honest silence's own row law).
+export function houndArenaRidersRow (r) {
+  if (!r || typeof r !== 'object') return null
+  const { leader, leaderOwns, runner, runnerOwns, ofKills, pairOwns, shareOfKills } = r
+  if (typeof leader !== 'string' || !leader || typeof runner !== 'string' || !runner ||
+      !Number.isFinite(leaderOwns) || leaderOwns <= 0 || !Number.isFinite(runnerOwns) || runnerOwns <= 0 ||
+      !Number.isFinite(ofKills) || ofKills <= 0 || !Number.isFinite(pairOwns) || pairOwns > ofKills ||
+      !Number.isFinite(shareOfKills)) return null
+  return `the hound kill's own arena riders (v0.791.0): no solo arena owns the majority - ${leader} x${leaderOwns} + ${runner} x${runnerOwns} own ${pairOwns} of ${ofKills} hound kill(s) (${(shareOfKills * 100).toFixed(1)}%) - THE ARENA'S OWN MIX: the seat's tie law held, the mix is the shape - the hound's own grounds price the arenas the solo law refused to name`
+}
