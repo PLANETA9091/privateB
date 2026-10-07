@@ -1377,6 +1377,16 @@ console.log('  hazard memorized:', count(/hazard memorized/))
     const kindTail = Object.entries(kk.byKind).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k} ${v}`).join(' / ')
     const dupN0 = (frozenCensus(lines).dupKicks && frozenCensus(lines).dupKicks.n) || 0
     console.log(`  the kick's own kinds (v0.730.0): ${kk.n} kicked line(s) - ${kindTail}; the dup class ${kk.dupN}, the dupKicks reconcile ${kk.dupN === dupN0 ? 'holds' : `MISSES (census ${kk.dupN} vs dupKicks ${dupN0})`}`)
+    // (v0.761.0) THE KICK KINDS' OWN VERDICT - the monopoly/spread leg of
+    // the v0.730.0 census (face 67's own read: one kind owned 13 of 13 and
+    // the row spoke raw). One additive row - the cells are the census's
+    // own, zero re-parsing.
+    if (kk.verdict && kk.verdict.topKind) {
+      const kv = kk.verdict.topKind
+      console.log(`  the kick kinds' own verdict (v0.761.0): ${kv.cls} owns ${kv.units} of ${kk.verdict.total} kick(s) (${(kv.shareOfKicks * 100).toFixed(1)}%): ${kv.lever}`)
+    } else if (kk.verdict) {
+      console.log('  the kick kinds\' own verdict (v0.761.0): no single kind owns the kicks (the storm has no seat)')
+    }
   }
 }
 // (v0.729.0) THE DUPLICATE'S OWN CLOCK - the server log's join side. The

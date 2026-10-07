@@ -50,5 +50,42 @@ export function kickKindCensus (lines) {
   for (const [k, v] of Object.entries(byKind)) {
     if (k.includes('duplicate_login')) dupN += v
   }
-  return { n, byKind, byBot, kinds: Object.keys(byKind).sort(), dupN }
+  return { n, byKind, byBot, kinds: Object.keys(byKind).sort(), dupN, verdict: kickKindVerdict(byKind) } // (v0.761.0) the verdict rides additively - the kick kinds' own front
+}
+
+// (v0.761.0) THE KICK KINDS' OWN VERDICT - the census's verdict leg (the
+// raw kinds rode since v0.730.0; face 67's own read delivered the first
+// monopoly: disconnect.timeout owned 13 of 13 kicks and the row spoke raw,
+// no front named). THE KIND LAW (the byKind cells only, zero re-parsing -
+// the v0.758.0 seat precedent): the top kind rides under the
+// strict-majority law (a tie owns nothing - the storm-has-no-seat
+// precedent) with the lever table's own front; the duplicate_login kind
+// defers to the v0.729.0 dup clock's own lane (the cadence is priced
+// there - the verdict names the front without re-pricing it). Junk never
+// invents a verdict: an empty mix reads null; non-finite/negative counts
+// are skipped and counted (the count's own junk law - never priced, never
+// silently dropped).
+export const KICK_KIND_LEVERS = {
+  'disconnect.timeout': 'the client\'s own stall is the front',
+  'multiplayer.disconnect.duplicate_login': 'the duplicate\'s own clock is the front (the v0.729.0 lane prices the cadence)',
+}
+
+export function kickKindVerdict (byKind) {
+  const mix = (byKind && typeof byKind === 'object' && !Array.isArray(byKind)) ? byKind : {}
+  let total = 0
+  let bad = 0
+  let topUnits = 0
+  let topCls = null
+  for (const [k, v] of Object.entries(mix)) {
+    if (!Number.isFinite(v) || v < 0) { bad++; continue }
+    total += v
+    if (v > topUnits) { topUnits = v; topCls = k }
+  }
+  if (total === 0) return null
+  const leverFor = (k) => KICK_KIND_LEVERS[k]
+    || (k.includes('duplicate_login') ? 'the duplicate\'s own clock is the front (the v0.729.0 lane prices the cadence)' : 'the kind\'s own detail is the front')
+  const topKind = topCls !== null && topUnits > total - topUnits
+    ? { cls: topCls, units: topUnits, shareOfKicks: +(topUnits / total).toFixed(3), lever: leverFor(topCls) }
+    : null
+  return { total, topKind, bad }
 }
