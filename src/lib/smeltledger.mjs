@@ -54,6 +54,19 @@ export const SMELT_REFUSAL_RE = /^(F\d+) smelt: 0 \(([^)]+)\)$/
 // chain still land here (ANY bot's collect reads the machine).
 export const SMELT_TOOK_RE = /^\[(F\d+)\] took (\d+) x ([a-z_]+) \((\d+)\/(\d+)\)$/
 
+// (v0.744.0) THE CLIP'S OWN DEBT - the clip lines' captured numbers
+// priced the ASK/COMPLETION split (fuelClipCompleted 16 of asked 33) but
+// dropped the deficit itself: the units the chain left IN THE FURNACE
+// ('the rest re-smelts on the next chain' - and the 55th face's chains
+// never re-announced: 49 raw_copper units sat mid-smelt). The heal rides
+// the SAME SMELT_FUEL_CLIP_RE / SMELT_CLOCK_CLIP_RE matches (one parser
+// per shape): debt = asked - completed per clip -> clipDebt (sum),
+// clipDebtFuel / clipDebtClock (the two classes), clipDebtItems (the
+// item's own debt - fc[6]/cc[5] were captured and dropped before),
+// byBot.clipDebt. clipDebtRow is the verdict (the furnace still owes
+// the harvest); zero clips = the honest silence. The old fields stay
+// byte-stable beside it.
+
 /**
  * Read the smelt lane's own words into a ledger.
  * @param {string[]} lines one fleet-log, all lines
@@ -79,10 +92,14 @@ export function smeltLedger (lines) {
     collected: 0,
     tookItems: {},
     tooks: 0,
+    clipDebt: 0, // (v0.744.0) the clips' own deficit (asked - completed, both classes)
+    clipDebtFuel: 0,
+    clipDebtClock: 0,
+    clipDebtItems: {},
     byBot: {}
   }
   const bot = (id) => {
-    if (!ledger.byBot[id]) ledger.byBot[id] = { batches: 0, announced: 0, fuel: 0, refusals: 0, clips: 0, collected: 0 }
+    if (!ledger.byBot[id]) ledger.byBot[id] = { batches: 0, announced: 0, fuel: 0, refusals: 0, clips: 0, collected: 0, clipDebt: 0 }
     return ledger.byBot[id]
   }
   for (const line of lines) {
@@ -109,6 +126,12 @@ export function smeltLedger (lines) {
       ledger.fuelClipCompleted += Number(fc[4])
       ledger.fuelClipAsked += Number(fc[5])
       bot(fc[1]).clips++
+      // (v0.744.0) the clip's own debt - the units the chain left smelting
+      const debt = Number(fc[5]) - Number(fc[4])
+      ledger.clipDebt += debt
+      ledger.clipDebtFuel += debt
+      ledger.clipDebtItems[fc[6]] = (ledger.clipDebtItems[fc[6]] || 0) + debt
+      bot(fc[1]).clipDebt += debt
       continue
     }
     const cc = line.match(SMELT_CLOCK_CLIP_RE)
@@ -117,6 +140,12 @@ export function smeltLedger (lines) {
       ledger.clockClipCompleted += Number(cc[3])
       ledger.clockClipAsked += Number(cc[4])
       bot(cc[1]).clips++
+      // (v0.744.0) the clip's own debt - the clock class's own deficit
+      const debt = Number(cc[4]) - Number(cc[3])
+      ledger.clipDebt += debt
+      ledger.clipDebtClock += debt
+      ledger.clipDebtItems[cc[5]] = (ledger.clipDebtItems[cc[5]] || 0) + debt
+      bot(cc[1]).clipDebt += debt
       continue
     }
     const r = line.match(SMELT_REFUSAL_RE)
@@ -138,4 +167,13 @@ export function smeltLedger (lines) {
     }
   }
   return ledger
+}
+
+// (v0.744.0) ONE verdict line, only when the chains left a debt at all
+// (zero clips = the honest silence - no row invented). The items' own
+// tail names WHAT the furnace owes (the top two, weight-first).
+export function clipDebtRow (ledger) {
+  if (!ledger || !(ledger.clipDebt > 0)) return null
+  const items = Object.entries(ledger.clipDebtItems || {}).sort((a, b) => b[1] - a[1]).slice(0, 2).map(([k, n]) => `${k} ${n}`).join(', ')
+  return `the clip's own debt: the chains left ${ledger.clipDebt} unit(s) smelting (fuel ${ledger.clipDebtFuel} / clock ${ledger.clipDebtClock}${items ? `; ${items}` : ''}) - the furnace still owes the harvest`
 }

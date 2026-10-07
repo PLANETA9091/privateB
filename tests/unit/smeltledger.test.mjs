@@ -6,7 +6,7 @@
 // split avoids). Junk judges nothing, non-array is null.
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { smeltLedger, SMELT_START_RE, SMELT_FUEL_CLIP_RE, SMELT_CLOCK_CLIP_RE, SMELT_REFUSAL_RE, SMELT_TOOK_RE } from '../../src/lib/smeltledger.mjs'
+import { smeltLedger, clipDebtRow, SMELT_START_RE, SMELT_FUEL_CLIP_RE, SMELT_CLOCK_CLIP_RE, SMELT_REFUSAL_RE, SMELT_TOOK_RE } from '../../src/lib/smeltledger.mjs'
 
 test('smelt-ledger: the batches, the fuel and the per-bot/per-item split (live face 36/39 shapes)', () => {
   const lines = [
@@ -114,4 +114,66 @@ test('smelt-ledger: the harvest leg - the took lines join the counter to the wor
   const l2 = smeltLedger(['[F2] took 4 x stone (2/5)'])
   assert.equal(l2.collected, 4)
   assert.equal(l2.tookItems.stone, 4)
+})
+
+// ---- (v0.744.0) THE CLIP'S OWN DEBT ----
+
+test('clip-debt: the 55th\'s own two clips - F4\'s raw_copper chain owed 49 units (live byte-verbatim shapes)', () => {
+  const lines = [
+    '[F4] smelting 33 x raw_copper in a furnace (fuel: 2 x coal)',
+    '[F4] fuel clips the batch: 2 x coal completes 16 of 33 x raw_copper (the rest re-smelts on the next chain)',
+    '[F4] the clock clips the batch: the 17s window completes ~1 of 33 x raw_copper (the rest re-smelts on the next chain)'
+  ]
+  const l = smeltLedger(lines)
+  assert.equal(l.fuelClips, 1)
+  assert.equal(l.clockClips, 1)
+  // the old fields byte-stable beside the debt
+  assert.equal(l.fuelClipCompleted, 16)
+  assert.equal(l.fuelClipAsked, 33)
+  assert.equal(l.clockClipCompleted, 1)
+  assert.equal(l.clockClipAsked, 33)
+  // the debt's own read: 17 fuel + 32 clock = 49 raw_copper
+  assert.equal(l.clipDebt, 49)
+  assert.equal(l.clipDebtFuel, 17)
+  assert.equal(l.clipDebtClock, 32)
+  assert.deepEqual(l.clipDebtItems, { raw_copper: 49 })
+  assert.equal(l.byBot.F4.clipDebt, 49)
+  const row = clipDebtRow(l)
+  assert.ok(row)
+  assert.equal(row, "the clip's own debt: the chains left 49 unit(s) smelting (fuel 17 / clock 32; raw_copper 49) - the furnace still owes the harvest")
+})
+
+test('clip-debt: the 53rd\'s own junk-diet clips - two bots, two items, the oak_log join', () => {
+  const lines = [
+    '[F6] fuel clips the batch: 2 x oak_log completes 3 of 4 x oak_log (the rest re-smelts on the next chain)',
+    '[F2] fuel clips the batch: 3 x stick completes 1 of 2 x oak_log (the rest re-smelts on the next chain)'
+  ]
+  const l = smeltLedger(lines)
+  assert.equal(l.clipDebt, 2, '1 + 1 - the two chains\' own deficits')
+  assert.equal(l.clipDebtFuel, 2)
+  assert.equal(l.clipDebtClock, 0)
+  assert.deepEqual(l.clipDebtItems, { oak_log: 2 }, 'both bots\' debts join on the item')
+  assert.equal(l.byBot.F6.clipDebt, 1)
+  assert.equal(l.byBot.F2.clipDebt, 1)
+  const row = clipDebtRow(l)
+  assert.ok(row)
+  assert.equal(row, "the clip's own debt: the chains left 2 unit(s) smelting (fuel 2 / clock 0; oak_log 2) - the furnace still owes the harvest")
+})
+
+test('clip-debt: the honest silences and the junk fences', () => {
+  // no clips: the row stays silent, the fields read zero
+  const quiet = smeltLedger(['[F2] smelting 3 x cobblestone in a furnace (fuel: 1 x coal)'])
+  assert.equal(quiet.clipDebt, 0)
+  assert.equal(clipDebtRow(quiet), null, 'zero clips = no row')
+  assert.equal(clipDebtRow(null), null)
+  assert.equal(clipDebtRow({}), null)
+  // junk and non-string rows judge nothing
+  const junked = smeltLedger([null, 42, 'fuel clips the batch: 2 x coal completes 16 of 33 x raw_copper', '[F4] fuel clips the batch: junk'])
+  assert.equal(junked.clipDebt, 0)
+  // the clip line without its bot prefix does not match (the bracketed
+  // shape is the emitter's own)
+  const bare = smeltLedger(['[F9] the clock clips the batch: the 21s window completes ~1 of 14 x raw_copper'])
+  assert.equal(bare.clockClips, 1)
+  assert.equal(bare.clipDebt, 13)
+  assert.equal(bare.byBot.F9.clipDebt, 13)
 })
