@@ -77,3 +77,64 @@ test('WIRING: the decompose prints the orphan owner row', () => {
   assert.match(src, /orphan owners: \$\{owners\}/, 'the owner split prints in the ledger block')
   assert.match(src, /the dead-client class names its bot/, 'the row names its class')
 })
+
+// (v0.801.0) THE ORPHAN BOOK'S OWN SEAT - WHICH end class owns the
+// orphan book (the byClass cell's own majority, zero re-parsing).
+import { orphanBookSeat, orphanBookSeatRow, orphanBookRiders, orphanBookRidersRow } from '../../src/lib/orphanowner.mjs'
+
+test('orphan-book seat: the 21st flight cell through the seat law (the bare majority, byte-exact row + the measure-not-owner riders pin)', () => {
+  const c = orphanOwnerCensus([
+    F3_STANDDOWN, F8_STANDDOWN, F3_STANDDOWN_SHORT, F3_TIMEOUT,
+    F3_STANDDOWN_SHORT, F19_STANDDOWN, F19_RELEASED, F3_TIMEOUT
+  ])
+  assert.deepEqual(c.byClass, { frozenStanddown: 5, timeout: 2, released: 1 })
+  const seat = orphanBookSeat(c)
+  assert.deepEqual(seat, { cls: 'frozenStanddown', owns: 5, ofOrphans: 8, shareOfOrphans: 0.625 })
+  assert.equal(orphanBookSeatRow(seat), 'the orphan book\'s own seat (v0.801.0): frozenStanddown owns 5 of 8 orphan end(s) (62.5%) - THE ORPHAN BOOK\'S OWN SEAT: one end class\'s own ends own the orphan book - the class\'s own front prices the reconnect lane the per-bot split rode unnamed')
+  const riders = orphanBookRiders(c)
+  assert.deepEqual(riders, { leader: 'frozenStanddown', leaderOwns: 5, runner: 'timeout', runnerOwns: 2, ofOrphans: 8, pairOwns: 7, shareOfOrphans: 0.875, duet: false })
+})
+
+test('orphan-book tie law: a tie owns nothing, the byte order pins botGone < timeout', () => {
+  const tie = { byClass: { timeout: 2, botGone: 2 } }
+  assert.equal(orphanBookSeat(tie), null)
+  const r = orphanBookRiders(tie)
+  assert.deepEqual(r, { leader: 'botGone', leaderOwns: 2, runner: 'timeout', runnerOwns: 2, ofOrphans: 4, pairOwns: 4, shareOfOrphans: 1, duet: true })
+  assert.equal(orphanBookRidersRow(r), 'the orphan book\'s own riders (v0.801.0): no solo class owns the majority - botGone x2 + timeout x2 own 4 of 4 orphan end(s) (100.0%) - THE ORPHAN BOOK\'S OWN MIX: the seat\'s tie law held, the mix is the shape - the classes\' own spread prices the orphan book the solo law refused to seat')
+  const belowHalf = { byClass: { timeout: 2, botGone: 1, dead: 1 } }
+  assert.equal(orphanBookSeat(belowHalf), null)
+  const r2 = orphanBookRiders(belowHalf)
+  assert.equal(r2.leader, 'timeout')
+  assert.equal(r2.runner, 'botGone')
+  assert.equal(r2.pairOwns, 3)
+  assert.equal(r2.ofOrphans, 4)
+  assert.equal(r2.duet, false)
+})
+
+test('orphan-book cells\'-own-sum: the unattributed never ride the book + the junk battery + the row guards', () => {
+  // the unattributed are not ends - the book is the byClass cell's own sum
+  const c = { total: 6, byClass: { timeout: 1 }, unattributed: 5 }
+  const seat = orphanBookSeat(c)
+  assert.deepEqual(seat, { cls: 'timeout', owns: 1, ofOrphans: 1, shareOfOrphans: 1 })
+  assert.equal(orphanBookSeatRow(seat), 'the orphan book\'s own seat (v0.801.0): timeout owns 1 of 1 orphan end(s) (100.0%) - THE ORPHAN BOOK\'S OWN SEAT: one end class\'s own ends own the orphan book - the class\'s own front prices the reconnect lane the per-bot split rode unnamed')
+  for (const junk of [null, undefined, 42, 'a string', {}, { byClass: null }, { byClass: [] }, { byClass: { timeout: -1 } }, { byClass: { timeout: 0 } }, { byClass: { timeout: NaN } }, { byClass: { '': 3 } }]) {
+    assert.equal(orphanBookSeat(junk), null, `seat judges nothing on ${JSON.stringify(junk)}`)
+    assert.equal(orphanBookRiders(junk), null, `riders judge nothing on ${JSON.stringify(junk)}`)
+  }
+  // the solo class is the seat's owner case - the riders' own fence
+  assert.equal(orphanBookRiders({ byClass: { timeout: 3 } }), null)
+  assert.equal(orphanBookSeatRow(null), null)
+  assert.equal(orphanBookSeatRow(42), null)
+  assert.equal(orphanBookSeatRow({ cls: 'timeout', owns: 0, ofOrphans: 4, shareOfOrphans: 0 }), null)
+  assert.equal(orphanBookSeatRow({ cls: 'timeout', owns: 5, ofOrphans: 4, shareOfOrphans: 1.25 }), null)
+  assert.equal(orphanBookRidersRow(null), null)
+  assert.equal(orphanBookRidersRow({ leader: 'timeout', leaderOwns: 2, runner: 'botGone', runnerOwns: 1, ofOrphans: 4, pairOwns: 5, shareOfOrphans: 1.25 }), null)
+})
+
+test('orphan-book WIRING: the decompose branch rides the owners gate (the prose lives only in the lib)', () => {
+  const src = fs.readFileSync(new URL('../../scripts/fleet-mining/decompose.mjs', import.meta.url), 'utf8')
+  assert.match(src, /import \{ orphanBookSeat, orphanBookSeatRow, orphanBookRiders, orphanBookRidersRow \} from '\.\.\/\.\.\/src\/lib\/orphanowner\.mjs'/, 'the seat rides the lib import')
+  assert.match(src, /const obSeat = orphanBookSeat\(oo\)/, 'the branch reads the owner census\'s own cells')
+  assert.match(src, /orphanBookRiders\(oo\)/, 'the riders branch reads the same census')
+  assert.ok(!src.includes("THE ORPHAN BOOK'S OWN SEAT:"), 'the prose lives only in the lib')
+})
