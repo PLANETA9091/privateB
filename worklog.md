@@ -20620,3 +20620,22 @@ Stage Summary:
 - OPEN FRONTS: (1) face 107's mine (the ghost row's debut + the fuel lane's silence anatomy: 0 firings - the tithe trigger's own 4-face voice went quiet); (2) the ghost mechanism hunt (the emitter's own front); (3) the two-mouths runtime cure (the deposit target); (4) the drought's inflow front (the lane's seat); (5) the water cure's trend (2+ faces now: the toll 29->9->2->3, the walk-back silent twice); (6) face 93's mine still queued (37727396042).
 - Next fire: (1) CI verdicts BY RUN ID: my push-CI 37775130029 (87c37a2, the v0.833.0 gate) + face 107 = 37775197591. (2) face 107 SUCCESS -> mine -> /home/z/my-project/run37775197591/. (3) dispatch law on clear (x132, face 108; 0.834.0 next slot, re-verify on origin before the bump).
 - NO force-push, NO history rewrite. Identity: PLANETA9091.
+
+---
+Task ID: cron30-20261008-2030
+Agent: Super Z (fire 2030 lane, Job 414125)
+Task: fire cron30-20261008-2030 - one atomic improvement, zero-conflict protocol, the ghost's own grammar (the broken tree's hotfix).
+
+Work Log:
+- VERDICTS BY RUN ID at fire start: push-CI 37772275163 (76a07bb, v0.832.0 THE AQUIFER'S OWN BOOK) SUCCESS; face 107 = 37775197591 (the x131, 87c37a2) completed FAILURE; push-CI 37775364572 (92732ff) completed FAILURE - the tree's unit ran red on origin (jobs Unit (22)/(24)).
+- BROKEN TREE DIAGNOSED: the tip (v0.833.0) failed UNIT - ONE root cause in the fresh ghost-audit code: HOP_CLOSE_RE wore SPACED coordinates ([x, y, z]) while its own emitter (deposit.mjs hop-close lines 2088/2196/2211) prints UN_SPACED ([x,y,z]) - the regex never matched the shape it was born to read (both failing tests carry the real no-space shape; the d=35 line the commit cites is unparseable).
+- ONE ATOMIC IMPROVEMENT: v0.834.0 THE GHOST'S OWN GRAMMAR (1588e0c) - one character class: the coordinate slots drop the spaces to ride the emitter's own template verbatim (the one-parser-one-truth law; BANK_LANDED_RE keeps its spaces - its emitter prints them). droughttimeline 19/19, unit 311/311, syntax 551 0-broken. No behavior change beyond the grammar - the same rows, the same laws.
+- Version 0.834.0 verified free (origin was 0.833.0). Commit 1588e0c; push attempt-1 CLEAN (92732ff..1588e0c). NO force-push, NO history rewrite. The hotfix touches ONLY the broken regex line + package.json - zero scope collision with the lens logic.
+- CI: push-CI 37779046097 (1588e0c) in_progress at fire end (the 460s poll exhausted) - verdict BY RUN ID next fire, NOT claimed green; unit green locally 311/311.
+- DISPATCH: face 107 completed (failure) -> the list CLEAR -> face 108 DISPATCHED on 1588e0c = the healed tree (HTTP 204, materialized 37779457427 in_progress - the ghost audit's retry with the grammar fixed + the aquifer lens's second face).
+
+Stage Summary:
+- Master tip 1588e0c = v0.834.0; next free 0.835.0 (re-verify on origin before the bump).
+- Next fire: (1) CI verdicts BY RUN ID: push-CI 37779046097 + face 108 = 37779457427 (the unit jobs on the healed grammar + the ghost audit's debut row finally riding a face + the aquifer row's second point). (2) face 108 SUCCESS -> mine. (3) THE DEEPPOCKET FRONT (researched, ready: src/lib/deeppocket.mjs - the deep-pocket ascend board; the emitter template miner.mjs:2408 with OPTIONAL ' through a N-cell lid' and '; why' insertions; the stall cell is the trigger's own constant 3+ (NOT data); the variable cells = the ceiling block name (face 106: 4 water / 4 granite / 1 stone / 1 crafting_table - the WATER ceiling is the pocket's own hostility signal), the position (spot census + repeats), the o2 cell (numeric, floor 6; o2SensorLabel may render the -1 sentinel - read the label, parse numeric when numeric); sensortoll v0.707.0 owns the COUNT only - the shape is unowned).
+- OPEN FRONTS: (1) the deeppocket board (researched, deferred); (2) the cure's field verdict (face 106: toll 2, the aquifer arc's third point 20/18 CONFIRMS the board's maturity); (3) the sensor-death class (both face-106 drown deaths o2 reset(-1) controls-blind, sight died 28-31s before - the reflex window is wide); (4) the drought's inflow front (the lane's seat); (5) face 93's mine still queued (37727396042).
+- NO force-push, NO history rewrite. Identity: PLANETA9091.
