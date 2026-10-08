@@ -146,8 +146,22 @@ test('REGRESSION PIN: the fleet log filter carries the sweep key (the v0.176.0 f
   // pin tolerates its presence beside hop while still pinning the sweep key.
   // (v0.199.0) 'death drop' joins between died and KICKED - the pin carries it.
   // (v0.201.0) 'reloot' joins the same band - the pin tolerates it beside death drop.
-  assert.ok(/combat\|died\|(death drop\|)?(reloot\|)?KICKED\|error\|climb\|water\|scan:\|hop\|(chest skip\|)?approach\|swallowed\|bank \|deposit\|torch\|craft\|smelt\|fuel\|vein sweep/.test(fleetSrc),
+  // (v0.839.0) 'banked' joins beside 'bank ' - the per-chest receipt's own verb
+  // (the receipts rode and the filter dropped them; the two face-104 survivors
+  // only passed via 'craft' matching inside a kept name) - the pin tolerates it.
+  assert.ok(/combat\|died\|(death drop\|)?(reloot\|)?KICKED\|error\|climb\|water\|scan:\|hop\|(chest skip\|)?approach\|swallowed\|bank \|banked\|deposit\|torch\|craft\|smelt\|fuel\|vein sweep/.test(fleetSrc),
     'the miner log filter includes the vein sweep prefix - the instrument lines must reach the artifact (the v0.56.0 hop-failed lesson, struck again by the v0.175.0 instrument: the count line matched NOTHING and the failure lines only rode the luck of water inside one refusal message)')
+  // (v0.839.0) THE RECEIPT'S OWN PIN - the real face-104 receipt line (the
+  // crafting_table survivor) and the generic shape (a kept-list with NO filter
+  // key inside, the 42-dropped class) must BOTH pass the filter the source
+  // actually ships - extracted dynamically, the reloot-wiring pattern.
+  const filterM = fleetSrc.match(/if \(\/([^/]+)\/\.test\(m\)\) console\.log\(`\$\{name\} \$\{m\}`\)/)
+  assert.ok(filterM, 'the bot-log filter regex found in fleet19.mjs')
+  const fleetFilter = new RegExp(filterM[1])
+  assert.ok(fleetFilter.test('[F3] banked 113 items at (-116, 65, 397) (direct=6 fallback=0 mirror=true kept: stick, oak_planks, crafting_table, coal)'),
+    'the face-104 survivor receipt passes the filter (the craft-luck class)')
+  assert.ok(fleetFilter.test('[F7] banked 182 items at (-128, 65, 403) (direct=2 fallback=0 mirror=true kept: stick, dirt, rotten_flesh)'),
+    'the generic receipt passes the filter - a kept-list with no key inside (the 42-dropped class, the v0.837.0 44-opens/2-receipts blindness cured at the source)')
   // the instrument line shapes all start with the key
   const minerSrc = fs.readFileSync(new URL('../../src/bots/miner.mjs', import.meta.url), 'utf8')
   for (const shape of ['vein sweep: ${targets.length} drop(s) in reach', 'vein sweep: the drop walk to', 'vein sweep: +${picked}u walked from the drops', 'vein sweep: the drop walks picked nothing']) {

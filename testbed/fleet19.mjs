@@ -1311,7 +1311,22 @@ async function runBot (name, target, index) {
             const drec = deathCensusRecord(`${name} ${m}`)
             if (drec) deathCensusRecords.push(drec)
           } catch { /* the census never holds the death strip */ }
-          if (/combat|died|death drop|reloot|KICKED|error|climb|water|scan:|hop|chest skip|approach|swallowed|bank |deposit|torch|craft|smelt|fuel|vein sweep|wood trip|drown context|suffocate context|drowned-kill context|void context|steer tier defer|steer hazard|cobble tithe|quarry ascent|chest ascent|smelt tithe|ration/.test(m)) console.log(`${name} ${m}`) // (v0.277.0) 'void context' joins the tail - the out-of-world class's first voice (two mute deaths: [117,-90,0], [118,-148,2]); (v0.511.0) 'ration' joins - the flesh ration's attempts and verdicts are survivability law, not noise
+          // (v0.839.0) THE RECEIPT'S OWN FILTER KEY - 'banked' joins: the
+          // per-chest deposit receipt ('F3 [F3] banked 113 items at (...) (direct=6
+          // ...)') matched NO key and never reached the artifact - the v0.837.0
+          // chain-voice audit priced the lane blind at 44 visit opens / 2 receipts
+          // run-wide (face 104), and the raw-log dive named the mechanism: the
+          // receipts RODE (every visit with deposited > 0 prints one - the chain
+          // closes counted the same mass) but this filter dropped them, and the
+          // two survivors passed BY LUCK - their kept-lists carried
+          // 'crafting_table' and the 'craft' key matched inside a kept NAME (the
+          // v0.176.0 refusal-message luck, struck again). 'banked' is the
+          // emitter's own verb (deposit.mjs one writer); the seal reserve's
+          // banking arm joins under the same word. Bounded by construction:
+          // <= 1 receipt per visit, <= 8 visits per chain, <= 2 seal arms per
+          // visit. NB: 'bank ' never matched the receipt ('banked' has no space
+          // after 'bank'), and the receipt text carries no 'deposit' substring.
+          if (/combat|died|death drop|reloot|KICKED|error|climb|water|scan:|hop|chest skip|approach|swallowed|bank |banked|deposit|torch|craft|smelt|fuel|vein sweep|wood trip|drown context|suffocate context|drowned-kill context|void context|steer tier defer|steer hazard|cobble tithe|quarry ascent|chest ascent|smelt tithe|ration/.test(m)) console.log(`${name} ${m}`) // (v0.277.0) 'void context' joins the tail - the out-of-world class's first voice (two mute deaths: [117,-90,0], [118,-148,2]); (v0.511.0) 'ration' joins - the flesh ration's attempts and verdicts are survivability law, not noise; (v0.839.0) 'banked' joins - the per-chest receipt's own verb (the 44-opens/2-receipts blindness was the filter's, not the emitter's)
         },
         // (v0.269.0) THE TORCH-COAL RESUPPLY - the pocket-closed torch economy's
         // cure (face 36374720492: 199 'no coal' skips while the tithe banked the
