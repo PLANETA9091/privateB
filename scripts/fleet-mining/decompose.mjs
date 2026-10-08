@@ -106,7 +106,7 @@ import { stormCensus } from '../../src/lib/stormcensus.mjs' // (v0.409.0) the st
 import { beatRailContinuity, beatRailContinuityRow } from '../../src/lib/beatrail.mjs' // (v0.822.0) the beat rail's own continuity - the n=/ts= series' field verdict (the v0.820.0 rail's own scar read)
 import { gcPoolCensus } from '../../src/lib/gcpool.mjs' // (v0.421.0) the GC Pinned hunt's pool read (the old/ext/ab split)
 import { voidCensus } from '../../src/lib/voidcensus.mjs' // (v0.423.0) the out-of-world stamp's field read
-import { deathKindCensus, deathKindBill, deathKindBillRow, deathKindRiders, deathKindRidersRow, mobAttackerBill, mobAttackerBillRow, mobAttackerRiders, mobAttackerRidersRow } from '../../src/lib/deathkinds.mjs' // (v0.425.0) the vertical-death front's mechanical leg; (v0.784.0) WHICH kind owns the death book; (v0.788.0) WHICH server-named killer owns the mob book
+import { deathKindCensus, deathKindBill, deathKindBillRow, deathKindRiders, deathKindRidersRow, mobAttackerBill, mobAttackerBillRow, mobAttackerRiders, mobAttackerRidersRow, misreadDirectionBill, misreadDirectionBillRow, misreadDirectionRiders, misreadDirectionRidersRow } from '../../src/lib/deathkinds.mjs' // (v0.425.0) the vertical-death front's mechanical leg; (v0.784.0) WHICH kind owns the death book; (v0.788.0) WHICH server-named killer owns the mob book; (v0.844.0) WHICH direction owns the sensor-blind misread book
 import { houndCensus, houndArenaSeat, houndArenaSeatRow, houndArenaRiders, houndArenaRidersRow } from '../../src/lib/houndcensus.mjs' // (v0.433.0) the hound presence's field read; (v0.791.0) WHICH arena owns the hound kill book
 import { faceFate } from '../../src/lib/facefate.mjs' // (v0.546.0) the frozen book's READER side - the face's own fate named before the censuses speak
 
@@ -221,6 +221,19 @@ if (sweep.keywordOnly.length) {
     const o2bBots = Object.entries(o2b.bots).sort((a, b) => b[1] - a[1]).map(([b, n]) => `${b}=${n}`).join(' ')
     const o2bTail = o2b.n ? `; the misread's own witness (v0.725.0): ${o2b.n} confusion(s) rode the dead sensor (${o2bPairs}; bots ${o2bBots})` : ''
     console.log(`  the inference's own bill (v0.713.0): ${kinds.inference.total} death(s) with a server verdict and an inferred tail - the kind join agree ${kinds.inference.kindAgree} / disagree ${kinds.inference.kindDisagree}; the bracket corroborates ${kinds.inference.corroborates}, blind ${kinds.inference.blind}, contradicts ${kinds.inference.contradicts}, bystander ${kinds.inference.bystander}${confTail}${o2bTail}`)
+    // (v0.844.0) THE MISREAD'S OWN DIRECTION - WHICH pair the blind
+    // sensor's own confusions ride (the seat + the riders, one row
+    // never both - the branch law; the owner case leaves the companion
+    // unprinted; a confusion-free face reads the honest silence - the
+    // o2b.n gate rides the witness's own).
+    if (o2b.n) {
+      const mdb = misreadDirectionBill(o2b)
+      if (mdb) console.log(`  ${misreadDirectionBillRow(mdb)}`)
+      else {
+        const mdr = misreadDirectionRiders(o2b)
+        if (mdr) console.log(`  ${misreadDirectionRidersRow(mdr)}`)
+      }
+    }
   }
   for (const v of kinds.vertical) {
     console.log(`  vertical death: ${v.bot} ${v.verb}${v.attacker ? ` by ${v.attacker}` : ''} at [${v.pos ? v.pos.join(',') : 'cell unreadable'}] (inference ${v.corroboration})`)

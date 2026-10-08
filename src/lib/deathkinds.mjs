@@ -461,3 +461,103 @@ export function mobAttackerRidersRow (r) {
       !Number.isFinite(shareOfKills)) return null
   return `the mob book's own attacker riders (v0.788.0): no solo killer owns the majority - ${leader} x${leaderOwns} + ${runner} x${runnerOwns} own ${pairOwns} of ${ofKills} mob kill(s) (${(shareOfKills * 100).toFixed(1)}%) - THE ATTACKER'S OWN MIX: the seat's tie law held, the mix is the shape - the mob's own crowd prices the killers the solo law refused to name`
 }
+
+// (v0.844.0) THE MISREAD'S OWN DIRECTION - the sensor-blind confusion's
+// own direction seat. The v0.725.0 misread's own witness counts the
+// confusions that rode the dead sensor (the death context's o2 reset(-1)
+// skin) and prints the pairs raw - no row ever named WHICH direction
+// owns the misread book (face 113's own line rode raw: '5 confusion(s)
+// rode the dead sensor (drown->mob 4, drown->fall 1)' - the blind
+// sensor's drown->mob bias sat unnamed while the mine read the shape by
+// hand). THE SEAT LAW (the inference's own o2Blind cell only, zero
+// re-parsing - the v0.784.0 seat's own cell precedent): the
+// strict-majority law, one direction owns the misread book only above
+// half (a tie owns nothing - the storm-has-no-seat precedent); a
+// confusion-free or all-agree face reads the honest silence (null - the
+// decompose's own guard skips the row). Junk never invents a seat: a
+// missing or non-object cell, a non-finite or non-positive count, or a
+// tied spread reads the honest silence (null). The labels are the kind
+// join's own pair bytes byte-true ('drown->mob', 'drown->fall', ... -
+// the server kind the truth rode -> the kind the inference named).
+function misreadTally (o2b) {
+  if (!o2b || typeof o2b !== 'object' || Array.isArray(o2b)) return null
+  const pairs = o2b.pairs
+  if (!pairs || typeof pairs !== 'object' || Array.isArray(pairs)) return null
+  const tallies = {}
+  let total = 0
+  for (const [pair, n] of Object.entries(pairs)) {
+    if (!Number.isFinite(n) || n <= 0) continue
+    total += n
+    tallies[pair] = (tallies[pair] || 0) + n
+  }
+  // the cell's own consistency fence - the witness's own n and the
+  // pairs' own sum must agree when both speak (a self-inconsistent
+  // cell invents nothing - the junk-never-invents-a-seat law)
+  if (Number.isFinite(o2b.n) && o2b.n > 0 && total !== o2b.n) return null
+  return total > 0 ? { tallies, total } : null
+}
+
+export function misreadDirectionBill (o2b) {
+  const t = misreadTally(o2b)
+  if (!t) return null
+  let topUnits = 0
+  let topPair = null
+  for (const [pair, n] of Object.entries(t.tallies)) {
+    if (n > topUnits) { topUnits = n; topPair = pair }
+  }
+  if (topPair === null || topUnits <= t.total - topUnits) return null
+  return { direction: topPair, owns: topUnits, ofConfusions: t.total, shareOfConfusions: +(topUnits / t.total).toFixed(3) }
+}
+
+// (v0.844.0) the direction seat's own row - THE DIRECTION'S OWN SEAT:
+// the seat names WHICH pair the blind sensor's own lies ride; the
+// direction's own front prices the sensor lane (a drown->mob crowd is
+// the dead sensor's mob bias - the rescue read a mob kill where the
+// water took the bot; a drown->fall crowd the wall's own misread).
+// Junk never prints a seat (the honest silence's own row law).
+export function misreadDirectionBillRow (bill) {
+  if (!bill || typeof bill !== 'object') return null
+  const { direction, owns, ofConfusions, shareOfConfusions } = bill
+  if (typeof direction !== 'string' || !direction ||
+      !Number.isFinite(owns) || owns <= 0 ||
+      !Number.isFinite(ofConfusions) || ofConfusions <= 0 || owns > ofConfusions ||
+      !Number.isFinite(shareOfConfusions)) return null
+  return `the misread's own direction (v0.844.0): ${direction} owns ${owns} of ${ofConfusions} sensor-blind confusion(s) (${(shareOfConfusions * 100).toFixed(1)}%) - THE DIRECTION'S OWN SEAT: one direction's own lies own the misread book - the direction's own front prices the blind sensor the raw split rode unnamed`
+}
+
+// (v0.844.0) THE MISREAD'S OWN DIRECTION RIDERS - the direction seat's
+// own silence's companion. The seat names the solo direction under the
+// strict-majority law; a no-majority confusion mix rode raw with no row
+// naming the shape. THE RIDER LAW (the o2Blind cell only, zero
+// re-parsing - the seat's own precedent): a MEASURE, never a
+// verdict-owner - the top two directions' concentration prices the
+// shape the solo law refused to name (the seat's owner case leaves the
+// companion unprinted - the decompose's own branch law). Junk never
+// invents a shape: a missing or non-object cell, a non-finite or
+// non-positive count, or fewer than two directions reads the honest
+// silence (null). The order is deterministic (count desc, then the
+// pair's own byte).
+export function misreadDirectionRiders (o2b) {
+  const t = misreadTally(o2b)
+  if (!t) return null
+  const ranked = Object.entries(t.tallies).sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1))
+  if (ranked.length < 2) return null
+  const [leader, leaderOwns] = ranked[0]
+  const [runner, runnerOwns] = ranked[1]
+  const pairOwns = leaderOwns + runnerOwns
+  return { leader, leaderOwns, runner, runnerOwns, ofConfusions: t.total, pairOwns, shareOfConfusions: +(pairOwns / t.total).toFixed(3), duet: leaderOwns === runnerOwns }
+}
+
+// (v0.844.0) the direction riders' own row - THE DIRECTION'S OWN MIX: a
+// measure of the shape, never a named owner (the seat's tie law holds);
+// the pair prices the concentration the solo law refused to seat. Junk
+// never prints a shape (the honest silence's own row law).
+export function misreadDirectionRidersRow (r) {
+  if (!r || typeof r !== 'object') return null
+  const { leader, leaderOwns, runner, runnerOwns, ofConfusions, pairOwns, shareOfConfusions } = r
+  if (typeof leader !== 'string' || !leader || typeof runner !== 'string' || !runner ||
+      !Number.isFinite(leaderOwns) || leaderOwns <= 0 || !Number.isFinite(runnerOwns) || runnerOwns <= 0 ||
+      !Number.isFinite(ofConfusions) || ofConfusions <= 0 || !Number.isFinite(pairOwns) || pairOwns > ofConfusions ||
+      !Number.isFinite(shareOfConfusions)) return null
+  return `the misread's own direction riders (v0.844.0): no solo direction owns the majority - ${leader} x${leaderOwns} + ${runner} x${runnerOwns} own ${pairOwns} of ${ofConfusions} sensor-blind confusion(s) (${(shareOfConfusions * 100).toFixed(1)}%) - THE DIRECTION'S OWN MIX: the seat's tie law held, the mix is the shape - the blind sensor's own crowd prices the directions the solo law refused to name`
+}

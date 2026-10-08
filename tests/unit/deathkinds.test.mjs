@@ -10,7 +10,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
-import { deathKindCensus, deathKindBill, deathKindBillRow, deathKindRiders, deathKindRidersRow, mobAttackerBill, mobAttackerBillRow, mobAttackerRiders, mobAttackerRidersRow } from '../../src/lib/deathkinds.mjs'
+import { deathKindCensus, deathKindBill, deathKindBillRow, deathKindRiders, deathKindRidersRow, mobAttackerBill, mobAttackerBillRow, mobAttackerRiders, mobAttackerRidersRow, misreadDirectionBill, misreadDirectionBillRow, misreadDirectionRiders, misreadDirectionRidersRow } from '../../src/lib/deathkinds.mjs'
 
 // the face-27 verbatims (36870593766), byte for byte from the artifact
 const FACE27_FALL = 'F14 [F14] died - respawning (cause: server: fell from a high place [kind=fall] | inferred: fall/env (0s before death at [-132,45,405]) [the inference corroborates the server verdict])'
@@ -114,7 +114,7 @@ test('a non-array input judges nothing (junk-safe by contract)', () => {
 
 test('WIRING: the decompose prints the causes row and the vertical rows (the DEATHS block)', () => {
   const src = fs.readFileSync(new URL('../../scripts/fleet-mining/decompose.mjs', import.meta.url), 'utf8')
-  assert.match(src, /import \{ deathKindCensus, deathKindBill, deathKindBillRow, deathKindRiders, deathKindRidersRow, mobAttackerBill, mobAttackerBillRow, mobAttackerRiders, mobAttackerRidersRow \} from '\.\.\/\.\.\/src\/lib\/deathkinds\.mjs'/, 'the census import rides the decompose head (v0.784.0: the kind seat rides too; v0.788.0: the attacker seat rides too)')
+  assert.match(src, /import \{ deathKindCensus, deathKindBill, deathKindBillRow, deathKindRiders, deathKindRidersRow, mobAttackerBill, mobAttackerBillRow, mobAttackerRiders, mobAttackerRidersRow, misreadDirectionBill, misreadDirectionBillRow, misreadDirectionRiders, misreadDirectionRidersRow \} from '\.\.\/\.\.\/src\/lib\/deathkinds\.mjs'/, 'the census import rides the decompose head (v0.784.0: the kind seat rides too; v0.788.0: the attacker seat rides too; v0.844.0: the direction seat rides too)')
   assert.match(src, /death causes: \$\{causeRow\}\$\{inferredNote\}\$\{unparsedNote\}/, 'the mechanical causes row prints on every face (v0.672.0: the inferred-only note rides too)')
   assert.match(src, /vertical death: \$\{v\.bot\}/, 'the vertical row names the front\'s witness')
 })
@@ -663,4 +663,76 @@ test('the byte-exact rows, the junk battery and the WIRING assert - the decompos
   assert.ok(src.includes('if (mab) console.log(`  ${mobAttackerBillRow(mab)}`)'), 'the owner row rides the branch')
   assert.ok(src.includes('const mar = mobAttackerRiders(kinds)'), 'the riders ride the same branch law')
   assert.ok(!src.includes("THE ATTACKER'S OWN SEAT"), 'the prose stays in the lib')
+})
+
+// (v0.844.0) THE MISREAD'S OWN DIRECTION - the sensor-blind confusion's
+// own direction seat (the o2Blind cell only, zero re-parsing). The
+// face-113 verbatim rode raw: '5 confusion(s) rode the dead sensor
+// (drown->mob 4, drown->fall 1)' - the seat names the owning direction
+// under the strict-majority law; a tie owns nothing (the riders' mix
+// shape); a confusion-free face reads the honest silence.
+test('the misread direction seat - the strict-majority law on the o2Blind cell', () => {
+  // face 113's own verbatim: drown->mob owns 4 of 5 (80.0%)
+  const f113 = { n: 5, pairs: { 'drown->mob': 4, 'drown->fall': 1 }, bots: { F10: 2, F16: 1, F19: 1, F18: 1 } }
+  const b = misreadDirectionBill(f113)
+  assert.equal(b.direction, 'drown->mob')
+  assert.equal(b.owns, 4)
+  assert.equal(b.ofConfusions, 5)
+  assert.equal(b.shareOfConfusions, 0.8)
+  assert.equal(
+    misreadDirectionBillRow(b),
+    "the misread's own direction (v0.844.0): drown->mob owns 4 of 5 sensor-blind confusion(s) (80.0%) - THE DIRECTION'S OWN SEAT: one direction's own lies own the misread book - the direction's own front prices the blind sensor the raw split rode unnamed"
+  )
+  // face 112's own verbatim: drown->fall owns 2 of 2 (100.0%)
+  const f112 = { n: 2, pairs: { 'drown->fall': 2 }, bots: { F13: 1, F10: 1 } }
+  const solo = misreadDirectionBill(f112)
+  assert.equal(solo.direction, 'drown->fall')
+  assert.equal(solo.owns, 2)
+  assert.equal(
+    misreadDirectionBillRow(solo),
+    "the misread's own direction (v0.844.0): drown->fall owns 2 of 2 sensor-blind confusion(s) (100.0%) - THE DIRECTION'S OWN SEAT: one direction's own lies own the misread book - the direction's own front prices the blind sensor the raw split rode unnamed"
+  )
+  // the tie law: the seat owns nothing, the mix is the shape
+  const tied = { n: 4, pairs: { 'drown->mob': 2, 'drown->fall': 2 }, bots: { F10: 2, F13: 2 } }
+  assert.equal(misreadDirectionBill(tied), null) // 2 <= 2 - the tie owns nothing
+  const r = misreadDirectionRiders(tied)
+  assert.equal(r.duet, true)
+  assert.equal(r.leader, 'drown->fall') // the name's own byte breaks the rank tie ('drown->fall' < 'drown->mob')
+  assert.equal(r.runner, 'drown->mob')
+  assert.equal(
+    misreadDirectionRidersRow(r),
+    "the misread's own direction riders (v0.844.0): no solo direction owns the majority - drown->fall x2 + drown->mob x2 own 4 of 4 sensor-blind confusion(s) (100.0%) - THE DIRECTION'S OWN MIX: the seat's tie law held, the mix is the shape - the blind sensor's own crowd prices the directions the solo law refused to name"
+  )
+  // the below-half law: a plurality seats nobody (the strict-majority law)
+  const below = { n: 5, pairs: { 'drown->mob': 2, 'drown->fall': 2, 'drown->lava': 1 }, bots: {} }
+  assert.equal(misreadDirectionBill(below), null) // 2 of 5 is a plurality, not a majority
+  const rb = misreadDirectionRiders(below)
+  assert.equal(rb.leader, 'drown->fall')
+  assert.equal(rb.runner, 'drown->mob')
+})
+
+test('the misread direction - the junk battery and the WIRING assert - the decompose branch rides the o2Blind cell, the prose lives only in the lib', () => {
+  // the junk battery - the honest silence every time
+  const junk = [null, undefined, 42, 'prose', [], { pairs: null }, { pairs: 'x' }, { pairs: [] }, { pairs: {} }, { pairs: { 'drown->mob': 0 } }, { pairs: { 'drown->mob': -1 } }, { pairs: { 'drown->mob': NaN } }, { pairs: { 'drown->mob': Infinity } }, { n: 3, pairs: { 'drown->mob': 2 } }]
+  for (const j of junk) {
+    assert.equal(misreadDirectionBill(j), null)
+    assert.equal(misreadDirectionRiders(j), null)
+  }
+  // a lone direction prices no mix (the riders' own fence)
+  assert.equal(misreadDirectionRiders({ n: 3, pairs: { 'drown->fall': 3 } }), null)
+  // the rows' own junk law - the honest silence's row
+  assert.equal(misreadDirectionBillRow(null), null)
+  assert.equal(misreadDirectionBillRow({}), null)
+  assert.equal(misreadDirectionBillRow({ direction: '', owns: 1, ofConfusions: 2, shareOfConfusions: 0.5 }), null)
+  assert.equal(misreadDirectionBillRow({ direction: 'drown->mob', owns: 3, ofConfusions: 2, shareOfConfusions: 1.5 }), null)
+  assert.equal(misreadDirectionRidersRow(null), null)
+  assert.equal(misreadDirectionRidersRow({}), null)
+  assert.equal(misreadDirectionRidersRow({ leader: 'drown->mob', leaderOwns: 0, runner: 'drown->fall', runnerOwns: 1, ofConfusions: 1, pairOwns: 1, shareOfConfusions: 1 }), null)
+  // the WIRING assert - the decompose branch rides the o2Blind cell,
+  // the prose lives only in the lib
+  const src = fs.readFileSync(new URL('../../scripts/fleet-mining/decompose.mjs', import.meta.url), 'utf8')
+  assert.ok(src.includes('const mdb = misreadDirectionBill(o2b)'), 'the seat rides the o2Blind cell')
+  assert.ok(src.includes('if (mdb) console.log(`  ${misreadDirectionBillRow(mdb)}`)'), 'the owner row rides the branch')
+  assert.ok(src.includes('const mdr = misreadDirectionRiders(o2b)'), 'the riders ride the same branch law')
+  assert.ok(!src.includes("THE DIRECTION'S OWN SEAT"), 'the prose stays in the lib')
 })
