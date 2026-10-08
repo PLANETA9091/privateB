@@ -37,6 +37,7 @@ import { fuelDiet, coalEquivalent } from '../../src/lib/fueldiet.mjs' // (v0.666
 import { fuelYieldOf } from '../../src/lib/smelting.mjs' // (v0.666.0) the vanilla yield table's own voice - the diet row's coal divisor, never a made constant
 import { tierDeferCensus } from '../../src/lib/tierdefer.mjs' // (v0.463.0) the tool ladder's own voice - the steer's deferred names counted
 import { deathGrounds, DEATH_GROUND_RADIUS, deathGroundSeat, deathGroundSeatRow, deathGroundRiders, deathGroundRidersRow } from '../../src/lib/deathground.mjs' // (v0.464.0) the combat deaths' spatial join - the mob-cure's WHERE input; (v0.793.0) WHICH ground owns the combat book
+import { hazardBoardCensus, hazardBoardCensusRow } from '../../src/lib/waterhazard.mjs' // (v0.826.0) the water hazard board's own read - the memorize line's own census (the repeats, the 240s TTL's own work, the foreign records)
 import { deathDropCensus } from '../../src/lib/deathdropcensus.mjs' // (v0.647.0) the death-drop stakes' own census - the silent-arm join; (v0.663.0) the stakes' own clock rides the same shape
 import { RELOOT_DESPAWN_MS } from '../../src/lib/reloot.mjs' // (v0.663.0) the despawn one-truth - the arm-lag row's own inversion base
 import { upgradeCensus, deferPromise, upgradeVerdicts, verdictSpread, promisePersistence } from '../../src/lib/upgradecensus.mjs' // (v0.465.0) the tool ladder's own harvest - the rung's delivered tools counted; (v0.467.0) the defer promise's order-aware join; (v0.468.0) the verdict census - the counter-vs-words window named; (v0.470.0) the verdict spread - the worn class's per-bot spread; (v0.471.0) the promise persistence - the kept bots' cross-face fate
@@ -1415,6 +1416,16 @@ if (shooter.total > 0) {
       }
     }
   }
+}
+
+// (v0.826.0) THE WATER HAZARD BOARD'S OWN READ - the memorize line's own
+// census, additive and independent of the combat-kind gate above (a plain
+// drown death memorizes too - the board's book is wider than the combat
+// book). One row, silent on a face with no water deaths (the honest
+// silence). Mining-surface only: zero fleet wiring, zero new log lines.
+{
+  const whRow = hazardBoardCensusRow(hazardBoardCensus(lines))
+  if (whRow) console.log(`  ${whRow}`)
 }
 
 // (v0.647.0) THE DEATH-DROP CENSUS - the deathdrop class's own arm join:
