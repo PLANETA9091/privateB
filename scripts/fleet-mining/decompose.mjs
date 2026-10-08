@@ -51,7 +51,7 @@ import { flipDrift } from '../../src/lib/flipdrift.mjs' // (v0.487.0) the execut
 import { shelterLadder } from '../../src/lib/shieldledger.mjs' // (v0.489.0) the shield ladder - the shelter attempt's own book (the wall door, the ring door, the re-scan tax)
 import { famineCensus, famineLaneSeat, famineLaneSeatRow, famineLaneRiders, famineLaneRidersRow } from '../../src/lib/famineledger.mjs' // (v0.687.0) the famine anatomy - the trip's own starvation read (which slot starves); (v0.814.0) + the famine's own lane - the two lanes' own seat
 import { dryTripCensus, dryTripSeat, dryTripSeatRow, dryTripRiders, dryTripRidersRow } from '../../src/lib/carrybook.mjs' // (v0.817.0) the dry trip's own arm - the carry drought's own walk book (the plate refill ladder's terminal split: the shelf vs the reach)
-import { stormStoryCensus, stormStorySeat, stormStorySeatRow } from '../../src/lib/stormstory.mjs' // (v0.818.0) the freeze storm's own story - the FATAL byte's own sgStory frames (WHICH activity owned the frozen main's last word)
+import { stormStoryCensus, stormStorySeat, stormStorySeatRow, stormFormingCensus, stormFormingSeat, stormFormingSeatRow } from '../../src/lib/stormstory.mjs' // (v0.818.0) the freeze storm's own story - the FATAL byte's own sgStory frames (WHICH activity owned the frozen main's last word); (v0.819.0) + the forming storm's own story - the RSS JUMP byte's own class (the early word, the same law on the fence's other leg)
 import { woodTripCensus } from '../../src/lib/tripcensus.mjs' // (v0.690.0) the walk's delivery - the famine→gathered pairing prices the gather walk's own cure rate (SLOT COLLISION #16: 0.689.0 taken by fire-1639's THE DECIDE WEATHER mid-fire)
 import { woodClimbCost } from '../../src/lib/climbcost.mjs' // (v0.694.0) the climb's price - the trip's real rent (+levels/steps/dug/seconds) filed under the delivery class
 import { woodRefusalCensus } from '../../src/lib/climbrefusal.mjs' // (v0.691.0) the refusal's why - the climb-fail→refusal join names the walk's start seat
@@ -1775,6 +1775,17 @@ console.log('  freeze storm FATAL lines:', count(/freeze storm/))
   const ssCensus = stormStoryCensus(lines)
   const ssSeat = ssCensus && ssCensus.n ? stormStorySeat(ssCensus.frames) : null
   if (ssSeat) console.log(`  ${stormStorySeatRow(ssSeat)}`)
+}
+// (v0.819.0) THE FORMING STORM'S OWN STORY - the RSS JUMP byte's own
+// class (the early word, the same law on the fence's other leg): face
+// 96's own jump read the SAME frame chain as its FATAL (pf:spin walk
+// 5/8, the ring's 10s-earlier echo) - the front priced twice. A jump
+// without a following FATAL is the re-armed storm - the near-miss faces'
+// own early book. The story-less jump reads the honest silence.
+{
+  const sfCensus = stormFormingCensus(lines)
+  const sfSeat = sfCensus && sfCensus.n ? stormFormingSeat(sfCensus.frames) : null
+  if (sfSeat) console.log(`  ${stormFormingSeatRow(sfSeat)}`)
 }
 console.log('  last-pulse chain lines (pf:):', count(/pf:(goal|queue|done)/))
 console.log('  climb rise assist lines:', count(/climb rise assist/), 'per-bot:', fmt(perBot(/climb rise assist/)))

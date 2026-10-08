@@ -1,5 +1,6 @@
 //
-// stormstory.mjs - THE FREEZE STORM'S OWN STORY (v0.818.0)
+// stormstory.mjs - THE FREEZE STORM'S OWN STORY (v0.818.0) + THE FORMING
+// STORM'S OWN STORY (v0.819.0)
 //
 // The freeze-storm FATAL byte (the heartbeat's own emitter, the
 // stormguard's freezeStormVerdict leg) killed face 96 (37736268597,
@@ -38,11 +39,30 @@
 // is skipped. The RSS JUMP line (the forming-storm warning) carries a
 // story too but is NOT this class - the fence is the FATAL byte itself.
 //
+// (v0.819.0) THE FORMING STORM'S OWN STORY - the RSS JUMP byte's own
+// class, the SAME law on the fence's other leg: the sub-floor jump is
+// the forming storm's own early word ('the forming-storm leg the kill
+// lines never name', the emitter's own prose) and its sgStory(8) tail
+// is the FIRST story the watch writes - face 96's own jump read the
+// SAME frame chain as its FATAL (pf:spin walk 5 / other 3 of 8, the
+// ring's own 10s-earlier echo): the spin walk owned the forming storm
+// AND the kill, one front priced twice. A jump WITHOUT a following
+// FATAL is the re-armed storm (the watch's own reset when the growth
+// streak breaks) - the near-miss faces' own early book, and the seat's
+// own cure lead. The fence is the RSS JUMP byte itself (the FATAL and
+// the frozen-burst ride no forming seat); the story-less jump (the
+// bbRead-empty shape) reads the honest silence; the seat is the story
+// seat's own law verbatim (one law, two words).
+//
 
 // the class's own fence - the freeze-storm FATAL byte exactly (the
 // frozen-burst FATAL is a different disease, the RSS JUMP a different
 // leg; neither rides this book)
 const FATAL_RE = /\[stormguard\] FATAL \(freeze storm: /
+
+// the forming class's own fence - the RSS JUMP byte exactly (the FATAL
+// legs are the kill's own classes, the jump is the forming leg's own)
+const FORMING_RE = /\[stormguard\] RSS JUMP: /
 
 // the story's own tail - everything after '; last: ' up to the line's
 // own closing paren (the sgStory(8) emitter's own frame chain)
@@ -51,14 +71,11 @@ const STORY_RE = /; last: (.*)\)\s*$/
 // one frame - the label up to the emitter's own ' @+' offset separator
 const FRAME_RE = /^(.*?) @\+/
 
-/**
- * stormStoryCensus(lines) - the freeze storm's own story census.
- * @param {string[]|string|null} lines the fleet log's own lines
- * @returns {null|{n: number, frames: Object<string, number>}} the census
- *   (null on a non-array non-string source; frames is a null-prototype
- *   tally - the open vocabulary's own keys)
- */
-export function stormStoryCensus (lines) {
+// the shared parse - the fence's own lines only, each line's sgStory
+// tail split into the emitter's own frame chain (the junk never invents
+// a frame: a non-string line skipped, a separator-less part skipped, an
+// empty label skipped; the frames pool on a null-prototype keyset)
+function parseStories (lines, fenceRe) {
   const src = Array.isArray(lines)
     ? lines
     : (typeof lines === 'string' ? lines.split('\n') : null)
@@ -67,7 +84,7 @@ export function stormStoryCensus (lines) {
   const frames = Object.create(null)
   for (const line of src) {
     if (typeof line !== 'string') continue
-    if (!FATAL_RE.test(line)) continue
+    if (!fenceRe.test(line)) continue
     n++
     const m = line.match(STORY_RE)
     if (!m) continue
@@ -80,6 +97,29 @@ export function stormStoryCensus (lines) {
     }
   }
   return { n, frames }
+}
+
+/**
+ * stormStoryCensus(lines) - the freeze storm's own story census.
+ * @param {string[]|string|null} lines the fleet log's own lines
+ * @returns {null|{n: number, frames: Object<string, number>}} the census
+ *   (null on a non-array non-string source; frames is a null-prototype
+ *   tally - the open vocabulary's own keys)
+ */
+export function stormStoryCensus (lines) {
+  return parseStories(lines, FATAL_RE)
+}
+
+/**
+ * stormFormingCensus(lines) - the forming storm's own story census (the
+ * RSS JUMP byte's own class, v0.819.0; the same shape, the other leg's
+ * own fence).
+ * @param {string[]|string|null} lines the fleet log's own lines
+ * @returns {null|{n: number, frames: Object<string, number>}} the census
+ *   (null on a non-array non-string source)
+ */
+export function stormFormingCensus (lines) {
+  return parseStories(lines, FORMING_RE)
 }
 
 // the story's own cells - the census's own open-vocabulary tally, the
@@ -124,14 +164,45 @@ export function stormStorySeat (frames) {
 // names the label and its own front; the mix row names the honest crowd.
 // Guarded end to end; junk reads null (v0.818.0).
 export function stormStorySeatRow (seat) {
+  return stormSeatRowBase(seat,
+    'the freeze storm\'s own story (v0.818.0)',
+    "THE FROZEN MAIN'S OWN LAST WORD: the locked pulse's final frames rode this label (the label's own front prices the freeze)")
+}
+
+// the shared row base - the guards and the owner/mix branch are ONE law
+// (the mix row rides the seat's own owner-null shape only, a pathological
+// owner reads the honest null); the classes trade only the prefix and the
+// tail (the words law: the prose lives only in the lib)
+function stormSeatRowBase (seat, prefix, tail) {
   if (!seat || typeof seat !== 'object') return null
   const { total, owner, units, share } = seat
   if (!Number.isFinite(total) || total <= 0) return null
   if (!Number.isFinite(share)) return null
-  // the mix row rides the seat's own mix shape only (owner === null) - a
-  // pathological owner reads the honest null, never the mix's own word
-  if (owner === null) return 'the freeze storm\'s own story (v0.818.0): no solo label owns the story book (the mix owns nothing)'
+  if (owner === null) return `${prefix}: no solo label owns the story book (the mix owns nothing)`
   if (typeof owner !== 'string' || owner === '') return null
   if (!Number.isFinite(units) || units <= 0 || units > total) return null
-  return `the freeze storm's own story (v0.818.0): ${owner} owns ${units} of ${total} story frame(s) (${(share * 100).toFixed(1)}%) - THE FROZEN MAIN'S OWN LAST WORD: the locked pulse's final frames rode this label (the label's own front prices the freeze)`
+  return `${prefix}: ${owner} owns ${units} of ${total} story frame(s) (${(share * 100).toFixed(1)}%) - ${tail}`
+}
+
+/**
+ * stormFormingSeat(frames) - the forming storm's own seat (v0.819.0).
+ * The SAME strict-majority law as the story seat verbatim - one law, two
+ * classes (the v0.818.0 story seat's own shape; a pass-through is the
+ * one-truth move, the law lives once).
+ * @param {Object<string, number>|null} [frames] the forming census's own tally
+ * @returns {null|{total: number, owner: null|string, units: number,
+ *   share: number, bad: number}} the seat (null on an empty book; the
+ *   owner null on the no-majority mix)
+ */
+export function stormFormingSeat (frames) {
+  return stormStorySeat(frames)
+}
+
+// The forming seat's own row - the byte-exact read beside the jump's own
+// leg (the v0.819.0 words: the early word's own front prices the cure
+// before the kill). Same guards, same mix law (v0.818.0's own base).
+export function stormFormingSeatRow (seat) {
+  return stormSeatRowBase(seat,
+    'the forming storm\'s own story (v0.819.0)',
+    "THE FORMING STORM'S OWN EARLY WORD: the re-armed watch's first frames rode this label (the label's own front prices the cure before the kill)")
 }
