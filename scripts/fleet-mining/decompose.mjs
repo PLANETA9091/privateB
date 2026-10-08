@@ -98,6 +98,7 @@ import { dupClock, unseenLosses, surplusKicks, burstDoor } from '../../src/lib/d
 import { pinBill } from '../../src/lib/pinbill.mjs' // (v0.722.0) the pinned seat's own bill - the water lane's launches per bot per target (the 70%/10+ concentration names the seat)
 import { memHbCensus, RSS_JUMP_STORM_M, ENT_JUMP_STORM_N } from '../../src/lib/memhb.mjs' // (v0.408.0) the OOM precursors' field read
 import { stormCensus } from '../../src/lib/stormcensus.mjs' // (v0.409.0) the storm EVENT story's field read (verdicts + valve + hb)
+import { beatRailContinuity, beatRailContinuityRow } from '../../src/lib/beatrail.mjs' // (v0.822.0) the beat rail's own continuity - the n=/ts= series' field verdict (the v0.820.0 rail's own scar read)
 import { gcPoolCensus } from '../../src/lib/gcpool.mjs' // (v0.421.0) the GC Pinned hunt's pool read (the old/ext/ab split)
 import { voidCensus } from '../../src/lib/voidcensus.mjs' // (v0.423.0) the out-of-world stamp's field read
 import { deathKindCensus, deathKindBill, deathKindBillRow, deathKindRiders, deathKindRidersRow, mobAttackerBill, mobAttackerBillRow, mobAttackerRiders, mobAttackerRidersRow } from '../../src/lib/deathkinds.mjs' // (v0.425.0) the vertical-death front's mechanical leg; (v0.784.0) WHICH kind owns the death book; (v0.788.0) WHICH server-named killer owns the mob book
@@ -2400,6 +2401,12 @@ if (stormMem.hb.count > 0) {
   const hb = stormMem.hb
   console.log(`  heartbeat distress: n=${hb.count} max late=${hb.maxLateMs}ms max mainLate=${hb.maxMainLateMs}ms (rss bookends ${stormMem.rss.firstM}M -> ${stormMem.rss.lastM}M, peak ${stormMem.rss.peakM}M)`)
 }
+// (v0.822.0) THE BEAT RAIL'S OWN CONTINUITY - the distress row's own
+// twin: the v0.820.0 setInterval rail's field verdict (the n= steps
+// one-by-one, the ts= clock on its cadence; a gap or a skip = the
+// missed reschedule's own scar). Fewer than two beats = the silence.
+const beatRailRow = beatRailContinuityRow(beatRailContinuity(lines))
+if (beatRailRow) console.log(`  ${beatRailRow}`)
 // (v0.661.0) THE MAIN FREEZE'S OWN ROW - the distress row's own body: the
 // blackbox dump fires when mainLate >= 5s and the freeze owns the face's
 // economy (the 37265374356 face: ~53s at ts=561s, 'pf:queue fuel commons
