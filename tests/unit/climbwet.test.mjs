@@ -174,5 +174,5 @@ test("the wet column's kept promise (v0.840.0): the real corpora's whole-spend l
   // the wiring: the completion row rides beside the census seat
   const src2 = readFileSync(join(here, '../../scripts/fleet-mining/decompose.mjs'), 'utf8')
   assert.ok(src2.includes('wetColumnCompletionRow(wetColumnCompletion(lines))'), 'the additive row rides')
-  assert.ok(src2.includes('v0.839.0'), 'the version tag rides')
+  assert.ok(src2.includes('v0.840.0'), 'the version tag rides')
 })
