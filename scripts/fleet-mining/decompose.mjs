@@ -3,7 +3,7 @@
 import { readFileSync } from 'node:fs'
 import { rescueLedger, rescueEndSeconds, RESCUE_END_CLASSES, rescueStartBill, rescueStartBillRow, rescueStartRiders, rescueStartRidersRow, rescueEndBill, rescueEndBillRow, rescueEndRiders, rescueEndRidersRow, rescueMidSeat, rescueMidSeatRow, rescueMidRiders, rescueMidRidersRow } from '../../src/lib/rescue-ledger.mjs' // (v0.368.0) the pure pairing's field read; (v0.773.0) WHICH walker owns the starts; (v0.779.0) WHICH class owns the ends; (v0.790.0) WHICH mid-episode event owns the churn
 import { orphanOwnerCensus } from '../../src/lib/orphanowner.mjs' // (v0.679.0) the orphan end's per-bot owner (the dead-client class names its bot)
-import { orphanBookSeat, orphanBookSeatRow, orphanBookRiders, orphanBookRidersRow } from '../../src/lib/orphanowner.mjs' // (v0.801.0) the orphan book's own seat (the byClass cell's own majority)
+import { orphanBookSeat, orphanBookSeatRow, orphanBookRiders, orphanBookRidersRow } from '../../src/lib/orphanowner.mjs' // (v0.802.0) the orphan book's own seat (the byClass cell's own majority)
 import { askWhyCensus, dryAskVerdict, dryAskVerdictRow, dryAskBotBill, dryAskBotBillRow, dryAskRiders, dryAskRidersRow } from '../../src/lib/askwhycensus.mjs' // (v0.652.0) THE ASK'S OWN WHY BOOK - the ask ladder's walk-failure whys joined to the dry terminals (the delivery side's v0.612.0 why-book law, the ask side's own seat); (v0.769.0) WHICH class owns the dry ask; (v0.772.0) WHICH walker owns the class's rows
 import { bankFlowCensus, bankYield, writeOffBill, writeOffBillRow, writeOffRiders, writeOffRidersRow } from '../../src/lib/bankcensus.mjs' // (v0.686.0) + the yield dial - the banked mass over the visit lane's own line count; (v0.777.0) + the write-off's own cast - the book's bot-level seat
 import { routeGateCensus, ROUTE_GATE_RIM_TRAP_REFUSALS } from '../../src/lib/routecensus.mjs' // (v0.388.0) the route gate's field read
@@ -446,7 +446,7 @@ if (oo.total > 0) {
   const owners = Object.entries(oo.owners).map(([b, n]) => `${b}=${n}`).join(' ') || 'untagged'
   const classes = Object.entries(oo.byClass).map(([k, n]) => `${k} ${n}`).join(', ')
   console.log(`  orphan owners: ${owners} (${classes})${oo.unattributed > 0 ? `, unattributed ${oo.unattributed}` : ''} - the dead-client class names its bot`)
-  // (v0.801.0) THE ORPHAN BOOK'S OWN SEAT - the seat, else the riders
+  // (v0.802.0) THE ORPHAN BOOK'S OWN SEAT - the seat, else the riders
   // (one row never both - the branch law; the owners gate above is the
   // branch's own fence).
   const obSeat = orphanBookSeat(oo)

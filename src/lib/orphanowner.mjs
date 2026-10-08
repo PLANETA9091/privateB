@@ -52,7 +52,7 @@ export function orphanOwnerCensus (orphanEndLines) {
   return { total, owners, byClass, unattributed }
 }
 
-// (v0.801.0) THE ORPHAN BOOK'S OWN SEAT - WHICH end class owns the
+// (v0.802.0) THE ORPHAN BOOK'S OWN SEAT - WHICH end class owns the
 // orphan book. The owner census answers 'how many' (total), 'whose
 // client died' (owners) and prints the class split (byClass), but no
 // row ever said WHICH end class owns the book - the classes' own mix
@@ -83,7 +83,7 @@ function orphanBookTally (census) {
   return book > 0 ? { tallies, book } : null
 }
 
-// (v0.801.0) the orphan book's own seat - the strict-majority law's
+// (v0.802.0) the orphan book's own seat - the strict-majority law's
 // verdict: the top end class owns the book only above half; a tie owns
 // nothing (the honest null - the mix needs the riders, not a named
 // owner). The byte order decides the scan (the class's own bytes).
@@ -99,7 +99,7 @@ export function orphanBookSeat (census) {
   return { cls: topCls, owns: topOwns, ofOrphans: tally.book, shareOfOrphans: +(topOwns / tally.book).toFixed(3) }
 }
 
-// (v0.801.0) the orphan book's own row - THE ORPHAN BOOK'S OWN SEAT:
+// (v0.802.0) the orphan book's own row - THE ORPHAN BOOK'S OWN SEAT:
 // one end class's own ends own the orphan book (the dead-client
 // lane's own meter). Junk never prints a row (the honest silence's
 // own row law): every field is guarded before the template speaks.
@@ -110,10 +110,10 @@ export function orphanBookSeatRow (seat) {
       !Number.isFinite(owns) || owns <= 0 ||
       !Number.isFinite(ofOrphans) || ofOrphans <= 0 || owns > ofOrphans ||
       !Number.isFinite(shareOfOrphans)) return null
-  return `the orphan book's own seat (v0.801.0): ${cls} owns ${owns} of ${ofOrphans} orphan end(s) (${(shareOfOrphans * 100).toFixed(1)}%) - THE ORPHAN BOOK'S OWN SEAT: one end class's own ends own the orphan book - the class's own front prices the reconnect lane the per-bot split rode unnamed`
+  return `the orphan book's own seat (v0.802.0): ${cls} owns ${owns} of ${ofOrphans} orphan end(s) (${(shareOfOrphans * 100).toFixed(1)}%) - THE ORPHAN BOOK'S OWN SEAT: one end class's own ends own the orphan book - the class's own front prices the reconnect lane the per-bot split rode unnamed`
 }
 
-// (v0.801.0) THE ORPHAN BOOK'S OWN RIDERS - the seat's own silence's
+// (v0.802.0) THE ORPHAN BOOK'S OWN RIDERS - the seat's own silence's
 // companion. The seat names the solo end class under the
 // strict-majority law; a no-majority class mix rode raw with no row
 // naming the shape. THE RIDER LAW (the census's own byClass cell
@@ -136,7 +136,7 @@ export function orphanBookRiders (census) {
   return { leader, leaderOwns, runner, runnerOwns, ofOrphans: tally.book, pairOwns, shareOfOrphans: +(pairOwns / tally.book).toFixed(3), duet: leaderOwns === runnerOwns }
 }
 
-// (v0.801.0) the orphan riders' own row - THE ORPHAN BOOK'S OWN MIX: a
+// (v0.802.0) the orphan riders' own row - THE ORPHAN BOOK'S OWN MIX: a
 // measure of the shape, never a named owner (the seat's tie law
 // holds); the pair prices the concentration the solo law refused to
 // seat. Junk never prints a shape (the honest silence's own row law).
@@ -147,5 +147,5 @@ export function orphanBookRidersRow (r) {
       !Number.isFinite(leaderOwns) || leaderOwns <= 0 || !Number.isFinite(runnerOwns) || runnerOwns <= 0 ||
       !Number.isFinite(ofOrphans) || ofOrphans <= 0 || !Number.isFinite(pairOwns) || pairOwns > ofOrphans ||
       !Number.isFinite(shareOfOrphans)) return null
-  return `the orphan book's own riders (v0.801.0): no solo class owns the majority - ${leader} x${leaderOwns} + ${runner} x${runnerOwns} own ${pairOwns} of ${ofOrphans} orphan end(s) (${(shareOfOrphans * 100).toFixed(1)}%) - THE ORPHAN BOOK'S OWN MIX: the seat's tie law held, the mix is the shape - the classes' own spread prices the orphan book the solo law refused to seat`
+  return `the orphan book's own riders (v0.802.0): no solo class owns the majority - ${leader} x${leaderOwns} + ${runner} x${runnerOwns} own ${pairOwns} of ${ofOrphans} orphan end(s) (${(shareOfOrphans * 100).toFixed(1)}%) - THE ORPHAN BOOK'S OWN MIX: the seat's tie law held, the mix is the shape - the classes' own spread prices the orphan book the solo law refused to seat`
 }

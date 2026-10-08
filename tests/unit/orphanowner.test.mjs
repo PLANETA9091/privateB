@@ -78,7 +78,7 @@ test('WIRING: the decompose prints the orphan owner row', () => {
   assert.match(src, /the dead-client class names its bot/, 'the row names its class')
 })
 
-// (v0.801.0) THE ORPHAN BOOK'S OWN SEAT - WHICH end class owns the
+// (v0.802.0) THE ORPHAN BOOK'S OWN SEAT - WHICH end class owns the
 // orphan book (the byClass cell's own majority, zero re-parsing).
 import { orphanBookSeat, orphanBookSeatRow, orphanBookRiders, orphanBookRidersRow } from '../../src/lib/orphanowner.mjs'
 
@@ -90,7 +90,7 @@ test('orphan-book seat: the 21st flight cell through the seat law (the bare majo
   assert.deepEqual(c.byClass, { frozenStanddown: 5, timeout: 2, released: 1 })
   const seat = orphanBookSeat(c)
   assert.deepEqual(seat, { cls: 'frozenStanddown', owns: 5, ofOrphans: 8, shareOfOrphans: 0.625 })
-  assert.equal(orphanBookSeatRow(seat), 'the orphan book\'s own seat (v0.801.0): frozenStanddown owns 5 of 8 orphan end(s) (62.5%) - THE ORPHAN BOOK\'S OWN SEAT: one end class\'s own ends own the orphan book - the class\'s own front prices the reconnect lane the per-bot split rode unnamed')
+  assert.equal(orphanBookSeatRow(seat), 'the orphan book\'s own seat (v0.802.0): frozenStanddown owns 5 of 8 orphan end(s) (62.5%) - THE ORPHAN BOOK\'S OWN SEAT: one end class\'s own ends own the orphan book - the class\'s own front prices the reconnect lane the per-bot split rode unnamed')
   const riders = orphanBookRiders(c)
   assert.deepEqual(riders, { leader: 'frozenStanddown', leaderOwns: 5, runner: 'timeout', runnerOwns: 2, ofOrphans: 8, pairOwns: 7, shareOfOrphans: 0.875, duet: false })
 })
@@ -100,7 +100,7 @@ test('orphan-book tie law: a tie owns nothing, the byte order pins botGone < tim
   assert.equal(orphanBookSeat(tie), null)
   const r = orphanBookRiders(tie)
   assert.deepEqual(r, { leader: 'botGone', leaderOwns: 2, runner: 'timeout', runnerOwns: 2, ofOrphans: 4, pairOwns: 4, shareOfOrphans: 1, duet: true })
-  assert.equal(orphanBookRidersRow(r), 'the orphan book\'s own riders (v0.801.0): no solo class owns the majority - botGone x2 + timeout x2 own 4 of 4 orphan end(s) (100.0%) - THE ORPHAN BOOK\'S OWN MIX: the seat\'s tie law held, the mix is the shape - the classes\' own spread prices the orphan book the solo law refused to seat')
+  assert.equal(orphanBookRidersRow(r), 'the orphan book\'s own riders (v0.802.0): no solo class owns the majority - botGone x2 + timeout x2 own 4 of 4 orphan end(s) (100.0%) - THE ORPHAN BOOK\'S OWN MIX: the seat\'s tie law held, the mix is the shape - the classes\' own spread prices the orphan book the solo law refused to seat')
   const belowHalf = { byClass: { timeout: 2, botGone: 1, dead: 1 } }
   assert.equal(orphanBookSeat(belowHalf), null)
   const r2 = orphanBookRiders(belowHalf)
@@ -116,7 +116,7 @@ test('orphan-book cells\'-own-sum: the unattributed never ride the book + the ju
   const c = { total: 6, byClass: { timeout: 1 }, unattributed: 5 }
   const seat = orphanBookSeat(c)
   assert.deepEqual(seat, { cls: 'timeout', owns: 1, ofOrphans: 1, shareOfOrphans: 1 })
-  assert.equal(orphanBookSeatRow(seat), 'the orphan book\'s own seat (v0.801.0): timeout owns 1 of 1 orphan end(s) (100.0%) - THE ORPHAN BOOK\'S OWN SEAT: one end class\'s own ends own the orphan book - the class\'s own front prices the reconnect lane the per-bot split rode unnamed')
+  assert.equal(orphanBookSeatRow(seat), 'the orphan book\'s own seat (v0.802.0): timeout owns 1 of 1 orphan end(s) (100.0%) - THE ORPHAN BOOK\'S OWN SEAT: one end class\'s own ends own the orphan book - the class\'s own front prices the reconnect lane the per-bot split rode unnamed')
   for (const junk of [null, undefined, 42, 'a string', {}, { byClass: null }, { byClass: [] }, { byClass: { timeout: -1 } }, { byClass: { timeout: 0 } }, { byClass: { timeout: NaN } }, { byClass: { '': 3 } }]) {
     assert.equal(orphanBookSeat(junk), null, `seat judges nothing on ${JSON.stringify(junk)}`)
     assert.equal(orphanBookRiders(junk), null, `riders judge nothing on ${JSON.stringify(junk)}`)
