@@ -91,6 +91,7 @@ import { freezeBill } from '../../src/lib/freezebill.mjs' // (v0.724.0) the free
 import { kickBill } from '../../src/lib/kickbill.mjs' // (v0.717.0) the kick's own churn - the kick cells joined to the relog cells (the pair, the split, the repeats over both lanes)
 import { kickKindCensus } from '../../src/lib/kickkinds.mjs' // (v0.730.0) the kick's own kinds - the kicked clients' reason census (the translate byte per kind; the dup class reconciles with the frozen census's dupKicks)
 import { sockLossCensus, sockChurnJoin, sockJoinSeatRow, sockJoinRidersRow, sockBareSeatRow, sockBareRidersRow } from '../../src/lib/sockloss.mjs' // (v0.806.0) the socket loss's own book - the client-side death certificates (the error/socket-error/raw-stack bursts, the twin + raw reconciles, the log's thirds clock; v0.809.0 the join's own seat; v0.812.0 the bare kick's own seat)
+import { o2ClassSeatRow } from '../../src/lib/o2book.mjs' // (v0.813.0) the o2 book's own class - the o2-reset drown form split's own seat (the never lane the arm's own gap, the active lane the arm's own loss; the strict-majority law, a tie owns nothing)
 import { dupClock, unseenLosses, surplusKicks, burstDoor } from '../../src/lib/dupclock.mjs' // (v0.729.0) the duplicate's own clock - the server log's join side (the losses, the cadence, the bursts, the storm; v0.734.0 the unseen loss's own column, v0.735.0 the surplus kick's own side, v0.740.0 the burst's own door)
 import { pinBill } from '../../src/lib/pinbill.mjs' // (v0.722.0) the pinned seat's own bill - the water lane's launches per bot per target (the 70%/10+ concentration names the seat)
 import { memHbCensus, RSS_JUMP_STORM_M, ENT_JUMP_STORM_N } from '../../src/lib/memhb.mjs' // (v0.408.0) the OOM precursors' field read
@@ -673,6 +674,13 @@ for (const l of lines) {
 console.log('--- O2-RESET DEATH CENSUS (v0.379.0) ---')
 console.log(`  o2 reset(-1) drown deaths (the sensor died and the water kept it): ${o2Never + o2Active}`, 'per-bot:', fmt(o2Bots))
 console.log(`  rescue never (the trigger itself blind): ${o2Never} | rescue active (the lane flew blind): ${o2Active}`)
+  // (v0.813.0) THE O2 BOOK'S OWN CLASS - the raw split's own seat priced:
+  // which form owns the o2 book (the never lane is the arm's own gap, the
+  // active lane is the arm's own loss - the two cures differ). One additive
+  // row beside the split; the strict-majority law, a tie owns nothing -
+  // face 91's 1-1 tie reads the no-owner row instead of riding unnamed.
+  const o2s = o2ClassSeatRow({ never: o2Never, active: o2Active })
+  if (o2s) console.log(`  the o2 book's own class (v0.813.0): ${o2s}`)
 console.log(`  head water at death: ${o2HeadWater} | head air at death (the bob class): ${o2HeadAir}`)
 console.log('  breath-mirror blindness pages (the sentry died first):', count(/breath mirror \[controls-blind\]/), 'per-bot:', fmt(perBot(/breath mirror \[controls-blind\]/)))
 const sightSecs = []
