@@ -45,6 +45,15 @@
 // 110: max 1 of 4) - the budget always outran the climb; the row prints
 // the honest count either way.
 //
+// (v0.842.0) THE SHORTFALL'S OWN SHAPE - the completion's own follow-up:
+// kept=0 everywhere poses the reach question the kept/abandoned counts
+// cannot answer - HOW SHORT does the abandoned climb fall? The deficit =
+// budget - dig on the SAME parser (one parser one truth, no new regex),
+// clamped at 0 (the kept class rides the completion's own law: dig >=
+// budget). The histogram prints the whole shape ascending; minShort =
+// the nearest miss - one dig flips it (the reach's own evidence) - and
+// reads null when nothing is short (all kept).
+//
 
 const WETASCEND_RE = /^(F\d+) \[F\d+\] climb wet ascend: dug the ceiling (\S+) at \[(-?\d+),(-?\d+),(-?\d+)\] \(the water column owns every bearing - the vertical digs instead, (\d+)\/(\d+)\)$/
 
@@ -194,4 +203,59 @@ export function wetColumnCompletionRow (w) {
   if (!Number.isFinite(w.kept) || !Number.isFinite(w.abandoned) || !Number.isFinite(w.maxDig)) return null
   const budget = w.budget == null ? '?' : String(w.budget)
   return `the wet column's kept promise (v0.840.0): ${w.kept} of ${w.ascends} ascend(s) kept the budget (the column's whole spend), ${w.abandoned} abandoned it early, max dig ${w.maxDig} of ${budget}`
+}
+
+/**
+ * wetColumnShortfall(lines) - the shortfall's own shape (v0.842.0).
+ *
+ * The completion's own follow-up on the SAME parser (one parser one
+ * truth, no new regex): the reach question the kept/abandoned counts
+ * cannot answer - HOW SHORT does the abandoned climb fall? deficit =
+ * budget - dig, clamped at 0 (the kept class rides the completion's own
+ * law: dig >= budget reads 0 - the mutual fence with wetColumnCompletion).
+ *
+ * @param {string[]} [lines] the face log (array of lines)
+ * @returns {null|{ascends: number, priced: number, kept: number,
+ *   hist: Object<string, number>, maxDeficit: number, minShort: number|null,
+ *   budget: number|null}} the shortfall read (null on non-array; a face
+ *   with zero ascends = the zero shape, the row stays silent; minShort =
+ *   the smallest POSITIVE deficit, null when nothing is short; budget =
+ *   the faces' own print, the first one, null when no ascend priced)
+ */
+export function wetColumnShortfall (lines) {
+  if (!Array.isArray(lines)) return null
+  const s = { ascends: 0, priced: 0, kept: 0, hist: {}, maxDeficit: 0, minShort: null, budget: null }
+  for (const line of lines) {
+    const p = parseWetCeilingAscent(line)
+    if (!p) continue
+    s.ascends++
+    if (!Number.isFinite(p.dig) || !Number.isFinite(p.budget)) continue // the defensive guard - the regex is numeric-only today
+    if (s.budget == null) s.budget = p.budget
+    s.priced++
+    const d = Math.max(0, p.budget - p.dig)
+    if (d === 0) s.kept++
+    s.hist[d] = (s.hist[d] || 0) + 1
+    if (d > s.maxDeficit) s.maxDeficit = d
+    if (d > 0 && (s.minShort == null || d < s.minShort)) s.minShort = d
+  }
+  return s
+}
+
+/**
+ * wetColumnShortfallRow(s) - the shortfall's own byte-exact row.
+ *
+ * @param {Object|null} [s] a wetColumnShortfall result
+ * @returns {string|null} the row (null on junk cells or the honest
+ *   silence - a face with no priced ascend prints nothing; the nearest
+ *   cell is absent when nothing is short, the all-kept face's own shape)
+ */
+export function wetColumnShortfallRow (s) {
+  if (s == null || typeof s !== 'object' || Array.isArray(s)) return null
+  if (!Number.isFinite(s.ascends) || s.ascends <= 0) return null
+  if (!Number.isFinite(s.priced) || s.priced <= 0) return null
+  const keys = Object.keys(s.hist || {}).map(Number).filter(Number.isFinite).sort((a, b) => a - b)
+  if (!keys.length) return null
+  const hist = keys.map(k => `${k}x${s.hist[k]}`).join(' ')
+  const near = s.minShort == null ? '' : `, the nearest ${s.minShort} short`
+  return `the wet column's shortfall (v0.842.0): ${s.priced} of ${s.ascends} ascend(s) priced (the budget's own reach), the deficits ${hist} (max ${s.maxDeficit}${near})`
 }

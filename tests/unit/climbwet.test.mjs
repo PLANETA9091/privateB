@@ -1,6 +1,7 @@
 //
-// climbwet.test.mjs - the water column's own dig lens' proofs (v0.836.0)
-// and the kept promise's own proofs (v0.840.0). The verbatim corpora are
+// climbwet.test.mjs - the water column's own dig lens' proofs (v0.836.0),
+// the kept promise's own proofs (v0.840.0) and the shortfall's own shape's
+// proofs (v0.842.0). The verbatim corpora are
 // the field's REAL lines: face 106's four (run 37770102755, fleet19.log
 // lines 1208/1251/1272/1297) + face 108's one (run 37779457427, line
 // 1162). The non-water ceiling shape rides the emitter's own no-guard
@@ -13,7 +14,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
-import { parseWetCeilingAscent, wetCeilingCensus, wetCeilingCensusRow, wetColumnCompletion, wetColumnCompletionRow } from '../../src/lib/climbwet.mjs'
+import { parseWetCeilingAscent, wetCeilingCensus, wetCeilingCensusRow, wetColumnCompletion, wetColumnCompletionRow, wetColumnShortfall, wetColumnShortfallRow } from '../../src/lib/climbwet.mjs'
 
 const here = dirname(fileURLToPath(import.meta.url))
 
@@ -175,4 +176,41 @@ test("the wet column's kept promise (v0.840.0): the real corpora's whole-spend l
   const src2 = readFileSync(join(here, '../../scripts/fleet-mining/decompose.mjs'), 'utf8')
   assert.ok(src2.includes('wetColumnCompletionRow(wetColumnCompletion(lines))'), 'the additive row rides')
   assert.ok(src2.includes('v0.840.0'), 'the version tag rides')
+})
+
+test("the wet column's shortfall (v0.842.0): the deficit histogram's own law, the nearest miss, the row byte-exact + the guards + the wiring", () => {
+  const KEPT_4_4 = 'F10 [F10] climb wet ascend: dug the ceiling water at [-148,59,389] (the water column owns every bearing - the vertical digs instead, 4/4)'
+  // the corpus rides the file's own verbatim faces (the family's own lines)
+  const F106 = [F106_F15, F106_F10_A, F106_F10_B, F106_F10_C]
+  const s106 = wetColumnShortfall(F106)
+  assert.ok(s106 && s106.ascends === 4 && s106.priced === 4, 'every matched ascend is priced (the regex is numeric-only)')
+  assert.equal(s106.kept, 0, 'face 106 kept nothing (the completion cross-check)')
+  assert.deepEqual(s106.hist, { 2: 1, 3: 3 }, 'the deficits 2x1 3x3 - the whole shape, ascending')
+  assert.equal(s106.maxDeficit, 3, 'max deficit 3')
+  assert.equal(s106.minShort, 2, 'the nearest miss 2 - one climb reached 2 of 4')
+  assert.equal(s106.budget, 4, 'the budget is the faces own print')
+  assert.equal(wetColumnShortfallRow(s106), "the wet column's shortfall (v0.842.0): 4 of 4 ascend(s) priced (the budget's own reach), the deficits 2x1 3x3 (max 3, the nearest 2 short)")
+  // the kept cell rides 0 - the completion's own law, the mutual fence
+  const MIX = [...F106, KEPT_4_4]
+  const sMix = wetColumnShortfall(MIX)
+  assert.equal(sMix.kept, wetColumnCompletion(MIX).kept, 'the kept cells agree across the two lenses (the mutual fence)')
+  assert.deepEqual(sMix.hist, { 0: 1, 2: 1, 3: 3 }, 'the kept class rides 0x1')
+  assert.equal(wetColumnShortfallRow(sMix), "the wet column's shortfall (v0.842.0): 5 of 5 ascend(s) priced (the budget's own reach), the deficits 0x1 2x1 3x3 (max 3, the nearest 2 short)")
+  // all kept: the nearest cell honestly absent
+  const sKept = wetColumnShortfall([KEPT_4_4])
+  assert.equal(sKept.minShort, null, 'nothing short - the nearest reads null')
+  assert.equal(wetColumnShortfallRow(sKept), "the wet column's shortfall (v0.842.0): 1 of 1 ascend(s) priced (the budget's own reach), the deficits 0x1 (max 0)")
+  // the zero + junk shapes
+  assert.equal(wetColumnShortfallRow(wetColumnShortfall(['no ascend here'])), null, 'a face with no ascend stays silent')
+  assert.equal(wetColumnShortfall(null), null, 'null in null out (the o2gap convention)')
+  assert.equal(wetColumnShortfall('junk'), null, 'a string is not an array')
+  assert.equal(wetColumnShortfallRow(null), null, 'null row in null out')
+  assert.equal(wetColumnShortfallRow('junk'), null, 'a string is not a shape')
+  assert.equal(wetColumnShortfallRow([]), null, 'an array is not a shape')
+  assert.equal(wetColumnShortfallRow({ ascends: 0, priced: 0 }), null, 'the zero shape stays silent')
+  // the wiring: the shortfall row rides beside the completion seat
+  const src3 = readFileSync(join(here, '../../scripts/fleet-mining/decompose.mjs'), 'utf8')
+  assert.ok(src3.includes("wetColumnShortfall, wetColumnShortfallRow } from '../../src/lib/climbwet.mjs'"), 'the shortfall rides the family import')
+  assert.ok(src3.includes('wetColumnShortfallRow(wetColumnShortfall(lines))'), 'the shortfall row prints beside the completion seat')
+  assert.ok(src3.includes('v0.842.0'), 'the version tag rides')
 })
