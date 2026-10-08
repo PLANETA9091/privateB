@@ -286,6 +286,42 @@ export function ringSideBuildable (side = {}) {
   return head === 'solid' || head === 'empty'
 }
 
+// ---- (v0.849.0) THE SILL - the uneven-ground carry ----
+// face 123's book: 12 'ring not buildable' refusals, 10 of them the
+// [-o ...] uneven-ground class (empty foot, NO solid ground under it) and
+// ZERO a mob in a cell - the TERRAIN refuses a cage the stock could close,
+// and the bot flees with nothing while the measured mob death follows. The
+// ground cell itself is seatable: for side (dx,dz) the ground cell is the
+// direct lateral neighbour of the block the bot stands on, so one block
+// placed against the under-bot block's lateral face lands IN the ground
+// cell - the sill - and the side's foot placement gains its reference.
+// The all-4 law keeps its byte: the sill only seats GROUND, the cage still
+// has to close completely before the wait (a single unbuilt gap stays a
+// walk-in door), and the ranged lane's arrow-wall contract is untouched.
+
+/**
+ * Can this side's missing ground be seated by the sill? The side must be
+ * the '-' class (empty foot, no solid ground under it - exactly the shape
+ * the all-4 gate refuses), the ground cell must be FREE (a hostile in it
+ * rejects the placement server-side - the v0.59.0 occupancy law), and the
+ * under-bot block must be solid (the sill's own placement reference).
+ * @param {object} [side] one read side (the tryRingShelter sides shape)
+ * @param {string} [side.foot] 'empty' | 'solid' | 'blocked'
+ * @param {boolean} [side.groundSolid] solid ground under the foot cell
+ * @param {object} [p] the mechanics reads the pure layer cannot take
+ * @param {boolean} [p.groundFree] no hostile stands in the ground cell
+ * @param {boolean} [p.underBotSolid] the block under the bot is solid
+ */
+export function ringSillDue (side = {}, p = {}) {
+  if (!side || typeof side !== 'object') return false
+  if (ringCellClass(side.foot) !== 'empty') return false
+  if (side.groundSolid === true) return false
+  if (!p || typeof p !== 'object') return false
+  if (p.groundFree !== true) return false
+  if (p.underBotSolid !== true) return false
+  return true
+}
+
 /**
  * The whole ring (4 sides) must be closable BEFORE the first placement: a
  * single unbuilt gap is a walk-in door, so a partial build must not buy the

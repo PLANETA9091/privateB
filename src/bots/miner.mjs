@@ -46,7 +46,7 @@ import { bestPickaxe, bestPickTier, oreTierGuardLine, oreTierRequired, tierDebtO
 import { isNight } from '../lib/nightsafety.mjs'
 import { RATION_OPTS, rationVerdict, createRationGate } from '../lib/ration.mjs' // (v0.511.0) THE FLESH RATION - the autoeat plugin's own policy, finally fed and finally enabled; (v0.513.0) the fight table rides the same import
 import { GRAVITY_ROOF_BLOCKS, GRAVITY_MAX_PASSES, gravityColumnOrder } from '../lib/gravityroof.mjs'
-import { shelterDue, earnSealDue, pickSealItem, pickJunkToDrop, SHELTER_WALL_OK, SHELTER_ROUND_MS, SHELTER_MAX_MS, SHELTER_SAFE_DIST, EARN_SEAL_MAX_THREAT_DIST, RING_SIDE_NORMALS, RING_BLOCKS_NEEDED, ringFeasible, ringBlocksNeeded, ringSideOrder, ringSideBuildable, ringThreatSideIndex, ringRangedNeeded, ringRangedEnough, countSealBlocks, emptySlotCount, RING_PLACE_ROUNDS, RING_RETRY_TICKS, ringDigEarnSupply, RING_DIG_EARN_OK } from '../lib/shelter.mjs'
+import { shelterDue, earnSealDue, pickSealItem, pickJunkToDrop, SHELTER_WALL_OK, SHELTER_ROUND_MS, SHELTER_MAX_MS, SHELTER_SAFE_DIST, EARN_SEAL_MAX_THREAT_DIST, RING_SIDE_NORMALS, RING_BLOCKS_NEEDED, ringFeasible, ringBlocksNeeded, ringSideOrder, ringSideBuildable, ringSillDue, ringThreatSideIndex, ringRangedNeeded, ringRangedEnough, countSealBlocks, emptySlotCount, RING_PLACE_ROUNDS, RING_RETRY_TICKS, ringDigEarnSupply, RING_DIG_EARN_OK } from '../lib/shelter.mjs'
 import { sealSnapshot, sealDeclareLine, sealRespawnLine } from '../lib/sealwatch.mjs' // (v0.421.0) the seal watch: the pre-risk declare + the respawn accounting, the same SEAL_PRIORITY list all four seal arithmetics spend
 import {
   waterVerdict, airBarTrust, shoreDirection, isWaterName, SHAFT_FLUID_NAMES,
@@ -1233,15 +1233,47 @@ export function createMiner ({
         fz
       }
     })
+    // (v0.849.0) THE SILL PLAN: the '-' side (empty foot, NO solid ground
+    // under it) is the measured refusal - face 123's book priced 10 of 12
+    // 'ring not buildable' marks as [-o ...] uneven ground and ZERO a mob in
+    // a cell. The ground cell itself is seatable: for side (dx,dz) it is the
+    // direct lateral neighbour of the block the bot stands on, so one block
+    // placed against the under-bot block's lateral face lands IN the ground
+    // cell and the side's foot placement gains its reference. The plan is
+    // read-only here - the placement happens after the stock gate prices it
+    // (the v0.91.0 honest gate counts the REAL need, sills included).
+    const underBotBlock = (() => {
+      try {
+        const b = bot.blockAt(new Vec3(here.x, here.y - 1, here.z))
+        return b && b.boundingBox !== 'empty' ? b : null
+      } catch { return null }
+    })()
+    const sillDue = s => ringSillDue(s, {
+      groundFree: !hostileIn(s.fx, here.y - 1, s.fz),
+      underBotSolid: !!underBotBlock
+    })
+    const sillSides = ranged ? [] : sides.filter(sillDue)
     if (!ringFeasible(sides)) {
       const mark = s => `${s.foot === 'solid' ? 'B' : s.foot === 'empty' ? (s.groundSolid ? 'o' : '-') : 'x'}${s.head === 'solid' ? 'B' : s.head === 'empty' ? 'o' : 'x'}`
+      // (v0.849.0) THE SILL CARRY: the all-4 law still refuses a ring whose
+      // dead side can neither close nor seat - but a '-' side the sill can
+      // seat is not a refusal yet. The carry demands EVERY dead side
+      // sill-fixable AND closable once seated (a blocked head cell never
+      // closes - the refusal stays honest there), and the ranged lane keeps
+      // its own contract untouched (the arrow wall's buildable check
+      // decides). A single unbuilt gap stays a walk-in door - the v0.59.0
+      // law keeps its byte.
+      const deadSides = sides.filter(s => !ringSideBuildable(s))
+      const sillCarries = !ranged && deadSides.length > 0 && deadSides.every(s => sillDue(s) && ringSideBuildable({ ...s, groundSolid: true }))
       // (v0.140.0) ranged mode: the full cage may be refused, the ARROW WALL
       // still has to be buildable - otherwise the same honest skip line
-      if (!ranged || !ringSideBuildable(sides[threatIdx])) {
+      if ((!ranged || !ringSideBuildable(sides[threatIdx])) && !sillCarries) {
         log(`${tag} combat: shelter skip (open field: ring not buildable [${sides.map(mark).join(' ')}]${ranged ? ', no arrow wall either' : ''} vs ${threat.name}@${threat.dist.toFixed(1)})`)
         return false
       }
-      log(`${tag} combat: shelter ring ranged mode: the full ring is refused, the arrow wall owns it vs ${threat.name}@${threat.dist.toFixed(1)}`)
+      if (!sillCarries) {
+        log(`${tag} combat: shelter ring ranged mode: the full ring is refused, the arrow wall owns it vs ${threat.name}@${threat.dist.toFixed(1)}`)
+      }
     }
     // (v0.91.0) THE HONEST STOCK GATE: compare the held blocks to the REAL
     // need - ringBlocksNeeded counts only the cells the terrain leaves empty,
@@ -1253,7 +1285,11 @@ export function createMiner ({
     // (v0.140.0) ranged mode gates on the ARROW WALL's need (0..2 cells), not
     // the full ring's - the wall is what must stand, the bonus sides build
     // from whatever stock is left after it.
-    const needed = ranged ? ringRangedNeeded(sides, threatIdx) : ringBlocksNeeded(sides)
+    let needed = ranged ? ringRangedNeeded(sides, threatIdx) : ringBlocksNeeded(sides)
+    // (v0.849.0) the sill's honest price: every carried ground seat spends
+    // one block of the same seal stock - counted BEFORE the first placement
+    // (the v0.91.0 gate reads the REAL need, the earn path inherits it)
+    if (sillSides.length > 0) needed += sillSides.length
     let stock = countSealBlocks(inventoryItems(bot))
     if (stock < needed) {
       // (v0.91.0) THE RING DIG-EARN: the wall variant has earned its seal
@@ -1319,6 +1355,31 @@ export function createMiner ({
     // melee keeps the away-first doctrine (the risky placements last).
     const order = ranged ? [threatIdx, ...baseOrder.filter(i => i !== threatIdx)] : baseOrder
     log(`${tag} combat: shelter ring try vs ${threat.name} (dist ${threat.dist.toFixed(1)}, ${order.map(i => ['+x', '-x', '+z', '-z'][i]).join('')} first, ${ranged ? 'arrow wall' : 'full ring'}, ${reason})`)
+    // (v0.849.0) THE SILL PASS: seat every carried ground before the build -
+    // one block placed INTO the ground cell itself, against the under-bot
+    // block's lateral face (the ring's own reference geometry, one level
+    // down). A sill that fails to land leaves its side dead - the build
+    // loop's lost-reference break and the verify's incomplete verdict stay
+    // the honest outcomes (the carry never waits behind a gap). The leg
+    // rides the same SEAL_PLACE fence (the v0.544.0 law: every leg fenced).
+    let sillPlaced = 0
+    for (const si of order) {
+      const s = sides[si]
+      if (!sillDue(s)) continue
+      try {
+        const sealName = pickSealItem(inventoryItems(bot))?.name
+        const item = sealName ? bot.inventory.items().find(i => i.name === sealName) : null
+        if (!item) break // stock ran dry mid-seat - the rest stay dead
+        await bot.equip(item, 'hand')
+        await withTimeout(bot.placeBlock(underBotBlock, new Vec3(s.fx - here.x, 0, s.fz - here.z)), SEAL_PLACE_TIMEOUT_MS, 'seal sill place')
+        await bot.waitForTicks(2)
+        const seated = bot.blockAt(new Vec3(s.fx, here.y - 1, s.fz))
+        if (seated && seated.boundingBox !== 'empty') sillPlaced++
+      } catch { /* the sill refuses - the side stays honest */ }
+    }
+    if (sillPlaced > 0) {
+      log(`${tag} combat: shelter ring sill: ${sillPlaced} ground seat(s) placed, the build continues`)
+    }
     // the build: per side, foot then head; re-pick the seal item each
     // placement (a stack that runs out mid-build hands over to the next
     // priority block); the only reference needed is the ground below the foot

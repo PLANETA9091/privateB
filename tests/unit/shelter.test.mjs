@@ -15,7 +15,7 @@ import {
   shelterDue, losingFight, pickSealItem, pickJunkToDrop, earnSealDue,
   ringCellClass, ringSideBuildable, ringFeasible, ringBlocksNeeded,
   ringSideOrder, countSealBlocks, emptySlotCount, ringDigEarnSupply,
-  ringThreatSideIndex, ringRangedNeeded, ringRangedEnough
+  ringThreatSideIndex, ringRangedNeeded, ringRangedEnough, ringSillDue
 } from '../../src/lib/shelter.mjs'
 import { FLEE_HP } from '../../src/lib/combat.mjs'
 
@@ -509,4 +509,62 @@ test('THE CRITICAL-BAR FLEE: the flee sites refuse the shelter scan below the la
   // the land line rides the import (no re-derivation drift)
   assert.ok(/ENGAGE_RANGE, FLEE_HP, fleeResponse/.test(minerSrc), 'FLEE_HP rides the combat import (the line is THE land line, not a new constant)')
   assert.equal(FLEE_HP, 8, 'the critical bar IS the legacy land line')
+})
+
+// ---- (v0.849.0) THE SILL - the uneven-ground carry ----
+// face 123's book (37847727206): 12 'ring not buildable' refusals, 10 of
+// them the [-o ...] uneven-ground class (empty foot, NO solid ground under
+// it) and ZERO a mob in a cell - the terrain refused cages the stock could
+// close, the bot fled with nothing, and the mob deaths followed. The sill
+// seats the missing ground: one block placed against the under-bot block's
+// lateral face lands IN the ground cell, and the side's foot placement
+// gains its reference. The all-4 law keeps its byte - the cage still closes
+// completely before the wait.
+
+test('ringSillDue: exactly the measured [-o] class reads seatable', () => {
+  const dashSide = { foot: 'empty', head: 'empty', groundSolid: false }
+  assert.equal(ringSillDue(dashSide, { groundFree: true, underBotSolid: true }), true, "the '-' class: empty foot, no ground, free cell, a reference to place against")
+  assert.equal(ringSillDue({ ...dashSide, groundSolid: true }, { groundFree: true, underBotSolid: true }), false, "an 'o' side has its ground - the sill never touches it")
+  assert.equal(ringSillDue({ foot: 'solid', head: 'empty', groundSolid: false }, { groundFree: true, underBotSolid: true }), false, "a 'B' foot needs no ground (the cell is already closed)")
+  assert.equal(ringSillDue({ foot: 'blocked', head: 'empty', groundSolid: false }, { groundFree: true, underBotSolid: true }), false, 'a hostile in the FOOT cell is not seatable (the occupancy law)')
+})
+
+test('ringSillDue: the mechanics reads keep the honest refusals', () => {
+  const dashSide = { foot: 'empty', head: 'empty', groundSolid: false }
+  assert.equal(ringSillDue(dashSide, { groundFree: false, underBotSolid: true }), false, 'a hostile standing in the ground cell rejects the placement server-side')
+  assert.equal(ringSillDue(dashSide, { groundFree: true, underBotSolid: false }), false, 'no solid under-bot block = no reference for the sill itself')
+  assert.equal(ringSillDue(dashSide, { groundFree: true, underBotSolid: null }), false, 'junk legality reads refused (never build on a guess)')
+  assert.equal(ringSillDue({}, {}), false, 'junk side reads refused')
+  assert.equal(ringSillDue(null, { groundFree: true, underBotSolid: true }), false, 'null side reads refused')
+  assert.equal(ringSillDue(dashSide, {}), false, 'missing legality reads refused (the p reads are the mechanics voice)')
+})
+
+test('ringSillDue: the side must CLOSE once seated (the carry shape, source-pinned at the call site)', () => {
+  // the pure helper seats GROUND only; whether the side then closes is the
+  // carry's own conjunction (sillDue && ringSideBuildable({...s, groundSolid: true}))
+  // - pinned in the wiring block below. This test pins the arithmetic:
+  const seat = s => ringSillDue(s, { groundFree: true, underBotSolid: true }) && ringSideBuildable({ ...s, groundSolid: true })
+  assert.equal(seat({ foot: 'empty', head: 'empty', groundSolid: false }), true, '[-o] seats and closes')
+  assert.equal(seat({ foot: 'empty', head: 'solid', groundSolid: false }), true, '[-B] seats and closes (the natural head block is a free cell)')
+  assert.equal(seat({ foot: 'empty', head: 'blocked', groundSolid: false }), false, '[-x] seats its ground but NEVER closes - the carry must refuse it')
+})
+
+test('REGRESSION PIN: the miner carries the sill lane (the v0.849.0 uneven-ground cure)', async () => {
+  const fs = await import('node:fs')
+  const minerSrc = fs.readFileSync(new URL('../../src/bots/miner.mjs', import.meta.url), 'utf8')
+  // the plan reads the pure helper with the LIVE mechanics reads (the
+  // dead-wire class is catchable only at the call site)
+  assert.ok(/const sillDue = s => ringSillDue\(s, \{\s*groundFree: !hostileIn\(s\.fx, here\.y - 1, s\.fz\),\s*underBotSolid: !!underBotBlock\s*\}\)/.test(minerSrc), 'the sill plan rides the pure helper with the live hostile + under-bot reads')
+  assert.ok(/const sillSides = ranged \? \[\] : sides\.filter\(sillDue\)/.test(minerSrc), 'the sill is a MELEE lane piece - the ranged contract keeps its byte')
+  // the carry: every dead side sill-fixable AND closable once seated
+  assert.ok(/const sillCarries = !ranged && deadSides\.length > 0 && deadSides\.every\(s => sillDue\(s\) && ringSideBuildable\(\{ \.\.\.s, groundSolid: true \}\)\)/.test(minerSrc), 'the carry demands every dead side seatable and closable once seated (a blocked head never closes)')
+  // the honest price: the sill count joins the need BEFORE the stock read
+  assert.ok(/if \(sillSides\.length > 0\) needed \+= sillSides\.length\s*let stock = countSealBlocks/.test(minerSrc), 'the sill price rides the stock gate BEFORE the first placement (the v0.91.0 honest gate reads the REAL need)')
+  // the leg rides the same fence (the v0.544.0 law), its own label, its own verify
+  assert.ok(/await withTimeout\(bot\.placeBlock\(underBotBlock, new Vec3\(s\.fx - here\.x, 0, s\.fz - here\.z\)\), SEAL_PLACE_TIMEOUT_MS, 'seal sill place'\)/.test(minerSrc), 'the sill leg rides the SEAL_PLACE fence with its own label')
+  assert.ok(/const seated = bot\.blockAt\(new Vec3\(s\.fx, here\.y - 1, s\.fz\)\)\s*if \(seated && seated\.boundingBox !== 'empty'\) sillPlaced\+\+/.test(minerSrc), 'the sill verifies the block actually landed (the ring leg shape)')
+  // the self-naming line (the decode greps the live reads)
+  assert.ok(/shelter ring sill: \$\{sillPlaced\} ground seat\(s\) placed, the build continues/.test(minerSrc), 'the sill names its own line for the fleet-log decode')
+  // the refusal line keeps its byte on the no-carry path
+  assert.ok(/ring not buildable \[\$\{sides\.map\(mark\)\.join\(' '\)\}\]/.test(minerSrc), "the honest refusal line keeps its byte (the decode greps survive)")
 })
