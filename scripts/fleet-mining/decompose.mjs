@@ -89,7 +89,7 @@ import { relogBill } from '../../src/lib/relogbill.mjs' // (v0.715.0) the relog'
 import { freezeBill } from '../../src/lib/freezebill.mjs' // (v0.724.0) the freeze gate's own ladder - the frozen relog's streak/gate/vitals bytes folded per bot (the doubling's own futility read)
 import { kickBill } from '../../src/lib/kickbill.mjs' // (v0.717.0) the kick's own churn - the kick cells joined to the relog cells (the pair, the split, the repeats over both lanes)
 import { kickKindCensus } from '../../src/lib/kickkinds.mjs' // (v0.730.0) the kick's own kinds - the kicked clients' reason census (the translate byte per kind; the dup class reconciles with the frozen census's dupKicks)
-import { sockLossCensus } from '../../src/lib/sockloss.mjs' // (v0.806.0) the socket loss's own book - the client-side death certificates (the error/socket-error/raw-stack bursts, the twin + raw reconciles, the log's thirds clock)
+import { sockLossCensus, sockChurnJoin } from '../../src/lib/sockloss.mjs' // (v0.806.0) the socket loss's own book - the client-side death certificates (the error/socket-error/raw-stack bursts, the twin + raw reconciles, the log's thirds clock)
 import { dupClock, unseenLosses, surplusKicks, burstDoor } from '../../src/lib/dupclock.mjs' // (v0.729.0) the duplicate's own clock - the server log's join side (the losses, the cadence, the bursts, the storm; v0.734.0 the unseen loss's own column, v0.735.0 the surplus kick's own side, v0.740.0 the burst's own door)
 import { pinBill } from '../../src/lib/pinbill.mjs' // (v0.722.0) the pinned seat's own bill - the water lane's launches per bot per target (the 70%/10+ concentration names the seat)
 import { memHbCensus, RSS_JUMP_STORM_M, ENT_JUMP_STORM_N } from '../../src/lib/memhb.mjs' // (v0.408.0) the OOM precursors' field read
@@ -1560,6 +1560,21 @@ console.log('  hazard memorized:', count(/hazard memorized/))
       console.log(`  the socket loss's own seat (v0.806.0): ${sv.cls} owns ${sv.units} of ${sl.verdict.total} loss(es) (${(sv.shareOfLosses * 100).toFixed(1)}%): ${sv.lever}`)
     } else if (sl.verdict) {
       console.log('  the socket loss\'s own seat (v0.806.0): no single kind owns the socket losses (the storm has no seat)')
+    }
+    // (v0.807.0) THE CHURN JOIN'S OWN REACH - the levers' candidates priced:
+    // every loss looks back within the burst's own reach (20 lines) for its
+    // own bot's KICKED line; the kinds' own words ride the per-kind rates.
+    // One additive row pair beside the book - the cells reconcile with the
+    // census's byKind (the WIRING pin).
+    const sj = sockChurnJoin(lines)
+    if (sj) {
+      const sjUn = Object.entries(sj.unjoinedByKind).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k} ${v}`).join(' / ')
+      const sjPair = sj.joinedPairs.length ? ` (${sj.joinedPairs.slice(0, 6).join(' ')})` : ''
+      console.log(`  the socket loss's own join (v0.807.0): the churn window ${sj.window} line(s) - joined ${sj.losses.joined} of ${sj.losses.n}${sjPair}, unjoined ${sj.losses.unjoined}${sjUn ? ` (${sjUn})` : ''}; the kicks ${sj.kicks.n}, the bare ${sj.kicks.bare}`)
+      if (sj.verdict) {
+        const sjWords = Object.entries(sj.verdict).filter(([k]) => k !== 'bad').map(([k, v]) => `${k} ${v.word} (${v.joined} of ${v.n} joined)`).join(' / ')
+        console.log(`  the socket join's own words (v0.807.0): ${sjWords}`)
+      }
     }
   }
 }

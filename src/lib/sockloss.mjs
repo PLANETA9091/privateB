@@ -141,3 +141,122 @@ export function sockLossVerdict (byKind) {
     : null
   return { total, topKind, bad }
 }
+
+// (v0.807.0) THE CHURN JOIN'S OWN REACH - the socket book's churn leg. The
+// v0.806.0 levers named two candidates - EPIPE as the kick churn's residue,
+// ECONNRESET as the end-phase teardown's own front - and both rode the word
+// 'candidate'. The join prices them: every loss looks back within the
+// WINDOW for its own bot's KICKED line (the burst's own reach - face 89's
+// kick-to-loss gap rode 16 lines, the raw stack between them eats the
+// slack), and every kick with no same-bot loss within the window after it
+// rides bare (the kick whose socket never died - or whose loss sits beyond
+// the reach). The fleet log carries no wall clock, so the line index is
+// the only reach the join owns - the window is the burst's own anatomy,
+// not a time claim. The counts stay raw on both sides (a kick within reach
+// of two losses serves both honestly - nothing is silently absorbed); the
+// one-truth pin: the join's per-kind cells must sum back to the census's
+// own byKind (the WIRING test holds the two folds together).
+export const SOCK_JOIN_WINDOW = 20
+const SOCK_KICK_RE = /^(F\d+) \[\1\] KICKED: /
+
+/**
+ * sockChurnJoin(lines, [window]) - the socket losses' churn join.
+ * @param {string[]|null} [lines] the fleet19.log lines
+ * @param {number} [window] the burst's own reach in lines
+ * @returns {null|{window: number, losses: {n: number, joined: number,
+ *   unjoined: number}, joinedByKind: Object<string, number>,
+ *   unjoinedByKind: Object<string, number>,
+ *   joinedPairs: string[], kicks: {n: number, bare: number},
+ *   verdict: null|Object<string, {n: number, joined: number,
+ *   unjoined: number, word: string}>}}
+ *   the join (null on a kick-free, loss-free face)
+ */
+export function sockChurnJoin (lines, window = SOCK_JOIN_WINDOW) {
+  if (!Array.isArray(lines)) return null
+  const kicks = {} // bot -> [line indexes]
+  const losses = [] // { i, bot, kind }
+  for (let i = 0; i < lines.length; i++) {
+    const s = typeof lines[i] === 'string' ? lines[i] : ''
+    const km = SOCK_KICK_RE.exec(s)
+    if (km) {
+      const b = km[1]
+      ;(kicks[b] = kicks[b] || []).push(i)
+      continue
+    }
+    const lm = SOCK_LOSS_RE.exec(s)
+    if (lm) losses.push({ i, bot: lm[1], kind: lm[2] })
+  }
+  if (!losses.length && !Object.keys(kicks).length) return null
+  const joinedByKind = {}
+  const unjoinedByKind = {}
+  const joinedPairs = []
+  const lossIdx = {} // bot -> [loss line indexes] (the bare read's own side)
+  let joined = 0
+  for (const { i, bot, kind } of losses) {
+    unjoinedByKind[kind] = (unjoinedByKind[kind] || 0) + 1
+    ;(lossIdx[bot] = lossIdx[bot] || []).push(i)
+    const own = kicks[bot] || []
+    let gap = null
+    for (let j = own.length - 1; j >= 0; j--) {
+      const d = i - own[j]
+      if (d >= 1 && d <= window) { gap = d; break }
+      if (d > window) break
+    }
+    if (gap !== null) {
+      unjoinedByKind[kind]--
+      joinedByKind[kind] = (joinedByKind[kind] || 0) + 1
+      joined++
+      joinedPairs.push(`${bot}@${gap}`)
+    }
+  }
+  let bare = 0
+  let kicksN = 0
+  for (const [b, idxs] of Object.entries(kicks)) {
+    kicksN += idxs.length
+    const ownLosses = lossIdx[b] || []
+    for (const k of idxs) {
+      // bare iff NO same-bot loss sits inside the window after the kick
+      // (the loss beyond the reach never serves it - face 89's F17 shape:
+      // the timeout kick, then the EPIPE loss 171 lines later - bare)
+      const within = ownLosses.some((li) => li > k && li - k <= window)
+      if (!within) bare++
+    }
+  }
+  return {
+    window,
+    losses: { n: losses.length, joined, unjoined: losses.length - joined },
+    joinedByKind,
+    unjoinedByKind,
+    joinedPairs,
+    kicks: { n: kicksN, bare },
+    verdict: sockJoinVerdict(joinedByKind, unjoinedByKind), // (v0.807.0) the kinds' own words ride additively
+  }
+}
+
+// (v0.807.0) THE JOIN'S OWN WORDS - the per-kind classification (the
+// levers' candidates priced): a kind whose every loss sits inside a kick's
+// reach rides the churn (the residue class); a kind the churn never
+// touched rides its own front; anything between reads the mix (the
+// residue and the own-front both ride). Junk never invents a word:
+// non-finite or negative counts are skipped and counted.
+export function sockJoinVerdict (joinedByKind, unjoinedByKind) {
+  const j = (joinedByKind && typeof joinedByKind === 'object' && !Array.isArray(joinedByKind)) ? joinedByKind : {}
+  const u = (unjoinedByKind && typeof unjoinedByKind === 'object' && !Array.isArray(unjoinedByKind)) ? unjoinedByKind : {}
+  const kinds = new Set([...Object.keys(j), ...Object.keys(u)])
+  const out = {}
+  let bad = 0
+  for (const k of kinds) {
+    const a = Number.isFinite(j[k]) && j[k] >= 0 ? j[k] : (j[k] !== undefined ? (bad++, 0) : 0)
+    const b = Number.isFinite(u[k]) && u[k] >= 0 ? u[k] : (u[k] !== undefined ? (bad++, 0) : 0)
+    const n = a + b
+    if (!n) continue
+    const word = a === n
+      ? 'rides the kick churn - the residue class'
+      : a === 0
+        ? 'rides its own front - the churn never touched it'
+        : 'the mix is the shape - the residue and the own-front both ride'
+    out[k] = { n, joined: a, unjoined: b, word }
+  }
+  if (bad) out.bad = bad
+  return Object.keys(out).length ? out : null
+}

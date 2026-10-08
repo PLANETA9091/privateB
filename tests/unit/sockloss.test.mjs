@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { sockLossCensus, sockLossVerdict } from '../../src/lib/sockloss.mjs'
+import { sockLossCensus, sockLossVerdict, sockChurnJoin, sockJoinVerdict } from '../../src/lib/sockloss.mjs'
 
 // The era's socket-loss bytes, verbatim from face 89 (run 37715421436):
 // every TCP death prints a THREE-part burst - the raw stack header
@@ -113,4 +113,81 @@ test('v0.806.0 the honest silences + the log\'s own thirds clock + the WIRING', 
   assert.deepEqual(edges.verdict, sockLossVerdict(edges.byKind), 'the seat rides the census return additively (WIRING)')
   assert.equal(edges.verdict.topKind.cls, 'EPIPE', 'three bots, ONE kind - the kind seat reads the monopoly (the bots\' spread is the byBot cells\' own story)')
   assert.equal(edges.verdict.topKind.shareOfLosses, 1)
+})
+
+// (v0.807.0) THE CHURN JOIN'S OWN REACH - the levers' candidates priced.
+// Face 89's own shapes: the kick's raw stack eats ~15 lines between the
+// KICKED line and the attributed pair (the gap rode 16), the end-phase
+// ECONNRESET storm rode 14/14 unjoined, and F17's timeout kick sat 171
+// lines before its EPIPE loss - beyond any reach, bare.
+const STACK = (k) => [RAW(k), '    at afterWriteDispatched (node:internal/stream_base_commons:159:15)', '    at Socket._writeGeneric (node:net:967:11)', 'errno: -32,', `code: '${k}',`, 'syscall: \'write\'', '}']
+
+function burst (bot, kind, gapLines) {
+  // kick -> (gapLines-7 filler lines) -> the raw stack -> the loss+twin
+  const out = [`${bot} [${bot}] KICKED: {"type":"compound","value":{"translate":{"type":"string","value":"multiplayer.disconnect.duplicate_login"}}}`]
+  for (let i = 0; i < gapLines - STACK(kind).length - 1; i++) out.push(FILLER(100 + i))
+  return [...out, ...STACK(kind), LOSS(bot, kind), TWIN(bot, kind)]
+}
+
+test('v0.807.0 the join: face 89\'s own shapes (the 16-line residue, the unjoined storm, the bare 171-line kick)', () => {
+  const F89J = [
+    ...burst('F14', 'EPIPE', 16), // the kick churn's residue - joined@16
+    ...burst('F10', 'EPIPE', 16),
+    ...Array.from({ length: 25 }, (_, i) => FILLER(300 + i)), // the real face's own spacing - the 2nd F10 loss rode 140 lines past its kick
+    RAW('EPIPE'), LOSS('F10', 'EPIPE'), TWIN('F10', 'EPIPE'), // the second loss - no kick within the reach, its own front
+    RAW('ECONNRESET'), LOSS('F5', 'ECONNRESET'), TWIN('F5', 'ECONNRESET'), // the storm - unjoined
+    `${'F17'} [F17] KICKED: {"type":"compound","value":{"translate":{"type":"string","value":"disconnect.timeout"}}}`,
+    ...Array.from({ length: 30 }, (_, i) => FILLER(200 + i)),
+    RAW('EPIPE'), LOSS('F17', 'EPIPE'), TWIN('F17', 'EPIPE'), // 38 lines after its kick - beyond the reach
+  ]
+  const j = sockChurnJoin(F89J)
+  assert.ok(j, 'the join opens on the churn face')
+  assert.equal(j.window, 20)
+  assert.deepEqual(j.losses, { n: 5, joined: 2, unjoined: 3 })
+  assert.deepEqual(j.joinedByKind, { EPIPE: 2 })
+  assert.deepEqual(j.unjoinedByKind, { EPIPE: 2, ECONNRESET: 1 }, 'EPIPE: the F10 second loss + the F17 beyond-reach loss; ECONNRESET: the storm')
+  assert.deepEqual(j.joinedPairs, ['F14@16', 'F10@16'], 'the gap rides the pair byte-exact')
+  assert.deepEqual(j.kicks, { n: 3, bare: 1 }, 'F17\'s kick sits beyond the reach - bare (the served-max bug\'s own pin)')
+  assert.equal(j.verdict.EPIPE.word, 'the mix is the shape - the residue and the own-front both ride')
+  assert.equal(j.verdict.ECONNRESET.word, 'rides its own front - the churn never touched it')
+})
+
+test('v0.807.0 the window edges: the exact reach joins, one past refuses, the kick after the loss never joins', () => {
+  const at = (gap) => sockChurnJoin(burst('F2', 'ECONNRESET', gap))
+  assert.deepEqual(at(20).losses, { n: 1, joined: 1, unjoined: 0 }, 'the exact reach joins')
+  assert.deepEqual(at(21).losses, { n: 1, joined: 0, unjoined: 1 }, 'one past the reach refuses')
+  const after = sockChurnJoin([
+    LOSS('F3', 'EPIPE'), TWIN('F3', 'EPIPE'),
+    'F3 [F3] KICKED: {"type":"compound","value":{"translate":{"type":"string","value":"multiplayer.disconnect.duplicate_login"}}}',
+  ])
+  assert.deepEqual(after.losses, { n: 1, joined: 0, unjoined: 1 }, 'a kick after the loss is not the loss\'s cause')
+  assert.deepEqual(after.kicks, { n: 1, bare: 1 }, 'the kick whose socket never died within the reach (the loss rode BEFORE it) - bare')
+  assert.equal(sockChurnJoin(null), null)
+  assert.equal(sockChurnJoin([FILLER(1)]), null, 'a loss-free, kick-free face reads the honest silence')
+})
+
+test('v0.807.0 the words: the residue class, the own front, and the junk fences', () => {
+  const residue = sockJoinVerdict({ EPIPE: 5 }, { EPIPE: 0 })
+  assert.deepEqual(residue.EPIPE, { n: 5, joined: 5, unjoined: 0, word: 'rides the kick churn - the residue class' })
+  const front = sockJoinVerdict({ ECONNRESET: 0 }, { ECONNRESET: 14 })
+  assert.deepEqual(front.ECONNRESET, { n: 14, joined: 0, unjoined: 14, word: 'rides its own front - the churn never touched it' })
+  const junk = sockJoinVerdict({ EPIPE: -1, ECONNRESET: Number.NaN, EPIPE: 2 }, { EPIPE: 3 })
+  assert.equal(junk.bad, 1, 'the junk counts are skipped and counted - never priced, never silently dropped')
+  assert.equal(junk.EPIPE.n, 5)
+  assert.equal(sockJoinVerdict(null, null), null)
+  assert.equal(sockJoinVerdict({}, {}), null)
+})
+
+test('v0.807.0 the WIRING: the join\'s per-kind cells sum back to the census\'s own byKind', () => {
+  const F89J = [
+    ...burst('F14', 'EPIPE', 16),
+    RAW('ECONNRESET'), LOSS('F5', 'ECONNRESET'), TWIN('F5', 'ECONNRESET'),
+    RAW('ECONNRESET'), LOSS('F13', 'ECONNRESET'), TWIN('F13', 'ECONNRESET'),
+  ]
+  const sl = sockLossCensus(F89J)
+  const j = sockChurnJoin(F89J)
+  for (const k of sl.kinds) {
+    assert.equal((j.joinedByKind[k] || 0) + (j.unjoinedByKind[k] || 0), sl.byKind[k], `the ${k} cells must fold to one truth`)
+  }
+  assert.equal(sl.n, j.losses.n)
 })
