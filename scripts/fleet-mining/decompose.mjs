@@ -72,7 +72,7 @@ import { assistLedger } from '../../src/lib/assistledger.mjs' // (v0.499.0) the 
 import { torchBook } from '../../src/lib/torchbook.mjs' // (v0.500.0) the torch ledger - the light supply's floors, rungs, asks and yield
 import { veinLedger, tierGuardBill } from '../../src/lib/veinledger.mjs' // (v0.501.0) the vein ledger - the sweep's terminals, walk yield, gallery digs, refusals and the tier guard; (v0.768.0) the tier guard's own bill - the repeat rider's own seat
 import { commonsLedger, sweepBookSeat, sweepBookSeatRow, sweepBookRiders, sweepBookRidersRow, chestCloseSeat, chestCloseSeatRow } from '../../src/lib/commonsledger.mjs' // (v0.502.0) the commons ledger - the ask's answer: the sweeps, the walk anatomy, the deliveries; (v0.800.0) WHICH close class owns the sweep book; (v0.815.0) + the chest's own close - WHICH chest-side close owns the chest book
-import { droughtTimeline, droughtTimelineRow, drySideSeat, drySideSeatRow, titheAnswerSize, titheAnswerSizeRow, titheFamilyCensus, titheFamilySeat, titheFamilySeatRow, titheReceipts, titheReceiptSeat, titheReceiptSeatRow } from '../../src/lib/droughttimeline.mjs' // (v0.738.0) the pump's own timeline - the tithe's banks vs the dry reads' positions; (v0.816.0) + the dry read's own side - WHICH side of the first bank owns the dry book; (v0.824.0) + the answer's own size - the tithe's banked units against the asks' own hunger; (v0.827.0) + the tithe family's own voice - WHICH lane owns the deposit family's own firings; (v0.831.0) + the receipt's own seat - the fuel tithe's trip receipts vs the ask's own dry chest (the yard's own two mouths)
+import { droughtTimeline, droughtTimelineRow, drySideSeat, drySideSeatRow, titheAnswerSize, titheAnswerSizeRow, titheFamilyCensus, titheFamilySeat, titheFamilySeatRow, titheReceipts, titheReceiptSeat, titheReceiptSeatRow, titheGhostSplit, titheGhostSplitRow } from '../../src/lib/droughttimeline.mjs' // (v0.738.0) the pump's own timeline - the tithe's banks vs the dry reads' positions; (v0.816.0) + the dry read's own side - WHICH side of the first bank owns the dry book; (v0.824.0) + the answer's own size - the tithe's banked units against the asks' own hunger; (v0.827.0) + the tithe family's own voice - WHICH lane owns the deposit family's own firings; (v0.831.0) + the receipt's own seat - the fuel tithe's trip receipts vs the ask's own dry chest (the yard's own two mouths); (v0.833.0) + the summary's own ghost - the receiptless firing's own close audit (the three-outcome law)
 import { reachRadius, reachRadiusRow, reachClock, reachClockRow, reachRentSeat, reachRentSeatRow, reachPreflightGate, reachPreflightGateRow } from '../../src/lib/reachmap.mjs' // (v0.740.0) the reach's own radius - the last mile's refused distances; (v0.742.0) the last mile's own clock - the refused walks' elapsed ms (the raw walk's own rent); (v0.821.0) the last mile's own rent seat - the paired walks' rent by the d-band; (v0.823.0) the preflight's own distance gate - the seat's owner prices the early refuse
 import { bridgeBook, bridgePocketBill, bridgePocketBillRow, bridgePocketRiders, bridgePocketRidersRow } from '../../src/lib/bridgebook.mjs' // (v0.496.0) the bridge book - the vertical walk's fill lane (the refusals' why-flip, the cobble signature, the server's own veto; SLOT COLLISION #17: 0.495.0 taken by fire-0008's THE TABLE GATE mid-fire); (v0.786.0) WHICH bot owns the pocket tax
 import { bridgeRefusalCensus, bridgeRefusalRow } from '../../src/lib/climbbridge.mjs' // (v0.665.0) THE CLIMB BRIDGE'S FIELD READ - the refusal book's own grains wired to the mining surface: the gate, the pit donor, the plant clear, the shadow gate's defers
@@ -4045,6 +4045,20 @@ console.log('  plan lines:', count(/materials plan|plan progress/i))
     if (tr && tr.firings > 0 && tr.dryLocs > 0) {
       const trSeat = titheReceiptSeat(tr)
       if (trSeat) console.log(`  the receipt's own seat (v0.831.0): ${titheReceiptSeatRow(trSeat)}`)
+      // (v0.833.0) the summary's own ghost - the receiptless firing's
+      // own close audit. The counters proved the mass moved (the voice
+      // v0.827.0, the size v0.824.0) and the receipt priced WHERE (the
+      // seat v0.831.0) - but face 104's blind seat hid a second book:
+      // the tithe feeds the banked total (deposit.mjs deposited +=
+      // titheMoved), so a visit whose in-loop firing landed owes the
+      // book ONE close - the summary or the arm-2 death line. Face
+      // 104's three firings (52u) landed NEITHER - the ghost seat. The
+      // split: the ghost vs the death's own paperwork. One additive
+      // row beside the seat's (the gate: the blind seat spoke).
+      if (tr.blind > 0) {
+        const tgs = titheGhostSplit(tr)
+        if (tgs) console.log(`  the summary's own ghost (v0.833.0): ${titheGhostSplitRow(tgs)}`)
+      }
     }
     const rows = Object.entries(cl.bots).sort((a, b) => b[1].sweeps - a[1].sweeps).slice(0, 6)
     if (rows.length) console.log(`  bots heaviest-first: ${rows.map(([b, r]) => `${b} ${r.sweeps}sw/${r.asks}ask`).join(' ')}`)

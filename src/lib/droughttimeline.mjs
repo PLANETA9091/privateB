@@ -393,6 +393,34 @@ export function titheFamilySeatRow (seat) {
 // the shape's own identity)
 export const BANK_LANDED_RE = /^(F\d+) \[F\d+\] banked (\d+) items at \((-?\d+), (-?\d+), (-?\d+)\)/
 
+// (v0.833.0) THE HOP LANE'S OWN CLOSE - deposit.mjs's three close emitters
+// share one shape (the far-chest skip, the chain's arm-2 death net, the zero
+// hop): '[F9] hop: chest at [x,y,z] d=N zero: REASON' (the fleet router
+// prepends the bot tag - the log line rides as 'F9 [F9] hop: ...'). The
+// receiptless firing's own audit reads this lane because the three-outcome
+// law (v0.833.0, at titheReceipts) needs the death's own voice: the tithe
+// feeds the banked total (deposit.mjs v0.101.0 block, deposited += titheMoved),
+// so a visit whose in-loop firing landed owes the book ONE close - the
+// summary (deposited > 0) or the arm-2 death line (the throw's own net). A
+// plain zero hop cannot close a visit the tithe already funded - a zero after
+// the firing is a LATER trip's paperwork and never excuses the ghost.
+export const HOP_CLOSE_RE = /^(F\d+) \[F\d+\] hop: chest at \[(-?\d+), (-?\d+), (-?\d+)\](?: d=(\d+))? zero: (.+)$/
+
+/**
+ * parseHopClose(line) - one hop-lane close read back (junk in, null out).
+ * @param {string} line one fleet-log line
+ * @returns {null|{bot: string, chest: number[], d: number|null, reason: string}}
+ *   the close (null on junk)
+ */
+export function parseHopClose (line) {
+  if (typeof line !== 'string') return null
+  const m = HOP_CLOSE_RE.exec(line)
+  if (!m) return null
+  const chest = [Number(m[2]), Number(m[3]), Number(m[4])]
+  if (!chest.every((n) => Number.isFinite(n))) return null
+  return { bot: m[1], chest, d: m[5] == null ? null : Number(m[5]), reason: m[6] }
+}
+
 // the deathground square's own metric (the max axis delta) - one
 // distance law across the lenses
 const squareDist = (a, b) => Math.max(Math.abs(a[0] - b[0]), Math.abs(a[1] - b[1]), Math.abs(a[2] - b[2]))
@@ -411,13 +439,14 @@ const parseLoc = (s) => {
  * titheReceipts(lines) - the fuel tithe's trip receipts vs the yard's
  * located dry reads, one stream, one walk.
  * @param {string[]} lines one fleet-log, all lines
- * @returns {null|{firings: number, receipted: number, blind: number, withinBody: number, beyond: number, minDist: number|null, dryLocs: number, receipts: Object[]}}
+ * @returns {null|{firings: number, receipted: number, blind: number, ghost: number, deathClosed: number, ghostUnits: number, withinBody: number, beyond: number, minDist: number|null, dryLocs: number, receipts: Object[]}}
  *   the read (null on a fuel-silent face)
  */
 export function titheReceipts (lines) {
   if (!Array.isArray(lines)) return null
   const firings = []
   const receipts = []
+  const closes = [] // (v0.833.0) the hop lane's own closes (the death's voice for the ghost audit)
   const dryLocs = []
   lines.forEach((line, idx) => {
     if (typeof line !== 'string') return
@@ -432,6 +461,12 @@ export function titheReceipts (lines) {
       if (chest.every((n) => Number.isFinite(n))) receipts.push({ idx, bot: r[1], chest, items: Number(r[2]) })
       return
     }
+    const h = HOP_CLOSE_RE.exec(line)
+    if (h) {
+      const chest = [Number(h[2]), Number(h[3]), Number(h[4])]
+      if (chest.every((n) => Number.isFinite(n))) closes.push({ idx, bot: h[1], chest, d: h[5] == null ? null : Number(h[5]), reason: h[6] })
+      return
+    }
     const d = COMMONS_EMPTY_RE.exec(line)
     if (d && d[2]) {
       const loc = parseLoc(d[2])
@@ -443,11 +478,27 @@ export function titheReceipts (lines) {
   let withinBody = 0
   let beyond = 0
   let minDist = null
+  let ghost = 0 // (v0.833.0) the receiptless firings whose close never landed
+  let deathClosed = 0 // the receiptless firings the arm-2 death net closed by name
+  let ghostUnits = 0 // the mass the ghost firings' own in-loop voice banked
   const joined = firings.map((f) => {
     // the same bot's FIRST receipt after the firing - line order only,
     // NOT consumed (two firings of one trip share the trip's receipt)
     const rec = receipts.find((r) => r.bot === f.bot && r.idx > f.idx) || null
-    if (!rec) return { ...f, receipt: null, dist: null }
+    if (!rec) {
+      // (v0.833.0) THE RECEIPTLESS FIRING'S OWN CLOSE AUDIT - the
+      // three-outcome law: the tithe feeds the banked total, so the
+      // visit's own close is the summary or the arm-2 death line. The
+      // same bot's first DEATH close after the firing rides line order
+      // only, NOT consumed (two firings of one trip share the death's
+      // one close). A plain zero-close after the firing is a LATER
+      // trip's paperwork - it never excuses the ghost.
+      const death = closes.find((c) => c.bot === f.bot && c.idx > f.idx && typeof c.reason === 'string' && c.reason.startsWith('visit died mid-visit')) || null
+      if (death) { deathClosed++; return { ...f, receipt: null, dist: null, close: 'death' } }
+      ghost++
+      if (Number.isFinite(f.units) && f.units > 0) ghostUnits += f.units
+      return { ...f, receipt: null, dist: null, close: 'ghost' }
+    }
     receipted++
     const dists = dryLocs.map((d) => squareDist(rec.chest, d.loc))
     const dist = dists.length ? Math.min(...dists) : null
@@ -462,6 +513,9 @@ export function titheReceipts (lines) {
     firings: firings.length,
     receipted,
     blind: firings.length - receipted,
+    ghost,
+    deathClosed,
+    ghostUnits,
     withinBody,
     beyond,
     minDist,
@@ -519,4 +573,55 @@ export function titheReceiptSeatRow (seat) {
   }
   if (owner !== null) return null
   return `${head} (${withinBody} within the ask's own chest, ${beyond} beyond) - THE RECEIPT'S OWN SPLIT: the break rides both shapes, no solo shape owns the book`
+}
+
+/**
+ * titheGhostSplit(read) - the receiptless firings' own split (the
+ * strict-majority law, a tie owns nothing): the ghost (the visit's own
+ * close never landed in the book) vs the death's own paperwork (the arm-2
+ * net closed the trip in the hop lane's voice). The three-outcome law
+ * behind the audit: the tithe feeds the banked total, so a firing's own
+ * visit owes the book ONE close - the summary or the death line; a plain
+ * zero hop cannot close a visit the tithe already funded.
+ * @param {null|{firings: number, receipted: number, blind: number, ghost: number, deathClosed: number, ghostUnits: number}} [read] titheReceipts's own read
+ * @returns {null|{owner: string|null, firings: number, blind: number, ghost: number, deathClosed: number, ghostUnits: number}}
+ *   the split (null on junk, on a receipt-full book, or on an empty receiptless seat)
+ */
+export function titheGhostSplit (read) {
+  if (!read || typeof read !== 'object' || Array.isArray(read)) return null
+  const { firings, receipted, blind, ghost, deathClosed, ghostUnits } = read
+  if (!Number.isFinite(firings) || firings <= 0) return null
+  if (!Number.isFinite(receipted) || receipted < 0) return null
+  if (!Number.isFinite(blind) || blind < 0 || blind > firings) return null
+  if (blind === 0) return null // every firing carries its receipt - no receiptless seat to split
+  if (receipted + blind !== firings) return null // the cells must carry the book
+  const g = Number.isFinite(ghost) ? ghost : 0
+  const dc = Number.isFinite(deathClosed) ? deathClosed : 0
+  if (g + dc !== blind) return null // the cells must carry the book - junk never invents a split
+  const gu = Number.isFinite(ghostUnits) ? ghostUnits : 0
+  if (gu < 0) return null
+  const ghostOwns = g * 2 > blind
+  const deathOwns = dc * 2 > blind
+  const owner = ghostOwns ? 'ghost' : deathOwns ? 'death' : null
+  return { owner, firings, blind, ghost: g, deathClosed: dc, ghostUnits: gu }
+}
+
+/**
+ * titheGhostSplitRow(split) - the ghost split's own row (the prose
+ * lives only in the lib).
+ * @param {null|{owner: string|null, firings: number, blind: number, ghost: number, deathClosed: number, ghostUnits: number}} [split] titheGhostSplit's own read
+ * @returns {null|string} the row (null on junk)
+ */
+export function titheGhostSplitRow (split) {
+  if (!split || typeof split !== 'object' || Array.isArray(split)) return null
+  const { owner, blind, ghost, deathClosed, ghostUnits } = split
+  if (!Number.isFinite(blind) || blind <= 0) return null
+  if (owner === 'ghost') {
+    return `${ghost} of ${blind} receiptless firing(s) closed with no line of their own - ${ghostUnits}u the in-loop voice banked and the book never closed - THE SUMMARY'S OWN GHOST: the tithe feeds the banked total, so the visit's own arithmetic owed the close - the emitter's own front`
+  }
+  if (owner === 'death') {
+    return `${deathClosed} of ${blind} receiptless firing(s) closed in the hop lane's own voice - the death ate the summary and named itself - THE NET'S OWN PAPERWORK: the close landed where the book could read it - the summary's shape is what died`
+  }
+  if (owner !== null) return null
+  return `${ghost} and ${deathClosed} split the ${blind} receiptless firing(s) even - THE RECEIPTLESS SPLIT: no solo shape owns the book, the verdict waits`
 }
