@@ -138,3 +138,73 @@ export function hazardBoardCensusRow (c) {
     : ''
   return `the water hazard board's own read (v0.826.0): ${c.memorizes} memorize(s) at ${c.distinctSpots} spot(s), ${repeatPart}; peaked at ${c.peakLive} live, closed at ${c.finalLive}, ${ttlPart}${jumpPart}`
 }
+
+// The priced radius (the death ground's own R12 precedent: R4 - footfall
+// scale - never clusters on any held face, R24 merges distinct nests; the
+// same join law, the memorize lines' own family). The join is the
+// deathground square (BOTH axis deltas within R, the edge rides) - one
+// distance law across the death lenses, never two.
+export const WALKBACK_RADIUS = 12
+
+/**
+ * The walk-back seat (v0.827.0) - the board's own coverage read. For each
+ * memorize line: does an EARLIER memorize sit within the priced square
+ * (both planar axis deltas <= WALKBACK_RADIUS, the deathground join)? A
+ * within death is the WALK-BACK: the log had already named this water -
+ * the spot-exact board saw the pool one death at a time while the body
+ * kept the toll. The honest-claim law holds: 'named' is line order only -
+ * whether the earlier record was still live (the 240s TTL) reads nowhere,
+ * the count cell cannot say which spot expired. The FIRST memorize is
+ * never a walk-back (nothing was named before it) and rides out of the
+ * denominator by construction. Junk-safe: the census's own conventions.
+ * @param {string[]|string} [lines] the face log
+ * @returns {null|{memorizes: number, eligible: number, walkBacks: number, clean: number}}
+ */
+export function hazardWalkBack (lines) {
+  const src = Array.isArray(lines)
+    ? lines
+    : (typeof lines === 'string' ? lines.split('\n') : null)
+  if (!src) return null
+  const rows = []
+  for (const l of src) {
+    const p = parseHazardMemorize(l)
+    if (p) rows.push(p)
+  }
+  if (rows.length === 0) return null
+  let eligible = 0
+  let walkBacks = 0
+  for (let i = 1; i < rows.length; i++) {
+    eligible++
+    for (let j = 0; j < i; j++) {
+      if (Math.abs(rows[j].x - rows[i].x) <= WALKBACK_RADIUS &&
+          Math.abs(rows[j].z - rows[i].z) <= WALKBACK_RADIUS) {
+        walkBacks++
+        break
+      }
+    }
+  }
+  return {
+    memorizes: rows.length,
+    eligible,
+    walkBacks,
+    clean: eligible - walkBacks
+  }
+}
+
+/**
+ * The walk-back's own row (the byte-exact verdict line). Guards: a null
+ * read, a junk object, an empty denominator or any non-finite cell read
+ * the honest silence; a walk-back share of zero rides NO row (the gate's
+ * own law - a lens that bites nothing stays silent, the census row already
+ * carries the board's shape).
+ * @param {null|object} [w] hazardWalkBack's own read
+ * @returns {null|string}
+ */
+export function hazardWalkBackRow (w) {
+  if (!w || typeof w !== 'object' || Array.isArray(w)) return null
+  const cells = [w.memorizes, w.eligible, w.walkBacks, w.clean]
+  if (!cells.every((n) => Number.isFinite(n))) return null
+  if (w.eligible <= 0) return null
+  if (w.walkBacks <= 0) return null
+  return `the hazard board's own walk-back (v0.827.0): ${w.walkBacks} of ${w.eligible} death(s) landed within ${WALKBACK_RADIUS} of water an earlier death had already named - the spot-exact board named the water one death at a time and the body kept the toll`
+}

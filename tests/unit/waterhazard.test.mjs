@@ -160,3 +160,102 @@ test('waterhazard: the junk battery + the honest silences', () => {
   assert.equal(hazardBoardCensusRow({ memorizes: 0, distinctSpots: 0, repeatSpots: 0, repeatMemorizes: 0, peakLive: 0, finalLive: 0, drops: 0, dropMass: 0, jumps: 0 }), null)
   assert.equal(hazardBoardCensusRow({ memorizes: NaN, distinctSpots: 1, repeatSpots: 0, repeatMemorizes: 0, peakLive: 1, finalLive: 1, drops: 0, dropMass: 0, jumps: 0 }), null)
 })
+
+// (v0.827.0) THE WALK-BACK SEAT - the board's own coverage read, imported
+// beside the census tests. The join is the deathground square (BOTH axis
+// deltas within R12, the edge rides), the honest-claim law ('named' is
+// line order only - the TTL's liveness reads nowhere), the first memorize
+// rides out of the denominator by construction and a zero share is the
+// gate's own silence.
+
+import { hazardWalkBack, hazardWalkBackRow, WALKBACK_RADIUS } from '../../src/lib/waterhazard.mjs'
+
+// THE HAND-COUNTED MINI-FACE: A [-100,61,300] first (never a walk-back);
+// B [-105,61,305] dx5/dz5 within; C [-130,61,300] dx30 vs A, dx25 vs B -
+// beyond; D [-142,61,300] dx12 vs C - the EDGE rides the square.
+const WB_MINI = [
+  'F1 [F1] water: death spot memorized as a hazard at [-100,61,300] (1 live, fleet-wide)',
+  'F2 [F2] water: death spot memorized as a hazard at [-105,61,305] (2 live, fleet-wide)',
+  'F3 [F3] water: death spot memorized as a hazard at [-130,61,300] (3 live, fleet-wide)',
+  'F4 [F4] water: death spot memorized as a hazard at [-142,61,300] (4 live, fleet-wide)'
+]
+
+test('waterhazard walk-back: the hand-counted square join + the edge + the real dup pair', () => {
+  assert.equal(WALKBACK_RADIUS, 12)
+  const w = hazardWalkBack(WB_MINI)
+  assert.ok(w)
+  assert.equal(w.memorizes, 4)
+  assert.equal(w.eligible, 3) // the first memorize never walks back
+  assert.equal(w.walkBacks, 2) // B (dx5/dz5) + D (the dx12 edge rides)
+  assert.equal(w.clean, 1) // C beyond on both axes
+  assert.equal(
+    hazardWalkBackRow(w),
+    "the hazard board's own walk-back (v0.827.0): 2 of 3 death(s) landed within 12 of water an earlier death had already named - the spot-exact board named the water one death at a time and the body kept the toll"
+  )
+
+  // The real face-101 dup pair: the same spot - dist 0, the square's own
+  // center - the walk-back by construction.
+  const dup = hazardWalkBack(F101_DUP)
+  assert.ok(dup)
+  assert.equal(dup.memorizes, 2)
+  assert.equal(dup.eligible, 1)
+  assert.equal(dup.walkBacks, 1)
+  assert.equal(dup.clean, 0)
+
+  // The blob form reads the same truth.
+  assert.deepEqual({ ...hazardWalkBack(WB_MINI.join('\n')) }, { ...hazardWalkBack(WB_MINI) })
+})
+
+test('waterhazard walk-back: the zero-share silence + the empty denominator', () => {
+  // Three spots 100 apart: every eligible death is clean water - the row
+  // rides NO row (the gate's own law), the read itself stays honest.
+  const spread = hazardWalkBack([
+    'F1 [F1] water: death spot memorized as a hazard at [0,61,0] (1 live, fleet-wide)',
+    'F2 [F2] water: death spot memorized as a hazard at [100,61,0] (2 live, fleet-wide)',
+    'F3 [F3] water: death spot memorized as a hazard at [200,61,0] (3 live, fleet-wide)'
+  ])
+  assert.ok(spread)
+  assert.equal(spread.eligible, 2)
+  assert.equal(spread.walkBacks, 0)
+  assert.equal(spread.clean, 2)
+  assert.equal(hazardWalkBackRow(spread), null)
+
+  // The single memorize: no earlier spot exists, the denominator is empty.
+  const one = hazardWalkBack([WB_MINI[0]])
+  assert.ok(one)
+  assert.equal(one.memorizes, 1)
+  assert.equal(one.eligible, 0)
+  assert.equal(one.walkBacks, 0)
+  assert.equal(hazardWalkBackRow(one), null)
+})
+
+test('waterhazard walk-back: the junk battery + the row guards', () => {
+  assert.equal(hazardWalkBack(null), null)
+  assert.equal(hazardWalkBack(undefined), null)
+  assert.equal(hazardWalkBack(42), null)
+  assert.equal(hazardWalkBack([]), null)
+  assert.equal(hazardWalkBack(['junk only', 'no memorize here']), null)
+
+  // Junk lines filtered, the anatomy-true ones still seat (the census's
+  // own convention, one parser one truth).
+  const mixed = hazardWalkBack([
+    'F16 steer hazard defer: coal_ore@-124,59,387 held behind the ledger (d 4.4)',
+    WB_MINI[0],
+    WB_MINI[1],
+    null,
+    7
+  ])
+  assert.ok(mixed)
+  assert.equal(mixed.memorizes, 2)
+  assert.equal(mixed.eligible, 1)
+  assert.equal(mixed.walkBacks, 1)
+
+  // The row guards: a null read, junk shapes, non-finite cells.
+  assert.equal(hazardWalkBackRow(null), null)
+  assert.equal(hazardWalkBackRow(undefined), null)
+  assert.equal(hazardWalkBackRow(42), null)
+  assert.equal(hazardWalkBackRow([]), null)
+  assert.equal(hazardWalkBackRow({ memorizes: 2, eligible: NaN, walkBacks: 1, clean: 0 }), null)
+  assert.equal(hazardWalkBackRow({ memorizes: 2, eligible: 0, walkBacks: 0, clean: 0 }), null)
+  assert.equal(hazardWalkBackRow({ memorizes: 2, eligible: 1, walkBacks: 0, clean: 1 }), null)
+})
