@@ -404,7 +404,7 @@ export const BANK_LANDED_RE = /^(F\d+) \[F\d+\] banked (\d+) items at \((-?\d+),
 // summary (deposited > 0) or the arm-2 death line (the throw's own net). A
 // plain zero hop cannot close a visit the tithe already funded - a zero after
 // the firing is a LATER trip's paperwork and never excuses the ghost.
-export const HOP_CLOSE_RE = /^(F\d+) \[F\d+\] hop: chest at \[(-?\d+), (-?\d+), (-?\d+)\](?: d=(\d+))? zero: (.+)$/
+export const HOP_CLOSE_RE = /^(F\d+) \[F\d+\] hop: chest at \[(-?\d+),(-?\d+),(-?\d+)\](?: d=(\d+))? zero: (.+)$/
 
 /**
  * parseHopClose(line) - one hop-lane close read back (junk in, null out).
