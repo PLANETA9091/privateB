@@ -14,7 +14,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
-import { parseSealDeathDrop, sealDeathCensus, strandedPiles, relootRecovery, relootRecoveryRow, relootRefusalPrice, relootRefusalPriceRow, SEAL_DEATH_LOSS_RE, SEAL_DEATH_EMPTY_RE, DEATH_END_PHASE_WINDOW_S, DEATH_BURST_WINDOW_S, DEATH_BURST_MIN } from '../../src/lib/sealdeath.mjs'
+import { parseSealDeathDrop, sealDeathCensus, strandedPiles, relootRecovery, relootRecoveryRow, relootRefusalPrice, relootRefusalPriceRow, rescueDeadPrice, rescueDeadPriceRow, SEAL_DEATH_LOSS_RE, SEAL_DEATH_EMPTY_RE, DEATH_END_PHASE_WINDOW_S, DEATH_BURST_WINDOW_S, DEATH_BURST_MIN } from '../../src/lib/sealdeath.mjs'
 import { SEAL_PRIORITY } from '../../src/lib/shelter.mjs'
 
 const CLOCK_ZERO = { timed: 0, untimed: 0, clockEnd: null, firstTs: null, lastTs: null, endPhase: 0, endPhaseWindowS: 60, maxBurst: 0, burstWindowS: 30, burstMin: 3, burstDeaths: 0, burstClusters: 0, burstEndPhase: 0, pace: null, spanS: 0, thirds: null } // (v0.733.0) the siege's own thirds ride the zero shape as null (the calm paradox owns the zero-death face)
@@ -865,7 +865,10 @@ test('WIRING: the decompose rides the reloot price beside the stranded seat (v0.
   // (relootRefusalPrice + relootRefusalPriceRow) - the byte-exact pin moves
   // with the band, the strictness holds (the new band is the old band's
   // strict superset, every v0.843.0 token still rides).
-  assert.ok(src.includes("import { sealDeathCensus, strandedPiles, relootRecovery, relootRecoveryRow, relootRefusalPrice, relootRefusalPriceRow, BIG_PILE_U, thirdsVerdict } from '../../src/lib/sealdeath.mjs'"), 'the price joins the sealdeath import band')
+  // (v0.850.0) THE BAND'S OWN RE-PIN AGAIN: the armed rescue's own price
+  // twin (rescueDeadPrice + rescueDeadPriceRow) joined the band - the same
+  // law, every earlier token still rides.
+  assert.ok(src.includes("import { sealDeathCensus, strandedPiles, relootRecovery, relootRecoveryRow, relootRefusalPrice, relootRefusalPriceRow, rescueDeadPrice, rescueDeadPriceRow, BIG_PILE_U, thirdsVerdict } from '../../src/lib/sealdeath.mjs'"), 'the price joins the sealdeath import band')
   assert.ok(src.includes('relootRecovery, relootRecoveryRow'), 'the v0.843.0 tokens keep their band seats')
   const strandedAt = src.indexOf('stranded piles (v0.476.0)')
   const priceAt = src.indexOf('relootRecoveryRow(rr)')
@@ -942,4 +945,82 @@ test('WIRING: the decompose rides the refusal price beside the recovery seat (v0
   const priceAt = src.indexOf('relootRecoveryRow(rr)')
   const refusalAt = src.indexOf('relootRefusalPriceRow(rp)')
   assert.ok(priceAt > 0 && refusalAt > priceAt, 'the refusal row prints beside the recovery row (the twins adjacent)')
+})
+
+// ---- (v0.850.0) THE ARMED RESCUE'S OWN PRICE - the watched death's own mass read ----
+// The verbatim corpus is face 125's REAL lines (run 37854117065, fleet19.log
+// lines 1267/1275/1618/1637/3228/3239): three dead-in-rescue aborts, three
+// own drops priced (F10 ~72u + F13 ~203u + F14 ~66u = ~341u watched), F10's
+// second drop (~22u, line 3150) riding AFTER its abort and never priced.
+
+test('rescueDeadPrice reads the face-125 abort table verbatim (the watched death\u0027s own mass)', () => {
+  const f10drop = 'F10 [F10] death drop: ~72u lost at [-125,52,407] (cobblestone 22, gravel 9, raw_copper 7, torch 7, dirt 5, +12 more)'
+  const f10abort = 'F10 [F10] water: rescue aborted (dead mid-rescue - the hazard stays at the death spot) [blind: 5 passes, 0 shore scans hit, 0 standing probes - no ground truth ever gathered] in 3.7s'
+  const f13drop = 'F13 [F13] death drop: ~203u lost at [-118,55,369] (cobblestone 64, cobblestone 64, cobblestone 20, granite 9, gravel 7, +14 more)'
+  const f13abort = 'F13 [F13] water: rescue aborted (dead mid-rescue - the hazard stays at the death spot) [blind: 3 passes, 0 shore scans hit, 0 standing probes - no ground truth ever gathered] in 2.6s'
+  const f14drop = 'F14 [F14] death drop: ~66u lost at [-176,61,412] (torch 18, cobblestone 10, dirt 7, leaf_litter 7, oak_planks 5, +10 more)'
+  const f14abort = 'F14 [F14] water: rescue aborted (dead mid-rescue - the hazard stays at the death spot) in 4.1s'
+  const f10second = 'F10 [F10] death drop: ~22u lost at [-156,64,419] (oak_log 6, cobblestone 4, stick 3, oak_sapling 2, birch_planks 1, +6 more)'
+  const r = rescueDeadPrice([f10drop, f10abort, f13drop, f13abort, f14drop, f14abort, f10second])
+  assert.equal(r.dead, 3)
+  assert.equal(r.deadNamed, 3)
+  assert.equal(r.deadUnnamed, 0)
+  assert.equal(r.watchedMass, 72 + 203 + 66, 'F10\u0027s second drop (22u) rides after its abort and never prices - the line-order law')
+  const row = rescueDeadPriceRow(r)
+  assert.equal(row, 'the armed rescue\u0027s own price (v0.850.0): 3 of 3 dead-in-rescue priced, the watched mass ~341u (the own-latest-death-drop join, distinct death(s) priced once)')
+})
+
+test('rescueDeadPrice dedupes the shared drop (two aborts on one death is one mass watched)', () => {
+  const drop = 'F13 [F13] death drop: ~203u lost at [-118,55,369] (cobblestone 64, cobblestone 64, cobblestone 20, granite 9, gravel 7, +14 more)'
+  const abort = 'F13 [F13] water: rescue aborted (dead mid-rescue - the hazard stays at the death spot) in 2.6s'
+  const r = rescueDeadPrice([drop, abort, abort])
+  assert.equal(r.dead, 2, 'the events count every abort')
+  assert.equal(r.deadNamed, 2)
+  assert.equal(r.watchedMass, 203, 'the mass prices once - the dedupe law (the v0.847.0 refusal price\u0027s own fence)')
+})
+
+test('rescueDeadPrice keeps the line-order law (an abort before its own drop names nothing)', () => {
+  const drop = 'F10 [F10] death drop: ~72u lost at [-125,52,407] (cobblestone 22, gravel 9, raw_copper 7, torch 7, dirt 5, +12 more)'
+  const abort = 'F10 [F10] water: rescue aborted (dead mid-rescue - the hazard stays at the death spot) in 3.7s'
+  const r = rescueDeadPrice([abort, drop])
+  assert.equal(r.dead, 1)
+  assert.equal(r.deadNamed, 0, 'the drop after the abort is not the death the lane watched')
+  assert.equal(r.deadUnnamed, 1)
+  assert.equal(r.watchedMass, 0)
+  const row = rescueDeadPriceRow(r)
+  assert.ok(row.includes(', 1 unnamed (the own-latest read named no priced death)'), 'the unnamed class reads its own note')
+})
+
+test('rescueDeadPrice junk battery (the census\u0027s own convention)', () => {
+  const zero = { dead: 0, deadNamed: 0, deadUnnamed: 0, watchedMass: 0 }
+  assert.deepEqual(rescueDeadPrice(null), zero, 'null in the zero shape out')
+  assert.deepEqual(rescueDeadPrice('junk'), zero, 'a string splits and judges nothing')
+  assert.deepEqual(rescueDeadPrice([]), zero, 'the empty face')
+  assert.deepEqual(rescueDeadPrice([null, 42, undefined]), zero, 'junk rows judge nothing')
+  assert.equal(rescueDeadPriceRow(rescueDeadPrice([])), null, 'a face with no dead-in-rescue stays silent (the ledger\u0027s own count rides above)')
+  const emptyPocket = 'F14 [F14] death drop: pocket read empty at death (0u)'
+  const abort = 'F14 [F14] water: rescue aborted (dead mid-rescue - the hazard stays at the death spot) in 4.1s'
+  const r = rescueDeadPrice([emptyPocket, abort])
+  assert.equal(r.deadNamed, 0, 'the empty pocket names nothing - the abort stays unnamed')
+  assert.equal(r.watchedMass, 0)
+})
+
+test('rescueDeadPriceRow fences (the consistency law - a self-inconsistent shape never renders)', () => {
+  const ok = { dead: 3, deadNamed: 2, deadUnnamed: 1, watchedMass: 100 }
+  assert.ok(rescueDeadPriceRow(ok).startsWith('the armed rescue\u0027s own price (v0.850.0): 2 of 3 dead-in-rescue priced'), 'the consistent shape renders')
+  assert.equal(rescueDeadPriceRow(null), null, 'null row in null out')
+  assert.equal(rescueDeadPriceRow('junk'), null, 'a string is not a shape')
+  assert.equal(rescueDeadPriceRow({ dead: 0, deadNamed: 0, deadUnnamed: 0, watchedMass: 0 }), null, 'the zero shape stays silent')
+  assert.equal(rescueDeadPriceRow({ dead: 3, deadNamed: 4, deadUnnamed: -1, watchedMass: 100 }), null, 'named above dead never renders')
+  assert.equal(rescueDeadPriceRow({ dead: 3, deadNamed: 2, deadUnnamed: 0, watchedMass: 100 }), null, 'the unnamed gap must equal dead minus named (the mutual fence)')
+  assert.equal(rescueDeadPriceRow({ dead: 3, deadNamed: 2, deadUnnamed: 1, watchedMass: NaN }), null, 'a NaN mass invents nothing')
+  assert.equal(rescueDeadPriceRow({ dead: -1, deadNamed: 0, deadUnnamed: -1, watchedMass: 0 }), null, 'a negative dead reads junk')
+})
+
+test('WIRING: the decompose rides the rescue price beside the ledger\u0027s own dead count (v0.850.0)', () => {
+  const src = fs.readFileSync(new URL('../../scripts/fleet-mining/decompose.mjs', import.meta.url), 'utf8')
+  assert.ok(src.includes('rescueDeadPrice, rescueDeadPriceRow'), 'the rescue price joins the sealdeath import band')
+  const deadCountAt = src.indexOf('dead-in-rescue: ${ledger.totals.dead}')
+  const priceAt = src.indexOf('rescueDeadPriceRow(rdp)')
+  assert.ok(deadCountAt > 0 && priceAt > deadCountAt, 'the price row prints beside the ledger\u0027s own dead count (the events and the mass adjacent)')
 })

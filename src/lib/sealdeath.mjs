@@ -515,6 +515,72 @@ export function relootRefusalPriceRow (r) {
   return `the reloot refusal's own price (v0.847.0): ${named}, the refused mass ~${r.refusedMass}u (the own-latest-pile join, distinct pile(s) priced once)${unnamedNote}`
 }
 
+// (v0.850.0) THE ARMED RESCUE'S OWN PRICE - the dead-in-rescue's own mass
+// read. The rescue end-state ledger (v0.368.0) counts the dead-in-rescue
+// aborts; the o2 book (v0.813.0) seats the class; NEITHER prices the trade
+// - the mass the armed lane watched drown stays unpriced (the armed-and-lost
+// trades' own evidence: 4/4 at face 121, 3/3 at face 125). The lens joins
+// every 'water: rescue aborted (dead' end to the bot's own LATEST death
+// drop at-or-before it (parseSealDeathDrop - no new shape, the line-order
+// law) and prices the watched mass: F10's ~72u + F13's ~203u + F14's ~66u
+// (face 125) = the rescue's own price. THE DEDUPE LAW: one death prices
+// ONCE per face - two aborts sharing a drop (the rescue's re-arm cadence)
+// is ONE mass watched; the events are the ledger's own count (totals.dead
+// keeps that book), the mass is the watched union. Junk-safe: non-string
+// rows judge nothing, non-array/string -> the zero shape; a face with no
+// dead-in-rescue stays silent (the row's own law). The consistency fence
+// (the v0.847.0 refusal price's own law): named must sit inside [0, dead]
+// and unnamed must equal the gap - a self-inconsistent shape never renders.
+// Pure: reads, never mutates.
+const RESCUE_DEAD_ABORT_RE = /^(F\d+) \[[^\]]*\] water: rescue aborted \(dead/
+export function rescueDeadPrice (lines) {
+  const rows = Array.isArray(lines)
+    ? lines
+    : (typeof lines === 'string' ? lines.split('\n') : [])
+  const dropsByBot = {} // bot -> [{ idx, lost }] in line order (the empty pockets never join - no pos, no price)
+  let dead = 0
+  let deadNamed = 0
+  const pricedDrops = new Set() // the dedupe's own seat - bot + line idx keys
+  let watchedMass = 0
+  rows.forEach((l, idx) => {
+    if (typeof l !== 'string') return
+    const am = l.match(RESCUE_DEAD_ABORT_RE)
+    if (am) {
+      dead++
+      const bot = am[1]
+      const own = dropsByBot[bot] || []
+      let drop = null
+      for (const d of own) { // the LATEST own drop at-or-before the abort (the line-order law)
+        if (d.idx < idx) drop = d
+      }
+      if (drop) {
+        deadNamed++
+        const key = `${bot}#${drop.idx}`
+        if (!pricedDrops.has(key)) {
+          pricedDrops.add(key)
+          watchedMass += drop.lost
+        }
+      }
+      return
+    }
+    const p = parseSealDeathDrop(l)
+    if (!p || p.empty || !p.pos) return // the piles' own seat - empty pockets name nothing
+    if (!dropsByBot[p.bot]) dropsByBot[p.bot] = []
+    dropsByBot[p.bot].push({ idx, lost: p.lost })
+  })
+  return { dead, deadNamed, deadUnnamed: dead - deadNamed, watchedMass }
+}
+
+export function rescueDeadPriceRow (r) {
+  if (!r || typeof r !== 'object' || !Number.isFinite(r.dead) || r.dead <= 0) return null
+  if (!Number.isFinite(r.watchedMass)) return null
+  if (!Number.isFinite(r.deadNamed) || r.deadNamed < 0 || r.deadNamed > r.dead) return null
+  if (r.deadUnnamed !== r.dead - r.deadNamed) return null // the mutual fence: the three cells must agree
+  const named = `${r.deadNamed} of ${r.dead} dead-in-rescue priced`
+  const unnamedNote = r.deadUnnamed > 0 ? `, ${r.deadUnnamed} unnamed (the own-latest read named no priced death)` : ''
+  return `the armed rescue's own price (v0.850.0): ${named}, the watched mass ~${r.watchedMass}u (the own-latest-death-drop join, distinct death(s) priced once)${unnamedNote}`
+}
+
 // (v0.755.0) THE THIRDS' OWN VERDICT - the classification leaves the mining
 // script and becomes the lib's own one truth. The v0.733.0 thirds lens
 // (clock.thirds: early/mid/late over the face's full clock) priced the
