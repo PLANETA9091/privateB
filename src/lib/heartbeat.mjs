@@ -213,6 +213,35 @@ function sgTick () {
       try { process.kill(process.pid, 'SIGTERM') } catch { /* already dying */ }
       return
     }
+    // (v0.804.0) THE FROZEN BURST'S OWN FLOOR - mirrored from
+    // stormguard.frozenBurstVerdict (the eval worker cannot import ESM).
+    // Face 88 (fleet 37712326964): the main froze ~60s FLAT at 380M (the
+    // recoverable class - the floor band correctly stayed silent), then burst
+    // 380 -> 1004M in one 5s window (124.7MB/s) BELOW the 1200M floor - the
+    // freeze-storm kill could not fire, the jump watch only names, and the
+    // floor kill waited for 1004 -> 2144M with the V8 cliff one sample away
+    // (the race run 36292057377 lost to the unsymbolized exit 134). The
+    // frozen+growing class loses the floor: the pulse frozen past the void
+    // AND the step growing at >= the storm rate kills NOW, floor or no
+    // floor. The flat freeze never grows (run63, recoverable); the slow
+    // swell stays sub-rate (36560130936's first leg ~27MB/s over a starved
+    // window); a stale step is a dead worker clock, not evidence (the jump
+    // watch's law); the floor band above keeps priority - this leg reads
+    // ONLY below the floor (the bands never double).
+    if (!stopped && pvFrozen !== null && pvFrozen >= sgPulseVoidMs && r < sgFloor && fsPrev > 0 && r > fsPrev && sgWin.length >= 2) {
+      var fbPrev = sgWin[sgWin.length - 2]
+      var fbStep = t - fbPrev.ts
+      var fbGain = r - fbPrev.rss
+      var fbRate = fbStep > 0 ? fbGain / (fbStep / 1000) : 0
+      if (fbStep > 0 && fbStep <= sgJumpMaxStepMs && fbRate >= sgRate) {
+        stopped = true // no further lines race the emergency report
+        try { clearTimeout(timer); clearInterval(sgTimer) } catch { /* dying anyway */ }
+        try { fs.writeSync(writeFd, '[stormguard] FATAL (frozen burst: main pulse frozen ' + Math.round(pvFrozen / 1000) + 's, rss ' + fbPrev.rss + 'M -> ' + r + 'M (+' + Math.round(fbGain) + 'M in ' + Math.round(fbStep / 1000) + 's = ' + (Math.round(fbRate * 10) / 10) + 'MB/s >= ' + sgRate + 'MB/s, below the ' + sgFloor + 'M floor - the burst does not wait for it) - the closure cannot land; face 88 (37712326964) burst 380 -> 1004M at 124.7MB/s and the floor kill waited for 2144M, one sample ahead of the V8 cliff' + sgStory(8) + ')\\n') } catch { /* stdout closed - kill anyway */ }
+        try { fs.writeSync(writeFd, '[stormguard] the MAIN thread is locked while allocating (run53/35647216505 OOM class; mainLate read ' + mainLate + 'ms but the pulse has been frozen ' + Math.round(pvFrozen / 1000) + 's - the reading was stale) - every closure applier lives on the locked main; emergency SIGTERM keeps the story readable (exit 143)\\n') } catch { /* stdout closed - kill anyway */ }
+        try { process.kill(process.pid, 'SIGTERM') } catch { /* already dying */ }
+        return
+      }
+    }
     var v = sgVerdict()
     if (v && !stopped) {
       // (v0.64.0) the two-strike response, mirrored from stormguard.stormResponse:

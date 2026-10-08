@@ -224,6 +224,84 @@ export function rssJumpVerdict ({ rssMb = 0, prevRssMb = 0, stepMs = null, floor
   return { jump: true, reason: 'rss jump ' + Math.round(pr) + 'M -> ' + Math.round(r) + 'M (+' + Math.round(gain) + 'M in ' + Math.round(step / 1000) + 's = ' + rate + 'MB/s, below the ' + Math.round(floor) + 'M floor - the forming-storm leg the kill lines never name)', rate }
 }
 
+// (v0.804.0) THE FROZEN BURST'S OWN FLOOR - the allocating freeze's sub-floor
+// leg. MEASURED (fleet 37712326964, face 88, the v0.802.0 tree, exit 143 at
+// ts~277s of 600, mined 2026-10-08): the main froze at ~ts=197s (mainLate
+// stale at exactly 1301ms across four [hb] beats - the v0.235.0 signature),
+// the rss sat FLAT at 380M for ~60s (the recoverable class - no kill, the
+// v0.235.0 law held), then burst 380 -> 1004M in ONE 5s window (124.7MB/s).
+// That leg was BELOW the 1200M floor, so the freeze-storm kill (v0.235.0)
+// could not fire and the jump watch (v0.311.0) is visibility-only by design;
+// the floor kill waited for 1004 -> 2144M and the FATAL landed with the V8
+// cliff (--max-old-space-size=3584) one sample away at the burst's 228MB/s -
+// the EXACT race run 36292057377 lost to the unsymbolized exit 134. The
+// evidence was already complete at 1004M: the pulse frozen ~75s (every
+// closure applier lives on the locked main - the v0.143.0 premise) and the
+// rss strictly growing at the storm's OWN rate. THE CURE: the frozen+growing
+// class loses the floor - when the main pulse is frozen past the void AND
+// the step grows at >= the storm rate (the SAME knob, STORM_RATE_MB_S), the
+// kill fires regardless of the floor. Every measured instance of a frozen
+// main allocating at storm rate died (run53/35647216505, 36292057377,
+// 36560130936's terminal leg, face 88); the recoverable shapes all fence:
+// a FLAT frozen rss never grows (run63's 51s freeze resolved), a slow swell
+// stays sub-rate (36560130936's first leg read ~27MB/s over a starved
+// window), the turning main fails the pulse check (the two-strike path owns
+// it byte for byte), junk rss and junk/absent pulse evidence never kill
+// (the v0.143.0 law), and a stale step is a dead worker clock, not evidence
+// (the jump watch's own law, STORM_JUMP_MAX_STEP_MS). The floor band keeps
+// priority byte for byte - the worker consults this verdict ONLY below the
+// floor, and the pure fn self-fences 'past floor' so the bands never double.
+export const STORM_BURST_MAX_STEP_MS = STORM_JUMP_MAX_STEP_MS // one guard tick; 5 ticks of silence is a dead clock, not a burst leg
+
+/**
+ * (v0.804.0) The frozen-burst verdict, pure so the tests pin it and the eval
+ * worker can mirror the arithmetic by hand. Given the CURRENT rss, the
+ * PREVIOUS sample's rss, the wall-clock step between the two samples, and how
+ * long the main's loop pulse has been frozen:
+ *   kill  - the pulse frozen >= the void threshold AND the step strictly
+ *           growing at >= the storm rate while still BELOW the floor: the
+ *           allocating freeze's own burst leg, amputate now
+ *   none  - every other shape, each with a named reason the caller stays
+ *           silent on (junk rss / no pulse evidence / pulse alive / past
+ *           floor / not growing / no step clock / junk step / stale step /
+ *           sub rate)
+ * Junk rss never kills; junk/absent pulse evidence never kills; a recede or
+ * flat pair never kills (the recoverable freeze class); a step past maxStepMs
+ * never kills (a dead clock's reading is not evidence); a step past the floor
+ * is the floor band's own (the bands never double).
+ * @param {{rssMb?: number, prevRssMb?: number, stepMs?: number|null, pulseFrozenMs?: number|null, floorMb?: number, rateMbS?: number, pulseVoidMs?: number, maxStepMs?: number}} s
+ * @returns {{kill: boolean, reason: string, rate: number}}
+ */
+export function frozenBurstVerdict ({ rssMb = 0, prevRssMb = 0, stepMs = null, pulseFrozenMs = null, floorMb = STORM_FLOOR_MB_DEFAULT, rateMbS = STORM_RATE_MB_S_DEFAULT, pulseVoidMs = STORM_PULSE_VOID_MS_DEFAULT, maxStepMs = STORM_BURST_MAX_STEP_MS } = {}) {
+  const r = Number(rssMb)
+  if (!Number.isFinite(r) || r <= 0) return { kill: false, reason: 'junk rss', rate: 0 }
+  // the null/undefined check comes FIRST: Number(null) is 0 and 0 is finite -
+  // an absent pulse reading would masquerade as 'frozen 0ms' and read
+  // 'pulse alive' (the freezeStormVerdict masquerade lesson, byte for byte)
+  if (pulseFrozenMs === null || pulseFrozenMs === undefined) return { kill: false, reason: 'no pulse evidence', rate: 0 }
+  const frozen = Number(pulseFrozenMs)
+  const voidMs = Number(pulseVoidMs)
+  if (!Number.isFinite(frozen) || frozen < 0 || !Number.isFinite(voidMs) || voidMs <= 0) return { kill: false, reason: 'no pulse evidence', rate: 0 }
+  if (frozen < voidMs) return { kill: false, reason: 'pulse alive', rate: 0 }
+  const floor = Number(floorMb)
+  if (Number.isFinite(floor) && floor > 0 && r >= floor) return { kill: false, reason: 'past floor', rate: 0 }
+  const pr = Number(prevRssMb)
+  if (!Number.isFinite(pr) || pr <= 0 || r <= pr) return { kill: false, reason: 'not growing', rate: 0 }
+  // the null/undefined check comes FIRST - the step masquerade lesson
+  if (stepMs === null || stepMs === undefined) return { kill: false, reason: 'no step clock', rate: 0 }
+  const step = Number(stepMs)
+  if (!Number.isFinite(step) || step <= 0) return { kill: false, reason: 'junk step', rate: 0 }
+  if (step > Number(maxStepMs)) return { kill: false, reason: 'stale step', rate: 0 }
+  const rate = (r - pr) / (step / 1000)
+  const bar = Number(rateMbS)
+  if (!Number.isFinite(bar) || bar <= 0 || rate < bar) return { kill: false, reason: 'sub rate', rate: Math.round(rate * 10) / 10 }
+  return {
+    kill: true,
+    reason: 'frozen burst: main pulse frozen ' + Math.round(frozen / 1000) + 's, rss ' + Math.round(pr) + 'M -> ' + Math.round(r) + 'M (+' + Math.round(r - pr) + 'M in ' + Math.round(step / 1000) + 's = ' + (Math.round(rate * 10) / 10) + 'MB/s >= ' + Math.round(bar) + 'MB/s) - the closure cannot land',
+    rate: Math.round(rate * 10) / 10
+  }
+}
+
 /**
  * (v0.64.0) The two-strike response policy, pure so the tests pin it and the
  * eval worker can mirror the arithmetic by hand. Given the CURRENT verdict's
