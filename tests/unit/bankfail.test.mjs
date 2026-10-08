@@ -6,7 +6,8 @@
 // lanes' shapes (the walk-fail lens's).
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { classifyBankReason, parseBankWalkBack, parseBankZero, bankFailCensus } from '../../src/lib/bankfail.mjs'
+import { readFileSync } from 'node:fs'
+import { classifyBankReason, parseBankWalkBack, parseBankZero, bankFailCensus, bankZeroWhySeat, bankZeroWhySeatRow, bankZeroWhyRiders, bankZeroWhyRidersRow } from '../../src/lib/bankfail.mjs'
 
 test('bank walk-back: the face-25 verbatims parse bot, why and the abort distance', () => {
   const a = parseBankWalkBack('F9 bank: chest unreachable (Took to long to decide path to goal!) (7 blocks from yard) - walking back')
@@ -211,4 +212,97 @@ test('underground attempts: the honest zeros and the non-array anatomy carry the
   const e = bankFailCensus('not an array')
   assert.equal(e.zeros.underground.n, 0)
   assert.deepEqual(e.zeros.underground.attempts, { n: 0, min: null, max: null, sum: 0 })
+})
+
+// (v0.807.0) THE ZERO DELIVERY'S OWN WHY - the seat + the riders on the
+// bank-fail census's own byWhy cells. The face-89 verbatim (37715421436)
+// is the owner case: underground owns 12 of 23 (52.2% - the bare majority,
+// 12 > 11). The face-82 cell is the riders case: budget x8 + underground
+// x5 own 13 of 17 (76.5%). The face-85 cell pins the tie law's byte: the
+// 5-5 top broke on 'nothing' < 'underground'.
+const FACE89_BYWHY = { underground: 12, 'no-chest': 1, other: 2, 'chest-unreachable-budget-floor': 1, nothing: 2, budget: 5 }
+const FACE82_BYWHY = { budget: 8, underground: 5, nothing: 2, 'chest-unreachable-budget-floor': 1, 'no-chest': 1 }
+
+function whyBf (byWhy) { return { zeros: { byWhy } } }
+
+test('zero delivery why: the face-89 cell seats underground with the byte-exact row + the owner case keeps the riders measure honest (measure-not-owner)', () => {
+  const bf = whyBf(FACE89_BYWHY)
+  const seat = bankZeroWhySeat(bf)
+  assert.deepEqual(seat, { why: 'underground', owns: 12, ofZeros: 23, shareOfZeros: 12 / 23 * 100 })
+  assert.equal(bankZeroWhySeatRow(seat), "the zero delivery's own why (v0.807.0): underground owns 12 of 23 zero deliveries (52.2%) - THE WHY'S OWN SEAT: one why's own zeros own the delivery book - the why's own front prices the walks the raw split rode unnamed")
+  // The branch law's companion: the lib still measures the top two when a
+  // seat exists - the decompose's else is what leaves it unprinted.
+  const r = bankZeroWhyRiders(bf)
+  assert.deepEqual(r, { leader: 'underground', leaderOwns: 12, runner: 'budget', runnerOwns: 5, ofZeros: 23, pairOwns: 17, shareOfZeros: 17 / 23 * 100, duet: 'underground x12 + budget x5' })
+  assert.equal(bankZeroWhyRidersRow(r), "the zero delivery's own riders (v0.807.0): no solo why owns the majority - underground x12 + budget x5 own 17 of 23 zero deliveries (73.9%) - THE WHY'S OWN MIX: the seat's tie law held, the crowd is the shape - the whys' own spread prices the walks the solo law refused to name")
+  // The singular arm: a one-zero book reads 'zero delivery' byte-exact.
+  const solo = bankZeroWhySeat(whyBf({ underground: 1 }))
+  assert.equal(bankZeroWhySeatRow(solo), "the zero delivery's own why (v0.807.0): underground owns 1 of 1 zero delivery (100.0%) - THE WHY'S OWN SEAT: one why's own zeros own the delivery book - the why's own front prices the walks the raw split rode unnamed")
+})
+
+test('zero delivery why: the riders case + the tie law with the byte pins + the exact-half fence + the below-half plurality', () => {
+  // The face-82 riders case byte-exact (no solo owner - budget 8 of 17 is
+  // below-half, the plurality the seat law refuses).
+  const seat82 = bankZeroWhySeat(whyBf(FACE82_BYWHY))
+  assert.equal(seat82, null)
+  const r82 = bankZeroWhyRiders(whyBf(FACE82_BYWHY))
+  assert.deepEqual(r82, { leader: 'budget', leaderOwns: 8, runner: 'underground', runnerOwns: 5, ofZeros: 17, pairOwns: 13, shareOfZeros: 13 / 17 * 100, duet: 'budget x8 + underground x5' })
+  assert.equal(bankZeroWhyRidersRow(r82), "the zero delivery's own riders (v0.807.0): no solo why owns the majority - budget x8 + underground x5 own 13 of 17 zero deliveries (76.5%) - THE WHY'S OWN MIX: the seat's tie law held, the crowd is the shape - the whys' own spread prices the walks the solo law refused to name")
+  // The tie owns nothing (the strict-majority law) - and the ranked tie
+  // broke on the byte 'nothing' < 'other' in the riders' duet.
+  const tie = bankZeroWhySeat(whyBf({ other: 2, nothing: 2 }))
+  assert.equal(tie, null)
+  const tieR = bankZeroWhyRiders(whyBf({ other: 2, nothing: 2 }))
+  assert.equal(tieR.duet, 'nothing x2 + other x2')
+  assert.equal(tieR.pairOwns, 4)
+  // The exact-half fence: 2 of 4 is not MORE than the rest together.
+  assert.equal(bankZeroWhySeat(whyBf({ budget: 2, other: 1, nothing: 1 })), null)
+  // The multi-way tie's byte chain - the hyphen trap pinned: 'no-chest'
+  // (0x2d) sorts before 'nothing' (the letters), 'budget' leads the pack.
+  const chain = bankZeroWhyRiders(whyBf({ nothing: 3, 'no-chest': 3, other: 3, underground: 3, budget: 3 }))
+  assert.equal(chain.duet, 'budget x3 + no-chest x3')
+  assert.equal(chain.pairOwns, 6)
+})
+
+test('zero delivery why: the cells-own-sum law (a junk cell skips, the real cells tally) + the single-class fence + the zero-book silence', () => {
+  // The junk cells never count - the census's own finite positive cells
+  // tally alone; a single real class seats (n > n - n) but forms no crowd.
+  const mixed = whyBf({ underground: 3, junk: 'x', ghost: NaN, zero: 0, neg: -2, inf: Infinity })
+  const ms = bankZeroWhySeat(mixed)
+  assert.deepEqual(ms, { why: 'underground', owns: 3, ofZeros: 3, shareOfZeros: 100 })
+  assert.equal(bankZeroWhyRiders(mixed), null)
+  // The zero book and the empty book read the honest silence on both
+  // sides (the zeros gate above the branch is the face's own fence).
+  assert.equal(bankZeroWhySeat(whyBf({ underground: 0, budget: 0 })), null)
+  assert.equal(bankZeroWhyRiders(whyBf({ underground: 0, budget: 0 })), null)
+  assert.equal(bankZeroWhySeat(whyBf({})), null)
+  assert.equal(bankZeroWhyRiders(whyBf({})), null)
+  // The four-zero book with one real cell: the seat fires, the riders
+  // refuse (a single class is no crowd).
+  const one = whyBf({ budget: 4, other: 0 })
+  assert.deepEqual(bankZeroWhySeat(one), { why: 'budget', owns: 4, ofZeros: 4, shareOfZeros: 100 })
+  assert.equal(bankZeroWhyRiders(one), null)
+})
+
+test('zero delivery why: the junk battery + the row guards + the WIRING assert (the prose lives only in the lib)', () => {
+  const junk = [null, undefined, 42, 'str', [], { zeros: null }, { zeros: 42 }, { zeros: {} }, { zeros: { byWhy: null } }, { zeros: { byWhy: 42 } }, { zeros: { byWhy: 'str' } }]
+  for (const j of junk) {
+    assert.equal(bankZeroWhySeat(j), null)
+    assert.equal(bankZeroWhyRiders(j), null)
+  }
+  // The row guards: junk seat / riders shapes read null, never a row.
+  for (const jr of [null, undefined, 42, 'str', {}, { why: '' }, { why: 'underground', owns: 0, ofZeros: 3, shareOfZeros: 0 }, { why: 'underground', owns: 5, ofZeros: 3, shareOfZeros: 166.7 }, { why: 'underground', owns: 3, ofZeros: 3, shareOfZeros: NaN }]) {
+    assert.equal(bankZeroWhySeatRow(jr), null)
+  }
+  for (const jr of [null, undefined, 42, 'str', {}, { leader: '', runner: 'x', leaderOwns: 1, runnerOwns: 1, ofZeros: 2, pairOwns: 2, shareOfZeros: 100, duet: 'a x1 + b x1' }, { leader: 'a', runner: 'b', leaderOwns: 1, runnerOwns: 1, ofZeros: 2, pairOwns: 3, shareOfZeros: 150, duet: 'a x1 + b x1' }, { leader: 'a', runner: 'b', leaderOwns: 1, runnerOwns: 1, ofZeros: 2, pairOwns: 2, shareOfZeros: 100, duet: '' }]) {
+    assert.equal(bankZeroWhyRidersRow(jr), null)
+  }
+  // The WIRING: the decompose carries the branch beside the zero
+  // deliveries row and the prose stays in the lib (the branch law's own
+  // fence).
+  const src = readFileSync(new URL('../../scripts/fleet-mining/decompose.mjs', import.meta.url), 'utf8')
+  assert.ok(src.includes('const bzws = bankZeroWhySeat(bf)'))
+  assert.ok(src.includes('const bzwr = bankZeroWhyRiders(bf)'))
+  assert.ok(!src.includes("THE WHY'S OWN SEAT"))
+  assert.ok(!src.includes("THE WHY'S OWN MIX"))
 })

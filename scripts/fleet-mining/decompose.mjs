@@ -24,7 +24,7 @@ import { walkFailCensus, walkFailBotBill, walkFailBotBillRow, walkFailRiders, wa
 import { decideWeather } from '../../src/lib/decideweather.mjs' // (v0.689.0) THE DECIDE WEATHER - the A* starvation's own sky read (the starve's ents/rss at its own anchor)
 import { hotspotCensus, hotspotBands, hotSpotSeat, hotSpotSeatRow, hotSpotRiders, hotSpotRidersRow } from '../../src/lib/hotspot.mjs' // (v0.419.0 + the v0.421.0 band read) the failure geometry's cross-lane read; (v0.794.0) WHICH spot owns the starvation book
 import { climbOutCensus, climbFailVerdict, climbFailVerdictRow, climbFailRiders, climbFailRidersRow, climbStageBill, climbStageBillRow, climbStageRiders, climbStageRidersRow } from '../../src/lib/climbout.mjs' // (v0.420.0) the vertical doom's verdict read; (v0.779.0) WHICH fail-why owns the climb book; (v0.781.0) WHICH rung owns the ladder
-import { bankFailCensus } from '../../src/lib/bankfail.mjs' // (v0.411.0) the bank lane's own decide/no-path ledger
+import { bankFailCensus, bankZeroWhySeat, bankZeroWhySeatRow, bankZeroWhyRiders, bankZeroWhyRidersRow } from '../../src/lib/bankfail.mjs' // (v0.411.0) the bank lane's own decide/no-path ledger; (v0.807.0) WHICH why owns the zero-delivery book
 import { nopathBill } from '../../src/lib/nopathbill.mjs' // (v0.716.0) the no-path spike's own WHO read - the door family's no-path rides folded per bot per lane (the column's repeats vs the crowd's spread)
 import { decideBook } from '../../src/lib/decidebook.mjs' // (v0.720.0) the decide door's own book - the door leg's decide rides per bot AND per goal (the shared dead chest's cross-bot column vs the bot's rider repeats)
 import { dropWalkCensus, dropWalkVerdict, dropWalkVerdictRow, dropWalkRiders, dropWalkRidersRow } from '../../src/lib/dropwalk.mjs' // (v0.413.0) the vein sweep's per-fail drop-walk line; (v0.777.0) WHICH class owns the book; (v0.785.0) the verdict's silence's own companion
@@ -2187,6 +2187,16 @@ if (openDeaf.openDeaf.length > 0) {
     const za = Object.entries(bf.zeros.byArm).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k}=${v}`).join(' ')
     const zw = Object.entries(bf.zeros.byWhy).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k}=${v}`).join(' ')
     console.log(`  zero deliveries: ${bf.zeros.total} by arm: ${za || 'none'} - by why: ${zw || 'none'}`)
+    // (v0.807.0) WHICH why owns the zero-delivery book - the why's own seat
+    // + the riders, one row never both (the branch law; the owner case
+    // leaves the companion unprinted; a zero-book face reads the honest
+    // silence - the zeros gate above is the branch's own fence).
+    const bzws = bankZeroWhySeat(bf)
+    if (bzws) console.log(`  ${bankZeroWhySeatRow(bzws)}`)
+    else {
+      const bzwr = bankZeroWhyRiders(bf)
+      if (bzwr) console.log(`  ${bankZeroWhyRidersRow(bzwr)}`)
+    }
     // (v0.436.0) THE UNDERGROUND ATTEMPTS READ - the shaft-bottom chain's
     // burn (the face-27 underground=21 class's own number).
     const ug = bf.zeros.underground

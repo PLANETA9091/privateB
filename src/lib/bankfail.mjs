@@ -146,3 +146,103 @@ export function bankFailCensus (lines) {
   }
   return { walkBack, zeros, decideTotal: decide, clock: decideClock(stamps, clockEnd) }
 }
+
+// (v0.807.0) THE ZERO DELIVERY'S OWN WHY - WHICH why owns the zero-delivery
+// book. The zero deliveries row (v0.411.0) prints the byWhy split raw and
+// the underground slice (v0.436.0) prices the climb attempts, but no row
+// ever said WHICH why's own zeros own the book - the whys' own mix rode
+// unnamed while the shaft gate's tax stayed a per-face number (the
+// v0.801.0 trip ask seat named the trip lane's side; the delivery side
+// rode raw beside it).
+//
+// The census's own byWhy cells only, zero re-parsing (the v0.802.0 orphan
+// seat's own law, the v0.803.0 ask seat's own shape). The book is the
+// cells' own sum - a junk cell never counts and the real cells still
+// tally (the v0.795.0 honest-skip law). The strict-majority law: the top
+// why owns only when it holds MORE than the rest of the book together - a
+// tie owns nothing (the v0.784.0 kind-seat's own law). The riders are
+// measure-not-owner: the top-two concentration prices the crowd when the
+// solo law refuses, and only >= 2 classes form a crowd (the v0.803.0 ask
+// seat's own shape). Junk never invents a why: a non-object census or
+// byWhy cell, a non-finite or non-positive counter, or a zero book reads
+// the honest silence (null). The byte order (lexicographic) decides the
+// ranked ties - 'budget' < 'chest-unreachable-*' < 'no-chest' <
+// 'nothing' < 'other' < 'underground' < 'water-rescue' (the byte trap:
+// the hyphen 0x2d sorts before any letter).
+function bankZeroWhyTally (bf) {
+  if (!bf || typeof bf !== 'object') return null
+  const z = bf.zeros
+  if (!z || typeof z !== 'object') return null
+  const byWhy = z.byWhy
+  if (!byWhy || typeof byWhy !== 'object') return null
+  const cells = []
+  for (const [why, n] of Object.entries(byWhy)) {
+    if (Number.isFinite(n) && n > 0) cells.push([why, n])
+  }
+  if (cells.length === 0) return null
+  const total = cells.reduce((s, [, n]) => s + n, 0)
+  if (!(total > 0)) return null
+  cells.sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1))
+  return { cells, total }
+}
+
+// The why's own seat - the strict-majority owner of the zero-delivery
+// book, or null when no why holds more than the rest together (v0.807.0).
+export function bankZeroWhySeat (bf) {
+  const t = bankZeroWhyTally(bf)
+  if (!t) return null
+  const [why, topN] = t.cells[0]
+  if (topN > t.total - topN) {
+    return { why, owns: topN, ofZeros: t.total, shareOfZeros: topN / t.total * 100 }
+  }
+  return null
+}
+
+// The seat row - the byte-exact read the decompose prints beside the zero
+// deliveries row (the branch law: the owner case leaves the companion
+// unprinted). Guarded end to end; junk reads null (v0.807.0).
+export function bankZeroWhySeatRow (seat) {
+  if (!seat || typeof seat !== 'object') return null
+  const { why, owns, ofZeros, shareOfZeros } = seat
+  if (typeof why !== 'string' || why === '') return null
+  if (!Number.isFinite(owns) || owns <= 0) return null
+  if (!Number.isFinite(ofZeros) || ofZeros <= 0) return null
+  if (owns > ofZeros) return null
+  if (!Number.isFinite(shareOfZeros)) return null
+  const s = ofZeros === 1 ? 'zero delivery' : 'zero deliveries'
+  return `the zero delivery's own why (v0.807.0): ${why} owns ${owns} of ${ofZeros} ${s} (${shareOfZeros.toFixed(1)}%) - THE WHY'S OWN SEAT: one why's own zeros own the delivery book - the why's own front prices the walks the raw split rode unnamed`
+}
+
+// The why's own riders - the top-two concentration when the solo law
+// refuses to seat (measure-not-owner; a single class is no crowd and
+// reads null, v0.807.0).
+export function bankZeroWhyRiders (bf) {
+  const t = bankZeroWhyTally(bf)
+  if (!t || t.cells.length < 2) return null
+  const [leader, leaderOwns] = t.cells[0]
+  const [runner, runnerOwns] = t.cells[1]
+  const pairOwns = leaderOwns + runnerOwns
+  return {
+    leader, leaderOwns, runner, runnerOwns,
+    ofZeros: t.total, pairOwns,
+    shareOfZeros: pairOwns / t.total * 100,
+    duet: `${leader} x${leaderOwns} + ${runner} x${runnerOwns}`
+  }
+}
+
+// The riders row - the byte-exact read for the no-owner faces (v0.807.0).
+export function bankZeroWhyRidersRow (r) {
+  if (!r || typeof r !== 'object') return null
+  const { leader, leaderOwns, runner, runnerOwns, ofZeros, pairOwns, shareOfZeros, duet } = r
+  if (typeof leader !== 'string' || leader === '') return null
+  if (typeof runner !== 'string' || runner === '') return null
+  if (!Number.isFinite(leaderOwns) || leaderOwns <= 0) return null
+  if (!Number.isFinite(runnerOwns) || runnerOwns <= 0) return null
+  if (!Number.isFinite(ofZeros) || ofZeros <= 0) return null
+  if (!Number.isFinite(pairOwns) || pairOwns <= 0) return null
+  if (pairOwns > ofZeros) return null
+  if (typeof duet !== 'string' || duet === '') return null
+  if (!Number.isFinite(shareOfZeros)) return null
+  const s = ofZeros === 1 ? 'zero delivery' : 'zero deliveries'
+  return `the zero delivery's own riders (v0.807.0): no solo why owns the majority - ${duet} own ${pairOwns} of ${ofZeros} ${s} (${shareOfZeros.toFixed(1)}%) - THE WHY'S OWN MIX: the seat's tie law held, the crowd is the shape - the whys' own spread prices the walks the solo law refused to name`
+}
