@@ -465,3 +465,96 @@ export function writeOffRidersRow (r) {
       !Number.isFinite(share)) return null
   return `the write-off's own riders (v0.777.0): no solo holder owns the majority - ${leader} x${leaderUnits}u + ${runner} x${runnerUnits}u own ${pairUnits} of ${total}u (${(share * 100).toFixed(1)}%) - THE DUO'S OWN SEAT: the bill's tie law held, the concentration is still real - the pair prices the pockets the solo law refused to name`
 }
+
+// (v0.803.0) THE ASK BOOK'S OWN SEAT - WHICH bot's own need owns the bank
+// ask book. The flow-priced budgets row prices the extremes (granted max
+// vs max need) and the per-bot tail lists every ask raw - but no row ever
+// said WHICH bot's own need owns the book - the whale's share rode
+// unnamed. THE SEAT LAW (the census's own budgets cells only, zero
+// re-parsing - the v0.777.0 write-off cast's own shape, the v0.802.0
+// orphan seat's own law): the strict-majority law, a solo bot owns the
+// book only above half (a tie owns nothing); the book is the budgets' own
+// needsS sum (the asks' own currency, seconds); junk never invents a bot
+// (a missing or non-object cell, a non-string or empty bot, a non-finite
+// or non-positive need reads the honest skip - the real cells still
+// tally). The vocabulary is the census's own bot bytes - the ranked ties
+// ride the name's own lexicographic law.
+function budgetAskTally (budgets) {
+  if (!Array.isArray(budgets)) return null
+  const tallies = {}
+  let book = 0
+  for (const b of budgets) {
+    const cell = b && typeof b === 'object' ? b : null
+    if (!cell) continue
+    const bot = cell.bot
+    const need = cell.needsS
+    if (typeof bot !== 'string' || bot.length === 0) continue
+    if (!Number.isFinite(need) || need <= 0) continue
+    book += need
+    tallies[bot] = (tallies[bot] || 0) + need
+  }
+  return book > 0 ? { tallies, book } : null
+}
+
+// (v0.803.0) the ask book's own seat - the strict-majority law's verdict:
+// the top bot owns the book only above half; a tie owns nothing (the
+// honest null - the spread needs the riders, not a named owner). The byte
+// order decides the scan (the bot's own bytes).
+export function budgetAskSeat (budgets) {
+  const tally = budgetAskTally(budgets)
+  if (!tally) return null
+  let topOwns = 0
+  let topBot = null
+  for (const [bot, n] of Object.entries(tally.tallies).sort((a, b) => a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0)) {
+    if (n > topOwns) { topOwns = n; topBot = bot }
+  }
+  if (topBot === null || topOwns <= tally.book - topOwns) return null
+  return { bot: topBot, owns: topOwns, ofAsks: tally.book, shareOfAsks: +(topOwns / tally.book).toFixed(3) }
+}
+
+// (v0.803.0) the ask book's own row - THE ASK BOOK'S OWN SEAT: one bot's
+// own need owns the bank ask book (the whale's own meter). Junk never
+// prints a row (the honest silence's own row law): every field is guarded
+// before the template speaks.
+export function budgetAskSeatRow (seat) {
+  if (!seat || typeof seat !== 'object') return null
+  const { bot, owns, ofAsks, shareOfAsks } = seat
+  if (typeof bot !== 'string' || !bot ||
+      !Number.isFinite(owns) || owns <= 0 ||
+      !Number.isFinite(ofAsks) || ofAsks <= 0 || owns > ofAsks ||
+      !Number.isFinite(shareOfAsks)) return null
+  return `the ask book's own seat (v0.803.0): ${bot} owns ${owns}s of ${ofAsks}s bank ask (${(shareOfAsks * 100).toFixed(1)}%) - THE ASK BOOK'S OWN SEAT: one bot's own need owns the bank ask book - the budgets row's extremes priced the clamp, the seat names the whale's own share`
+}
+
+// (v0.803.0) THE ASK BOOK'S OWN RIDERS - the seat's own silence's companion
+// (the v0.802.0 riders precedent, zero re-parsing): a MEASURE, never a
+// verdict-owner - the top two needs' concentration prices the shape the
+// solo law refused to name (the seat's owner case leaves the companion
+// unprinted - the decompose's own branch law). The order is deterministic
+// (need desc, then the name's own - 'F11' < 'F8' byte-wise). Junk never
+// invents a shape: a missing or empty book or fewer than two counted bots
+// reads the honest silence (null).
+export function budgetAskRiders (budgets) {
+  const tally = budgetAskTally(budgets)
+  if (!tally) return null
+  const ranked = Object.entries(tally.tallies).sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1))
+  if (ranked.length < 2) return null
+  const [leader, leaderOwns] = ranked[0]
+  const [runner, runnerOwns] = ranked[1]
+  const pairOwns = leaderOwns + runnerOwns
+  return { leader, leaderOwns, runner, runnerOwns, ofAsks: tally.book, pairOwns, shareOfAsks: +(pairOwns / tally.book).toFixed(3), duet: leaderOwns === runnerOwns }
+}
+
+// (v0.803.0) the ask riders' own row - THE ASK BOOK'S OWN MIX: a measure
+// of the shape, never a named owner (the seat's tie law holds); the pair
+// prices the concentration the solo law refused to seat. Junk never
+// prints a shape (the honest silence's own row law).
+export function budgetAskRidersRow (r) {
+  if (!r || typeof r !== 'object') return null
+  const { leader, leaderOwns, runner, runnerOwns, ofAsks, pairOwns, shareOfAsks } = r
+  if (typeof leader !== 'string' || !leader || typeof runner !== 'string' || !runner ||
+      !Number.isFinite(leaderOwns) || leaderOwns <= 0 || !Number.isFinite(runnerOwns) || runnerOwns <= 0 ||
+      !Number.isFinite(ofAsks) || ofAsks <= 0 || !Number.isFinite(pairOwns) || pairOwns > ofAsks ||
+      !Number.isFinite(shareOfAsks)) return null
+  return `the ask book's own riders (v0.803.0): no solo bot owns the majority - ${leader} x${leaderOwns}s + ${runner} x${runnerOwns}s own ${pairOwns}s of ${ofAsks}s bank ask (${(shareOfAsks * 100).toFixed(1)}%) - THE ASK BOOK'S OWN MIX: the seat's tie law held, the spread is the shape - the bots' own needs price the ask book the solo law refused to seat`
+}

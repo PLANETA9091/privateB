@@ -3,7 +3,7 @@
 // byte. Tests feed the face-19 (36802577873) verbatim lines, the junk
 // battery, and the missing-block tolerance (a FATAL face truncates the end
 // phase - the v0.358.0 lesson).
-import { bankFlowCensus, parseSurplusItems, parseStranded, parseWriteOff, parseDoomWhy, parseDeliverable, parsePrePositionCensus, craterSeatSplit, writeOffBill, writeOffBillRow, writeOffRiders, writeOffRidersRow } from '../../src/lib/bankcensus.mjs'
+import { bankFlowCensus, parseSurplusItems, parseStranded, parseWriteOff, parseDoomWhy, parseDeliverable, parsePrePositionCensus, craterSeatSplit, writeOffBill, writeOffBillRow, writeOffRiders, writeOffRidersRow, budgetAskSeat, budgetAskSeatRow, budgetAskRiders, budgetAskRidersRow } from '../../src/lib/bankcensus.mjs'
 import assert from 'node:assert'
 import { test } from 'node:test'
 
@@ -591,4 +591,76 @@ test("v0.777.0 the write-off's own cast rides the decompose mine (WIRING)", asyn
   assert.ok(branch > 0) // the branch law's own shape: one row, never both
   const guard = src.indexOf("if (bankCensus.writeOff.length) {", src.indexOf('final write-off:'))
   assert.ok(guard > 0 && guard < branch) // the seat rides the book's own guard
+})
+
+// (v0.803.0) THE ASK BOOK'S OWN SEAT - WHICH bot's own need owns the bank
+// ask book. The face-19 battery rides the tally first (the census's own
+// budgets cells, zero re-parsing), then the seat law's own verdicts.
+test("v0.803.0 the ask book's tally: the face-19 battery reads no solo owner - the riders measure, byte-exact (the measure-not-owner pin)", () => {
+  const c = bankFlowCensus(F19)
+  assert.equal(c.budgets.length, 4) // the census's own cells: F8 2771 + F19 2789 + F6 2599 + F11 2433 = 10592s
+  const seat = budgetAskSeat(c.budgets)
+  assert.equal(seat, null) // F19 2789 <= 7803 - the strict-majority law refuses the plurality
+  const r = budgetAskRiders(c.budgets)
+  assert.deepEqual(r, { leader: 'F19', leaderOwns: 2789, runner: 'F8', runnerOwns: 2771, ofAsks: 10592, pairOwns: 5560, shareOfAsks: 0.525, duet: false })
+  assert.equal(budgetAskRidersRow(r), "the ask book's own riders (v0.803.0): no solo bot owns the majority - F19 x2789s + F8 x2771s own 5560s of 10592s bank ask (52.5%) - THE ASK BOOK'S OWN MIX: the seat's tie law held, the spread is the shape - the bots' own needs price the ask book the solo law refused to seat")
+  // the measure-not-owner pin: the riders measure exists even where the
+  // seat fires (the owner case) - the branch law keeps one row, never both
+  const owner = budgetAskSeat([{ bot: 'F8', needsS: 2771 }, { bot: 'F19', needsS: 1000 }])
+  assert.deepEqual(owner, { bot: 'F8', owns: 2771, ofAsks: 3771, shareOfAsks: 0.735 })
+  assert.equal(budgetAskSeatRow(owner), "the ask book's own seat (v0.803.0): F8 owns 2771s of 3771s bank ask (73.5%) - THE ASK BOOK'S OWN SEAT: one bot's own need owns the bank ask book - the budgets row's extremes priced the clamp, the seat names the whale's own share")
+  const ownerMeasure = budgetAskRiders([{ bot: 'F8', needsS: 2771 }, { bot: 'F19', needsS: 1000 }])
+  assert.ok(ownerMeasure && ownerMeasure.pairOwns === 3771) // a measure, never a verdict-owner
+})
+
+test("v0.803.0 the ask book's seat law: the tie owns nothing, the byte order pins F19 < F8 and F11 < F19 < F6, the solo bot is the strict majority", () => {
+  assert.equal(budgetAskSeat([{ bot: 'F8', needsS: 2771 }, { bot: 'F19', needsS: 2771 }]), null) // the exact-half tie
+  const duet = budgetAskRiders([{ bot: 'F8', needsS: 2771 }, { bot: 'F19', needsS: 2771 }])
+  assert.equal(duet.duet, true)
+  assert.equal(duet.leader, 'F19') // 'F19' < 'F8' byte-wise decides the ranked tie
+  assert.equal(duet.pairOwns, 5542)
+  assert.equal(duet.ofAsks, 5542)
+  assert.equal(duet.shareOfAsks, 1)
+  const triad = budgetAskRiders([{ bot: 'F6', needsS: 500 }, { bot: 'F11', needsS: 500 }, { bot: 'F19', needsS: 500 }])
+  assert.equal(triad.leader, 'F11') // 'F11' < 'F19' < 'F6' byte-wise
+  assert.equal(triad.shareOfAsks, 0.667)
+  const solo = budgetAskSeat([{ bot: 'F8', needsS: 2771 }]) // the solo bot IS the strict majority
+  assert.deepEqual(solo, { bot: 'F8', owns: 2771, ofAsks: 2771, shareOfAsks: 1 })
+  assert.equal(budgetAskRiders([{ bot: 'F8', needsS: 2771 }]), null) // fewer than two counted bots
+})
+
+test("v0.803.0 the ask book's cells'-own-sum: the repeats tally, the junk never invents a bot, the row guards", () => {
+  assert.equal(budgetAskSeat(null), null)
+  assert.equal(budgetAskSeat(undefined), null)
+  assert.equal(budgetAskSeat([]), null)
+  assert.equal(budgetAskSeat('junk'), null)
+  assert.equal(budgetAskRiders('junk'), null)
+  // the dead cells never tally: non-objects, empty bots, non-finite / non-positive needs
+  const dead = [null, 'junk', 42, { bot: 'F1' }, { bot: 'F1', needsS: 0 }, { bot: 'F1', needsS: -5 }, { bot: 'F1', needsS: Number.NaN }, { bot: '', needsS: 100 }, { bot: 7, needsS: 100 }]
+  assert.equal(budgetAskSeat(dead), null)
+  assert.equal(budgetAskRiders(dead), null)
+  // the repeats are the cells' own sum
+  const repeats = budgetAskSeat([{ bot: 'F8', needsS: 1000 }, { bot: 'F8', needsS: 500 }, { bot: 'F19', needsS: 400 }])
+  assert.deepEqual(repeats, { bot: 'F8', owns: 1500, ofAsks: 1900, shareOfAsks: 0.789 })
+  // the junk cell skips, the real cells still tally (the honest-skip law)
+  const mixed = budgetAskSeat([{ bot: 'F8', needsS: 1000 }, null, { bot: 'junk' }, { bot: 'F19', needsS: 400 }])
+  assert.deepEqual(mixed, { bot: 'F8', owns: 1000, ofAsks: 1400, shareOfAsks: 0.714 })
+  // the row guards
+  assert.equal(budgetAskSeatRow(null), null)
+  assert.equal(budgetAskSeatRow({ bot: 'F1' }), null)
+  assert.equal(budgetAskSeatRow({ bot: 'F1', owns: 10, ofAsks: 5, shareOfAsks: 2 }), null) // the ask outran the book
+  assert.equal(budgetAskRidersRow(null), null)
+  assert.equal(budgetAskRidersRow({ leader: 'F1' }), null)
+  assert.equal(budgetAskRidersRow({ leader: 'F1', leaderOwns: 2, runner: 'F2', runnerOwns: 1, ofAsks: 1, pairOwns: 3, shareOfAsks: 3 }), null) // the pair outran the book
+})
+
+test("v0.803.0 the ask book's own seat rides the decompose mine (WIRING)", async () => {
+  const src = await readFile(new URL('../../scripts/fleet-mining/decompose.mjs', import.meta.url), 'utf8')
+  assert.ok(src.includes('budgetAskSeat, budgetAskSeatRow, budgetAskRiders, budgetAskRidersRow')) // the import
+  assert.ok(src.includes('const baSeat = budgetAskSeat(bankCensus.budgets)')) // the census's own cells, zero re-parsing
+  const branch = src.indexOf('const baRiders = budgetAskRiders(bankCensus.budgets)')
+  assert.ok(branch > 0) // the branch law's own shape: the seat, else the riders
+  const row = src.indexOf("if (bankCensus.budgetAgg) console.log(`  flow-priced budgets:")
+  assert.ok(row > 0 && row < branch) // the seat rides the budgets' own gate
+  assert.ok(!src.includes("THE ASK BOOK'S OWN SEAT:"), 'the prose lives only in the lib')
 })

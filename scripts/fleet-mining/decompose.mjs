@@ -5,7 +5,7 @@ import { rescueLedger, rescueEndSeconds, RESCUE_END_CLASSES, rescueStartBill, re
 import { orphanOwnerCensus } from '../../src/lib/orphanowner.mjs' // (v0.679.0) the orphan end's per-bot owner (the dead-client class names its bot)
 import { orphanBookSeat, orphanBookSeatRow, orphanBookRiders, orphanBookRidersRow } from '../../src/lib/orphanowner.mjs' // (v0.802.0) the orphan book's own seat (the byClass cell's own majority)
 import { askWhyCensus, dryAskVerdict, dryAskVerdictRow, dryAskBotBill, dryAskBotBillRow, dryAskRiders, dryAskRidersRow } from '../../src/lib/askwhycensus.mjs' // (v0.652.0) THE ASK'S OWN WHY BOOK - the ask ladder's walk-failure whys joined to the dry terminals (the delivery side's v0.612.0 why-book law, the ask side's own seat); (v0.769.0) WHICH class owns the dry ask; (v0.772.0) WHICH walker owns the class's rows
-import { bankFlowCensus, bankYield, writeOffBill, writeOffBillRow, writeOffRiders, writeOffRidersRow } from '../../src/lib/bankcensus.mjs' // (v0.686.0) + the yield dial - the banked mass over the visit lane's own line count; (v0.777.0) + the write-off's own cast - the book's bot-level seat
+import { bankFlowCensus, bankYield, writeOffBill, writeOffBillRow, writeOffRiders, writeOffRidersRow, budgetAskSeat, budgetAskSeatRow, budgetAskRiders, budgetAskRidersRow } from '../../src/lib/bankcensus.mjs' // (v0.686.0) + the yield dial - the banked mass over the visit lane's own line count; (v0.777.0) + the write-off's own cast - the book's bot-level seat; (v0.803.0) + the ask book's own seat - the budgets' needsS cells' own majority
 import { routeGateCensus, ROUTE_GATE_RIM_TRAP_REFUSALS } from '../../src/lib/routecensus.mjs' // (v0.388.0) the route gate's field read
 import { shooterCensus, shooterAttackerBill, shooterAttackerBillRow, shooterAttackerRiders, shooterAttackerRidersRow } from '../../src/lib/shootercensus.mjs' // (v0.390.0) the shooter band's field read; (v0.792.0) WHICH attacker owns the combat pressure
 import { shelterLedger, OUTCOME_CLASSES, shelterOutcomeBill, shelterOutcomeBillRow, shelterOutcomeRiders, shelterOutcomeRidersRow } from '../../src/lib/shelterledger.mjs' // (v0.457.0) the combat verdict's price - the outcome join; (v0.466.0) the class vocabulary for the flee-ground cross-read; (v0.795.0) WHICH verdict owns the shelter book
@@ -802,6 +802,15 @@ if (bankCensus.pocket) console.log(`  pocket anatomy: ${bankCensus.pocket.holder
 if (bankCensus.surplus) console.log(`  surplus face: crafted-class ${bankCensus.surplus.craftedUnits}u of ${bankCensus.surplus.pocketUnits}u (${bankCensus.surplus.craftedPct}%), top ${bankCensus.surplus.top.map((t) => `${t.item} ${t.units}u`).join(', ') || 'none'}`)
 if (bankCensus.flow) console.log(`  bank flow: ${bankCensus.flow.rateUPerS}u/s (+${bankCensus.flow.bankedDelta}u over ${bankCensus.flow.windowS}s) - the ${bankCensus.flow.pocketUnits}u pocket needs ${bankCensus.flow.secondsPastDeadline}s past the deadline`)
 if (bankCensus.budgetAgg) console.log(`  flow-priced budgets: ${bankCensus.budgetAgg.count} printed, ${bankCensus.budgetAgg.clamped} clamped by the kill margin, granted max ${bankCensus.budgetAgg.grantedMaxS ?? 'n/a'}s vs max need ${bankCensus.budgetAgg.maxNeedsS}s = ${bankCensus.budgetAgg.grantedSharePct != null ? bankCensus.budgetAgg.grantedSharePct + '% granted share' : 'the clock moved free'} (per-bot: ${bankCensus.budgets.map((b) => `${b.bot}=${b.flowPricedS}s${b.grantedS != null ? `->${b.grantedS}s` : ''}${b.burst ? ` ex-burst ${b.burst.exBurstRate}u/s` : ''}`).join(' ') || 'none'})`)
+// (v0.803.0) THE ASK BOOK'S OWN SEAT - the seat, else the riders (one row
+// never both - the branch law; the budgets gate above is the branch's own
+// fence).
+const baSeat = budgetAskSeat(bankCensus.budgets)
+if (baSeat) console.log(`  ${budgetAskSeatRow(baSeat)}`)
+else {
+  const baRiders = budgetAskRiders(bankCensus.budgets)
+  if (baRiders) console.log(`  ${budgetAskRidersRow(baRiders)}`)
+}
 if (bankCensus.attribution) console.log(`  stranded pockets (the walk never delivered): ${bankCensus.attribution.stranded.map((s) => `${s.bot} ${s.deliveredU}u/${s.pocketU}u`).join(', ') || 'none'} - zero-delivered: ${bankCensus.attribution.strandedZeroDelivered}`)
 if (bankCensus.writeOff.length) console.log(`  final write-off: ${bankCensus.writeOff.map((w) => `${w.bot} ${w.units}u/${w.seconds}s`).join(', ')}`)
 // (v0.777.0) THE WRITE-OFF'S OWN CAST - the book's bot-level seat beside the
