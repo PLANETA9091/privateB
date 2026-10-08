@@ -118,6 +118,28 @@ export const COMMONS_SWEEP_CHESTS = 8
 // must not outlive the world it describes.
 export const COMMONS_EMPTY_TTL_MS = 90000
 
+// (v0.824.0) THE PREFLIGHT DISTANCE GATE - the far band's own lower edge.
+// The seat (v0.821.0) named the rent's owner and the price lens (v0.823.0)
+// priced the threshold: walks that STARTED beyond d=10 owned 89.8-100.0% of
+// the raw-walk rent (faces 97/99) while delivered read 0 fourteen straight.
+// The boundary is the radius's own band edge (v0.740.0: close <5, mid 5-10,
+// far >10) - d > gate refuses, d = gate exactly rides. 0/negative disables
+// (the legacy shape, byte for byte).
+export const LAST_MILE_GATE_DIST = 10
+
+/** Pure: may the last mile's raw hop START from this distance? Junk-safe -
+ * an unknown distance passes (the raw walk itself decides with live
+ * positions, the same law rawHopEligible rides); a disabled gate (0/negative)
+ * passes everything; the open edge d > gate refuses - d = gate exactly rides. */
+export function lastMileGateEligible (opts = {}) {
+  const { dist, gate = LAST_MILE_GATE_DIST } = opts || {}
+  const g = Number(gate)
+  if (!Number.isFinite(g) || g <= 0) return true // the gate disabled - the legacy shape
+  const d = Number(dist)
+  if (!Number.isFinite(d)) return true // the walk's own live positions decide
+  return d <= g
+}
+
 /** (v0.128.0) THE ANCHOR FRESH WINDOW. The 90s empty memory exists so a
  * repeat ask walks ONWARD instead of re-walking known-empty chests - but the
  * anchor is THE tithe's dedicated target, the one yard chest that REFILLS
@@ -1220,6 +1242,7 @@ export async function withdrawFuelCommons (bot, {
   clickTimeoutMs = 5000,
   memory = null,
   anchorScan = true, // (v0.124.0) read the fleet's fuel anchor FIRST (then the nearest-first sweep); false = the legacy shape byte for byte
+  lastMileGateDist = LAST_MILE_GATE_DIST, // (v0.824.0) the preflight's own distance gate; 0/negative = the legacy shape byte for byte
   log = () => {}
 } = {}) {
   const ask = Number(itemsNeeded)
@@ -1242,8 +1265,26 @@ export async function withdrawFuelCommons (bot, {
   // the v0.355.0 read); a dead clock stands down honestly, and every
   // refusal keeps today's lines byte for byte. Walk mechanics, not
   // outcomes - the v0.595.0 lens never claims them.
+  // (v0.824.0) THE PREFLIGHT DISTANCE GATE - the walk that cannot arrive
+  // should never rent the clock. The seat (v0.821.0) named the rent's owner
+  // and the price lens (v0.823.0) priced the threshold: the far band's own
+  // lower edge d>10 owned 89.8-100.0% of the raw-walk rent across four faces
+  // (97: 17/17 d=13.0-21.1, 99: 20/21, 96: mid 71.0%, 94: mid 81.2%) while
+  // delivered read 0 fourteen straight - every walk that STARTED beyond the
+  // band died in the band's own rent book. The gate stands the hop down
+  // BEFORE the first meter: a start at d > lastMileGateDist never touches
+  // the raw controls. The boundary is the band's own open edge (d > gate
+  // refuses, d = gate exactly rides - the same law the price lens reads).
+  // Junk-safe: an unknown distance passes (the raw walk itself decides with
+  // live positions). 0/negative disables the gate (the legacy shape, byte
+  // for byte - the same law RAW_HOP_NETPROGRESS_MS rides).
   const lastMileRaw = async (chestPos, declared) => {
     if (!declared || remainingMs() <= 0) return false
+    const dStart = (() => { try { const d = bot?.entity?.position?.distanceTo?.(chestPos); return Number.isFinite(d) ? d : null } catch { return null } })()
+    if (!lastMileGateEligible({ dist: dStart, gate: lastMileGateDist })) {
+      log(`fuel commons: the last mile stands down (d=${dStart.toFixed(1)} beyond the gate at ${lastMileGateDist} - the walk that cannot arrive should never rent the clock)`)
+      return false
+    }
     try {
       const r = await walkRawToward(bot, chestPos, { timeoutMs: remainingMs() })
       log(`fuel commons: the last mile landed (raw, d=${Number.isFinite(r?.d) ? r.d.toFixed(1) : '?'})`)

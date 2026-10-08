@@ -18,6 +18,7 @@ import {
   rememberDryStance, dryStanceDeferred, clearDryStance, ASK_BACKOFF_TTL_MS, // (v0.506.0) the ask backoff
   rearmDryNear, forgetEmptyNear, DRY_REARM_RADIUS, // (v0.509.0) the refill tidings + (v0.510.0) the funded forget
   rememberLowChest, liveLowCells, LOW_CHEST_TTL_MS, LOW_CHEST_CAP, // (v0.507.0) the gravity stash
+  lastMileGateEligible, LAST_MILE_GATE_DIST, // (v0.824.0) the preflight's own distance gate
   nudgeLegSplitMs, ANCHOR_NUDGE_LEG_FLOOR_MS, // (v0.643.0) the nudge's own floor
   ANCHOR_ASK_LEG_FLOOR_MS, // (v0.651.0) the ask's own floor - the commons ladder's twin of the law
   anchorArrivalDist, ANCHOR_ARRIVAL_REAPPROACH_MS, CHEST_OPEN_DIG_MAX_DIST // (v0.646.0) the arrival reach law
@@ -426,7 +427,10 @@ test('THE LAST-MILE RAW HOP (v0.597.0): the floor refused the re-goto and the ra
   // rides the remaining clock straight to the coal.
   const world = mockChestWorld({ chestItem: item('coal', 30), walkPathFails: 'once', botPos: new Vec3(30, 64, 30), gotoSlowMs: 2400, rawWalkMoves: true })
   const lines = []
-  const res = await withdrawFuelCommons(world.bot, { itemsNeeded: 40, budgetMs: 4600, log: m => lines.push(m) })
+  // (v0.824.0) the preflight gate is DISABLED here (0 = the legacy shape) -
+  // this test prices the v0.597.0 arc law, not the gate; the gate's own
+  // stories ride the tests below
+  const res = await withdrawFuelCommons(world.bot, { itemsNeeded: 40, budgetMs: 4600, lastMileGateDist: 0, log: m => lines.push(m) })
   assert.equal(res.reason, 'ok', 'the last mile landed - the chest is reached')
   assert.equal(res.taken, 5, 'ceil(40/8) = 5 coal through the raw hop')
   assert.ok(lines.some(l => /the nudge spent the walk slice/.test(l)), 'the floor refusal still names its spend byte for byte')
@@ -443,7 +447,8 @@ test('THE LAST-MILE RAW HOP (v0.597.0): the decide-fail after the envelope - the
   // proved. A landing seats the chest; the re-segment plan never prices.
   const world = mockChestWorld({ chestItem: item('coal', 30), walkPathFails: 'always', botPos: new Vec3(30, 64, 30), rawWalkMoves: true })
   const lines = []
-  const res = await withdrawFuelCommons(world.bot, { itemsNeeded: 40, budgetMs: 8000, log: m => lines.push(m) })
+  // (v0.824.0) the gate disabled (0 = the legacy shape) - the decide-fail arc story rides byte for byte
+  const res = await withdrawFuelCommons(world.bot, { itemsNeeded: 40, budgetMs: 8000, lastMileGateDist: 0, log: m => lines.push(m) })
   assert.equal(res.reason, 'ok', 'the hop landed the falsified envelope')
   assert.equal(res.taken, 5)
   assert.ok(lines.some(l => /chest walk failed after the nudge/.test(l)), 'the decide-fail happened')
@@ -459,7 +464,8 @@ test('THE LAST-MILE RAW HOP (v0.597.0): the wall twin - a refused hop keeps the 
   // honest end the floor refusals rode before the law.
   const world = mockChestWorld({ chestItem: item('coal', 30), walkPathFails: 'always', botPos: new Vec3(30, 64, 30), rawWalkMoves: true, rawWalkStuckAt: 5 })
   const lines = []
-  const res = await withdrawFuelCommons(world.bot, { itemsNeeded: 40, budgetMs: 8000, log: m => lines.push(m) })
+  // (v0.824.0) the gate disabled (0 = the legacy shape) - the wall twin's stall story rides byte for byte
+  const res = await withdrawFuelCommons(world.bot, { itemsNeeded: 40, budgetMs: 8000, lastMileGateDist: 0, log: m => lines.push(m) })
   assert.equal(res.taken, 0, 'a wall is a wall - nothing reached the pocket')
   assert.equal(res.reason, 'no chest reached', 'the honest terminal')
   assert.ok(lines.some(l => /the last mile refused \(raw walk stalled/.test(l)), 'the refusal is named for the field read')
@@ -2091,4 +2097,66 @@ test('THE ARRIVAL REACH LAW: the junk laws + the source pin (the gate rides once
   assert.match(src, /anchor beyond reach \(d=\$\{dist2\}\) - the open never had it/, 'the honest why returns BEFORE the open, the dist feeds the far lens')
   assert.match(src, /budgetMs: Math\.min\(remainingMs\(\), ANCHOR_ARRIVAL_REAPPROACH_MS\)/, 'the re-approach rides the bounded budget, not a bare slice')
   assert.match(src, /arrivedDist > CHEST_OPEN_DIG_MAX_DIST/, 'the reach is the codebase\'s own number - no new magic constant')
+})
+
+// (v0.824.0) THE PREFLIGHT DISTANCE GATE - the price lens's own cure wired
+// into the runtime. The seat (v0.821.0) named the owner, the price lens
+// (v0.823.0) priced the threshold (far owns 89.8-100.0% at 0 delivered),
+// and the gate now stands the hop down BEFORE the first meter: a start at
+// d > gate never touches the raw controls, the honest line names the why,
+// and the caller's next seat (the exclude, the next chest) owns the clock.
+test('lastMileGateEligible: the open edge + the junk laws', () => {
+  assert.equal(LAST_MILE_GATE_DIST, 10, 'the far band\'s own lower edge is the codebase\'s own number')
+  // the open edge: d = gate exactly rides (the price lens's own law), d past it refuses
+  assert.equal(lastMileGateEligible({ dist: 10.0 }), true, 'd = gate exactly rides - the gate is d>gate, not d>=gate')
+  assert.equal(lastMileGateEligible({ dist: 10.1 }), false, 'the first meter past the band refuses')
+  assert.equal(lastMileGateEligible({ dist: 9.9 }), true)
+  assert.equal(lastMileGateEligible({ dist: 0 }), true, 'the close band never refuses')
+  // the junk battery: the unknown distance passes (the walk's live positions decide)
+  assert.equal(lastMileGateEligible({ dist: null }), true)
+  assert.equal(lastMileGateEligible({ dist: undefined }), true)
+  assert.equal(lastMileGateEligible({ dist: 'junk' }), true)
+  assert.equal(lastMileGateEligible({}), true)
+  assert.equal(lastMileGateEligible(null), true)
+  // the disabled gate: 0/negative = the legacy shape byte for byte
+  assert.equal(lastMileGateEligible({ dist: 37.5, gate: 0 }), true, '0 disables the gate')
+  assert.equal(lastMileGateEligible({ dist: 37.5, gate: -1 }), true, 'negative disables the gate')
+  // a custom gate rides the same open edge
+  assert.equal(lastMileGateEligible({ dist: 5.1, gate: 5 }), false)
+  assert.equal(lastMileGateEligible({ dist: 5.0, gate: 5 }), true)
+})
+
+test('THE PREFLIGHT DISTANCE GATE (v0.824.0): the far start never rents the clock', async () => {
+  // the face-97/99 shape live: the declared envelope's hop starts at d=37.5
+  // (the falsified envelope's own gap) - the gate stands it down before the
+  // first meter, the walkRawToward controls are never touched, and the line
+  // names the why on the existing 'fuel' filter key.
+  const world = mockChestWorld({ chestItem: item('coal', 30), walkPathFails: 'always', botPos: new Vec3(30, 64, 30), rawWalkMoves: true })
+  const lines = []
+  const res = await withdrawFuelCommons(world.bot, { itemsNeeded: 40, budgetMs: 8000, log: m => lines.push(m) })
+  assert.equal(res.taken, 0, 'the gate refuses the far rent - nothing reached the pocket')
+  assert.equal(res.reason, 'no chest reached', 'the honest terminal (the exclude owns the chest)')
+  const stand = lines.find(l => l.includes('the last mile stands down'))
+  assert.ok(stand, 'the stand-down is named')
+  // the START distance is the truth the gate reads: the approach's raw
+  // segments already moved the bot (d=19.5 at the hop's own seat, the mock's
+  // deterministic path) - still far past the band, still refused before the
+  // first meter of the HOP itself
+  assert.equal(stand, 'fuel commons: the last mile stands down (d=19.5 beyond the gate at 10 - the walk that cannot arrive should never rent the clock)', 'the byte-exact stand-down line rides the fuel filter key')
+  assert.ok(!lines.some(l => /the last mile landed/.test(l)), 'a stand-down never claims a landing')
+  assert.ok(!lines.some(l => /the last mile refused/.test(l)), 'a stand-down is NOT a refusal - the raw controls were never touched, no rent burned')
+})
+
+test('THE PREFLIGHT DISTANCE GATE (v0.824.0): the wiring pins - the gate stands before the walk, the disabled shape stays byte for byte', () => {
+  const fuelSrc = readFileSync(new URL('../../src/lib/fuelbank.mjs', import.meta.url), 'utf8')
+  // the gate reads the START distance BEFORE walkRawToward (the preflight's own order)
+  const gateIdx = fuelSrc.indexOf('lastMileGateEligible({ dist: dStart, gate: lastMileGateDist })')
+  const walkIdx = fuelSrc.indexOf('await walkRawToward(bot, chestPos')
+  assert.ok(gateIdx > -1, 'the gate check exists in lastMileRaw')
+  assert.ok(walkIdx > gateIdx, 'the gate stands BEFORE the raw controls - the preflight\'s own order')
+  // the stand-down line rides the existing 'fuel commons: the last mile' family (no filter change)
+  assert.match(fuelSrc, /the last mile stands down \(d=\$\{dStart\.toFixed\(1\)\} beyond the gate at \$\{lastMileGateDist\} - the walk that cannot arrive should never rent the clock\)/)
+  // the opts wire: the default is the constant, 0/negative = the legacy shape
+  assert.match(fuelSrc, /lastMileGateDist = LAST_MILE_GATE_DIST/)
+  assert.match(fuelSrc, /if \(!Number\.isFinite\(g\) \|\| g <= 0\) return true/)
 })
