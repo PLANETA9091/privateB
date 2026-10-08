@@ -260,3 +260,86 @@ export function sockJoinVerdict (joinedByKind, unjoinedByKind) {
   if (bad) out.bad = bad
   return Object.keys(out).length ? out : null
 }
+
+// (v0.809.0) THE JOIN'S OWN SEAT - the reach's own book priced. The v0.808.0
+// join counts raw on both sides (face 89 rode joined 2 of 19, face 90 rode
+// joined 1 of 20) but no row ever said WHICH side owns the book - face 90's
+// read inverted face 89's (20 duplicate_login kicks, 1 loss: the churn's
+// sockets mostly survive the reach) and the inversion rode unnamed. The seat
+// law (the v0.802.0 orphan seat's own shape): the join's own two cells
+// (joined / unjoined) only, zero re-parsing; the book is the cells' own sum;
+// the strict-majority law, a tie owns nothing (the storm-has-no-seat
+// precedent); junk never invents a side - a non-finite or negative cell is
+// skipped and counted (the honest-skip law, the real cells still tally). The
+// words name the front: a joined majority is the residue's own shape (the
+// kicked client's socket dies writing within the window), an unjoined
+// majority is the churn's own exception (the loss's own front - the
+// teardown's candidate side - rides the unjoined book).
+export function sockJoinSeat (losses) {
+  const c = (losses && typeof losses === 'object' && !Array.isArray(losses)) ? losses : {}
+  let bad = 0
+  const cell = (v) => {
+    if (v === undefined) return 0
+    if (!Number.isFinite(v) || v < 0) { bad++; return 0 }
+    return v
+  }
+  const joined = cell(c.joined)
+  const unjoined = cell(c.unjoined)
+  const total = joined + unjoined
+  if (!total) return null
+  const owner = joined > unjoined ? 'joined' : unjoined > joined ? 'unjoined' : null
+  const units = owner === 'joined' ? joined : owner === 'unjoined' ? unjoined : 0
+  const word = owner === 'joined'
+    ? 'the loss rides the churn\'s own reach - the residue is the shape (the kicked client\'s socket dies writing within the window)'
+    : owner === 'unjoined'
+      ? 'the churn\'s sockets survive the reach - the loss is its own exception (the teardown\'s front rides the unjoined book)'
+      : null
+  return { total, owner, units, share: total ? +(units / total).toFixed(3) : 0, word, bad }
+}
+
+// (v0.809.0) the seat's row - the prose lives only in the lib, the
+// decompose rides the builder. A tie reads the no-owner row (the v0.806.0
+// seat's own else-branch law, one row never both); an empty book reads the
+// honest silence (null).
+export function sockJoinSeatRow (join) {
+  if (!join || typeof join !== 'object' || Array.isArray(join)) return null
+  const seat = sockJoinSeat(join.losses)
+  if (!seat) return null
+  if (!seat.owner) return 'no solo side owns the reach\'s book (the tie owns nothing)'
+  return `${seat.owner} owns ${seat.units} of ${seat.total} socket loss(es) (${(seat.share * 100).toFixed(1)}%) - THE REACH'S OWN SEAT: ${seat.word}`
+}
+
+// (v0.809.0) THE OWN-FRONT'S OWN KINDS - the unjoined book's riders (the
+// v0.803.0 ask riders' own law): measure-not-owner (the riders price the
+// teardown front's own mix, they never own the book), >=2 classes only (the
+// solo-class fence - a lone kind's measure is the seat row's own story), the
+// byte order decides the ranked ties, junk never invents a kind (a
+// non-finite or negative cell is skipped and counted, the real cells still
+// tally the unjoined book).
+export function sockJoinRiders (unjoinedByKind) {
+  const u = (unjoinedByKind && typeof unjoinedByKind === 'object' && !Array.isArray(unjoinedByKind)) ? unjoinedByKind : {}
+  const cells = []
+  let bad = 0
+  for (const [k, v] of Object.entries(u)) {
+    if (!Number.isFinite(v) || v < 0) { if (v !== undefined) bad++; continue }
+    if (v === 0) continue
+    cells.push([k, v])
+  }
+  if (cells.length < 2) return null
+  cells.sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0))
+  const total = cells.reduce((s, [, v]) => s + v, 0)
+  const top = cells.slice(0, 2)
+  const sum = top.reduce((s, [, v]) => s + v, 0)
+  return { total, top: top.map(([cls, units]) => ({ cls, units })), sum, share: +(sum / total).toFixed(3), bad }
+}
+
+// (v0.809.0) the riders' row - fires only when the unjoined book holds two
+// or more kinds (the solo-class fence); face 90's unjoined-zero book reads
+// the honest silence.
+export function sockJoinRidersRow (join) {
+  if (!join || typeof join !== 'object' || Array.isArray(join)) return null
+  const r = sockJoinRiders(join.unjoinedByKind)
+  if (!r) return null
+  const pair = r.top.map(({ cls, units }) => `${cls} x${units}`).join(' + ')
+  return `${pair} own ${r.sum} of ${r.total} unjoined loss(es) (${(r.share * 100).toFixed(1)}%) - THE OWN-FRONT'S OWN KINDS: the teardown front's own mix rides measured, not owning (the seat's measure-not-owner law)`
+}

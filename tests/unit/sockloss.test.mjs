@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { sockLossCensus, sockLossVerdict, sockChurnJoin, sockJoinVerdict } from '../../src/lib/sockloss.mjs'
+import { sockLossCensus, sockLossVerdict, sockChurnJoin, sockJoinVerdict, sockJoinSeat, sockJoinSeatRow, sockJoinRiders, sockJoinRidersRow } from '../../src/lib/sockloss.mjs'
 
 // The era's socket-loss bytes, verbatim from face 89 (run 37715421436):
 // every TCP death prints a THREE-part burst - the raw stack header
@@ -190,4 +190,88 @@ test('v0.808.0 the WIRING: the join\'s per-kind cells sum back to the census\'s 
     assert.equal((j.joinedByKind[k] || 0) + (j.unjoinedByKind[k] || 0), sl.byKind[k], `the ${k} cells must fold to one truth`)
   }
   assert.equal(sl.n, j.losses.n)
+})
+
+// (v0.809.0) THE JOIN'S OWN SEAT - the reach's own book priced. Face 90
+// (run 37719472744) inverted face 89's shape: 20 duplicate_login kicks
+// across 7 bots, ONE socket loss (F12's EPIPE, joined@16) - 19 of 20 kicks
+// rode bare and the churn's sockets mostly survive the reach. The seat
+// names WHICH side owns the book.
+
+test('v0.809.0 the face-90 shape: the residue\'s own seat (joined 1 of 1), the riders\' honest silence', () => {
+  // the face-90 compact: 19 bare kicks + one loss joined@16 (F12's EPIPE)
+  const F90 = []
+  for (let i = 0; i < 19; i++) {
+    F90.push(KICK_LINE('F1'), ...Array.from({ length: 8 }, (_, k) => FILLER(400 + i * 10 + k)))
+  }
+  F90.push(...burst('F12', 'EPIPE', 16))
+  const j = sockChurnJoin(F90)
+  assert.deepEqual(j.losses, { n: 1, joined: 1, unjoined: 0 }, 'the single EPIPE loss rides the churn\'s own reach')
+  assert.deepEqual(j.kicks, { n: 20, bare: 19 }, '19 of 20 kicks rode bare - the churn\'s sockets survive')
+  assert.equal(j.verdict.EPIPE.word, 'rides the kick churn - the residue class')
+  const row = sockJoinSeatRow(j)
+  assert.equal(row, 'joined owns 1 of 1 socket loss(es) (100.0%) - THE REACH\'S OWN SEAT: the loss rides the churn\'s own reach - the residue is the shape (the kicked client\'s socket dies writing within the window)')
+  assert.equal(sockJoinRidersRow(j), null, 'the unjoined-zero book reads the honest silence (the riders\' fence)')
+})
+
+test('v0.809.0 the face-89 shape: the churn\'s exception owns the book, the own-front\'s kinds byte-exact', () => {
+  const F89J = [
+    ...burst('F14', 'EPIPE', 16),
+    ...burst('F10', 'EPIPE', 16),
+    RAW('ECONNRESET'), LOSS('F5', 'ECONNRESET'), TWIN('F5', 'ECONNRESET'),
+    RAW('ECONNRESET'), LOSS('F19', 'ECONNRESET'), TWIN('F19', 'ECONNRESET'),
+    RAW('ECONNRESET'), LOSS('F13', 'ECONNRESET'), TWIN('F13', 'ECONNRESET'),
+  ]
+  const j = sockChurnJoin(F89J)
+  assert.deepEqual(j.losses, { n: 5, joined: 2, unjoined: 3 })
+  const row = sockJoinSeatRow(j)
+  assert.equal(row, 'unjoined owns 3 of 5 socket loss(es) (60.0%) - THE REACH\'S OWN SEAT: the churn\'s sockets survive the reach - the loss is its own exception (the teardown\'s front rides the unjoined book)')
+  // the real face-89 unjoined book through the riders' law (byte order under
+  // the count rank): ECONNRESET 14 + EPIPE 3 own 17 of 17 (100.0%)
+  const real = sockJoinRidersRow({ unjoinedByKind: { ECONNRESET: 14, EPIPE: 3 } })
+  assert.equal(real, 'ECONNRESET x14 + EPIPE x3 own 17 of 17 unjoined loss(es) (100.0%) - THE OWN-FRONT\'S OWN KINDS: the teardown front\'s own mix rides measured, not owning (the seat\'s measure-not-owner law)')
+  const r = sockJoinRiders({ ECONNRESET: 14, EPIPE: 3 })
+  assert.deepEqual(r, { total: 17, top: [{ cls: 'ECONNRESET', units: 14 }, { cls: 'EPIPE', units: 3 }], sum: 17, share: 1, bad: 0 })
+})
+
+test('v0.809.0 the seat law: the tie owns nothing, the junk never invents, the cells\' own sum', () => {
+  const tie = sockJoinSeat({ joined: 1, unjoined: 1 })
+  assert.equal(tie.owner, null, 'a tie owns nothing (the storm-has-no-seat precedent)')
+  assert.equal(tie.total, 2)
+  assert.equal(sockJoinSeatRow({ losses: { joined: 1, unjoined: 1 } }), 'no solo side owns the reach\'s book (the tie owns nothing)')
+  const junk = sockJoinSeat({ joined: -1, unjoined: 3 })
+  assert.equal(junk.total, 3, 'the junk cell is skipped, the real cell still tallies')
+  assert.equal(junk.bad, 1, 'the junk is counted - never priced, never silently dropped')
+  assert.equal(junk.owner, 'unjoined')
+  assert.equal(sockJoinSeat(null), null, 'a non-object reads the honest silence')
+  assert.equal(sockJoinSeat({}), null)
+  assert.equal(sockJoinSeat({ joined: 0, unjoined: 0 }), null, 'a zero book judges nothing')
+  assert.equal(sockJoinSeatRow(null), null)
+  assert.equal(sockJoinSeatRow(42), null)
+  // the riders' fences: the solo-class fence, the junk battery, the byte order
+  assert.equal(sockJoinRiders({ ECONNRESET: 5 }), null, 'a lone kind\'s measure is the seat row\'s own story')
+  assert.equal(sockJoinRiders({ ECONNRESET: -1, EPIPE: Number.NaN, ETIMEDOUT: 2 }), null, 'the junk cells leave a solo class - the fence holds')
+  const bytes = sockJoinRiders({ EPIPE: 3, ECONNRESET: 3 })
+  assert.deepEqual(bytes.top.map(({ cls }) => cls), ['ECONNRESET', 'EPIPE'], 'the byte order decides the ranked ties (ECONNRESET < EPIPE)')
+  assert.equal(bytes.share, 1)
+  assert.equal(sockJoinRidersRow({}), null)
+})
+
+test('v0.809.0 the WIRING: the seat anchors to the real join, the total folds to one truth', () => {
+  const F89J = [
+    ...burst('F14', 'EPIPE', 16),
+    RAW('ECONNRESET'), LOSS('F5', 'ECONNRESET'), TWIN('F5', 'ECONNRESET'),
+    RAW('ECONNRESET'), LOSS('F13', 'ECONNRESET'), TWIN('F13', 'ECONNRESET'),
+  ]
+  const j = sockChurnJoin(F89J)
+  const seat = sockJoinSeat(j.losses)
+  assert.equal(seat.total, j.losses.n, 'the seat\'s book is the join\'s own losses (one truth)')
+  assert.equal(seat.owner, 'unjoined')
+  const row = sockJoinSeatRow(j)
+  assert.ok(row.startsWith('unjoined owns 2 of 3 socket loss(es)'), 'the real join feeds the row')
+  // the solo-unjoined face through the REAL join: the riders stay silent
+  const solo = sockChurnJoin(burst('F2', 'ECONNRESET', 21))
+  assert.deepEqual(solo.losses, { n: 1, joined: 0, unjoined: 1 })
+  assert.equal(sockJoinRidersRow(solo), null, 'one unjoined kind - the solo-class fence holds through the real join')
+  assert.ok(sockJoinSeatRow(solo).startsWith('unjoined owns 1 of 1 socket loss(es)'))
 })
