@@ -20597,3 +20597,24 @@ Stage Summary:
 - OPEN FRONTS: (1) face 106's mine (the receipt row's debut + the water cure's trend); (2) the two-mouths runtime cure (the deposit target); (3) the accounting blind (the emitter's own front); (4) the fuel tithe's trigger (the seated cure - the voice's own 4-face anatomy: 0/14, 1/17, 2/3, ?); (5) the storm's refund (793u late drops vs 215u banked = 3.7x); (6) face 93's mine still queued (37727396042).
 - Next fire: (1) CI verdicts BY RUN ID: my push-CI 37769988676 (aa84e6c, the v0.831.0 gate) + face 106 = 37770102755. (2) face 106 SUCCESS -> mine -> /home/z/my-project/run37770102755/. (3) dispatch law on clear (x131, face 107; 0.832.0 next slot, re-verify on origin before the bump).
 - NO force-push, NO history rewrite. Identity: PLANETA9091.
+
+---
+Task ID: cron30-20261008-1930
+Agent: Super Z (fire 1930 lane, Job 414125)
+Task: fire cron30-20261008-1930 - one atomic improvement, zero-conflict protocol, the aquifer's own book.
+
+Work Log:
+- Repo synced (origin tip b8d51f4; code aa84e6c = v0.831.0, the lane's fire-1840 THE YARD'S OWN TWO MOUTHS after retags #46+#47). VERDICTS BY RUN ID at fire start: push-CI 37768463052 (295f4b5, my v0.830.0) SUCCESS - the refusal lens is CI-green; face 106 = 37770102755 (the lane's x130) in_progress at open; 0.832.0 next free (origin verified).
+- ONE ATOMIC IMPROVEMENT: v0.832.0 THE AQUIFER'S OWN BOOK (76a07bb) - the water table program's own field instrument, the mining-surface sibling of the v0.830.0 refusal read. The digShaft water book's four voices read back for the first time: the strike (the board's WRITE side - the fluid guard's strike line read verbatim: the fluid's name, the strike level, the emitter's live regions readback, the Vec3 parens position) and the lid (the board's READ side - the regional ceiling's enforcement) plus the give-up terminals discriminated (the fluid/drop carousel cap form vs the undiggable floor form). New src/lib/aquifer.mjs (three regexes + three parsers + aquiferCensus + aquiferCensusRow, start-anchored, junk in null out; peakRegions = the emitters' own max readback, NEVER a claim about the board's final size). decompose one additive row beside the refusal's, independent of the death book.
+- THE TREND LAW rides (the v0.830.0 tier law's house rule): the lens prices the book and names NO cause. The live arc IS the board's maturity trend: face 104 (pre-cure) 44 strikes / 0 lids / peak 4 -> face 105 (cure debut) 21 strikes / 44 lids / peak 2 - THE LID TOOK THE STRIKE CAROUSEL'S WORK as the regions filled; face 101 13/11/peak 2. Zero give-ups in all three faces - the SIDESTEP_CAP 6 never burned.
+- LIVE-VERIFIED byte-exact on THREE faces through the real decompose (each row matches the hand-count): face 105 '21 strike(s) (21 water, 0 lava) wrote the board, 44 lid(s) stopped above it, the board peaked at 2 region(s), 0 give-up(s) (0 carousel, 0 floor)'; face 104 the 44/0/peak-4 shape; face 101 the 13/11/peak-2 shape.
+- Tests: +3 (tests/unit/aquifer.test.mjs: the verbatim parse + the lava/water discrimination + the foreign-head junk battery; the hand-counted mini-shapes + the both-terminal give-up book + the blob form + the honest silence; the face-105/face-104 byte-exact rows + the row guards). aquifer 3/3, unit 311/311 files, syntax 551 0-broken. Integration rides CI. No new fleet log lines -> no fleet19.mjs filter-key (mining-surface only, the v0.379.0 precedent).
+- Version 0.832.0 re-verified free on origin (origin was 0.831.0). NO race this fire - the lane quiet at push. Commit 76a07bb; push attempt-1 CLEAN (b8d51f4..76a07bb). NO force-push, NO history rewrite.
+- DISPATCH LAW: face 106 = 37770102755 in_progress ALL fire (checked at open, mid-fire and close) -> NO dispatch (max-one-active; no duplicate). Face 107 rides the next fire on a clear list - the aquifer lens's own debut read on the v0.832.0 tree.
+- My push-CI 37772275163 (76a07bb) in_progress at fire end (the 480s poll exhausted, the queue shared with face 106's fleet run) - verdict BY RUN ID next fire, NOT claimed green; unit was green locally 311/311.
+
+Stage Summary:
+- Master tip 76a07bb = v0.832.0 (THE AQUIFER'S OWN BOOK); next free 0.833.0 (re-verify on origin before the bump).
+- Next fire: (1) CI verdicts BY RUN ID: push-CI 37772275163 + face 106 = 37770102755 (the receipt seat's debut + the water cure's third face - the aquifer row rides the v0.832.0 decompose, watch the strike/lid arc's third point). (2) face 106 SUCCESS -> mine -> /home/z/my-project/run37770102755/. (3) dispatch law on clear (face 107; 0.833.0 next slot).
+- OPEN FRONTS: (1) the aquifer's own trend (the arc's third point); (2) the cure's own field verdict (the walk-back share + the water toll); (3) the drought's inflow front (the lane's seat); (4) the spin walk front (the A* fuel lever, still unclaimed); (5) face 93's mine still queued (37727396042).
+- NO force-push, NO history rewrite. Identity: PLANETA9091.
