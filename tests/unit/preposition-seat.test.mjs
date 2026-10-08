@@ -1,4 +1,4 @@
-// The pre-position seat law pins (v0.809.0).
+// The pre-position seat law pins (v0.810.0).
 //
 // THE PRE-POSITION'S OWN WHY - the walk-home book's own seat. The census
 // row (v0.645.0) printed armed/landed/failed raw and the emitter named the
@@ -34,7 +34,7 @@ test('pre-position why: the face-90 verbatim seats the surface gate with the byt
   assert.deepEqual(e, { armed: 18, landed: 2, landedUnits: 118, failed: 35, topWhy: 'surface refused', topWhyCount: 27, climbOuts: [{ kind: 'stalled', count: 22 }, { kind: 'low-o2', count: 3 }, { kind: 'stopped', count: 1 }, { kind: 'timeout', count: 1 }] })
   const seat = prePositionWhySeat(e)
   assert.deepEqual(seat, { why: 'surface refused', owns: 27, ofFailed: 35, shareOfFailed: 27 / 35 * 100 })
-  assert.equal(prePositionWhySeatRow(seat), "the pre-position's own why (v0.809.0): surface refused owns 27 of 35 failed walk-homes (77.1%) - THE WALK-HOME'S OWN SEAT: one why's own failures own the pre-position book - the why's own front prices the walk home the raw split rode unnamed")
+  assert.equal(prePositionWhySeatRow(seat), "the pre-position's own why (v0.810.0): surface refused owns 27 of 35 failed walk-homes (77.1%) - THE WALK-HOME'S OWN SEAT: one why's own failures own the pre-position book - the why's own front prices the walk home the raw split rode unnamed")
   // The branch law: the why riders read null on the seat's own face (one
   // row never both - the decompose's else is what stays unprinted).
   assert.equal(prePositionWhyRiders(e), null)
@@ -42,7 +42,7 @@ test('pre-position why: the face-90 verbatim seats the surface gate with the byt
   // 22 of 27 (81.5%), the riders silent.
   const cl = prePositionClimbSeat(e)
   assert.deepEqual(cl, { kind: 'stalled', owns: 22, ofClimbs: 27, shareOfClimbs: 22 / 27 * 100 })
-  assert.equal(prePositionClimbSeatRow(cl), "the pre-position climb's own seat (v0.809.0): stalled owns 22 of 27 climb-outs (81.5%) - THE CLIMB'S OWN SEAT: one kind's own climb-outs own the surface anatomy - the kind's own front prices the walk the raw split rode unnamed")
+  assert.equal(prePositionClimbSeatRow(cl), "the pre-position climb's own seat (v0.810.0): stalled owns 22 of 27 climb-outs (81.5%) - THE CLIMB'S OWN SEAT: one kind's own climb-outs own the surface anatomy - the kind's own front prices the walk the raw split rode unnamed")
   // The branch law's companion (the v0.807.0 law): the lib still measures
   // the top two when a seat exists - the decompose's else is what leaves
   // it unprinted.
@@ -55,7 +55,7 @@ test('pre-position why: the seventeen-face constant - face 89, face 87 the bare 
   const e89 = parsePrePositionCensus(FACE89)
   const s89 = prePositionWhySeat(e89)
   assert.deepEqual(s89, { why: 'surface refused', owns: 8, ofFailed: 11, shareOfFailed: 8 / 11 * 100 })
-  assert.equal(prePositionWhySeatRow(s89), "the pre-position's own why (v0.809.0): surface refused owns 8 of 11 failed walk-homes (72.7%) - THE WALK-HOME'S OWN SEAT: one why's own failures own the pre-position book - the why's own front prices the walk home the raw split rode unnamed")
+  assert.equal(prePositionWhySeatRow(s89), "the pre-position's own why (v0.810.0): surface refused owns 8 of 11 failed walk-homes (72.7%) - THE WALK-HOME'S OWN SEAT: one why's own failures own the pre-position book - the why's own front prices the walk home the raw split rode unnamed")
   assert.deepEqual(prePositionClimbSeat(e89), { kind: 'low-o2', owns: 5, ofClimbs: 8, shareOfClimbs: 5 / 8 * 100 })
   // Face 87's shape (37709639941): 6 of 11 - the BARE majority (6 > 5),
   // the constant's closest call on the held faces.
@@ -70,13 +70,13 @@ test('pre-position why: the seventeen-face constant - face 89, face 87 the bare 
   const e82 = parsePrePositionCensus(FACE82)
   const s82 = prePositionWhySeat(e82)
   assert.deepEqual(s82, { why: 'budget exhausted', owns: 3, ofFailed: 5, shareOfFailed: 3 / 5 * 100 })
-  assert.equal(prePositionWhySeatRow(s82), "the pre-position's own why (v0.809.0): budget exhausted owns 3 of 5 failed walk-homes (60.0%) - THE WALK-HOME'S OWN SEAT: one why's own failures own the pre-position book - the why's own front prices the walk home the raw split rode unnamed")
+  assert.equal(prePositionWhySeatRow(s82), "the pre-position's own why (v0.810.0): budget exhausted owns 3 of 5 failed walk-homes (60.0%) - THE WALK-HOME'S OWN SEAT: one why's own failures own the pre-position book - the why's own front prices the walk home the raw split rode unnamed")
   const c82 = prePositionClimbSeat(e82)
   assert.deepEqual(c82, { kind: 'low-o2', owns: 1, ofClimbs: 1, shareOfClimbs: 1 / 1 * 100 })
-  assert.equal(prePositionClimbSeatRow(c82), "the pre-position climb's own seat (v0.809.0): low-o2 owns 1 of 1 climb-out (100.0%) - THE CLIMB'S OWN SEAT: one kind's own climb-outs own the surface anatomy - the kind's own front prices the walk the raw split rode unnamed")
+  assert.equal(prePositionClimbSeatRow(c82), "the pre-position climb's own seat (v0.810.0): low-o2 owns 1 of 1 climb-out (100.0%) - THE CLIMB'S OWN SEAT: one kind's own climb-outs own the surface anatomy - the kind's own front prices the walk the raw split rode unnamed")
   // The singular why arm: a one-failure book reads 'failed walk-home'.
   const solo = prePositionWhySeatRow(prePositionWhySeat(parsePrePositionCensus('pre-position census: armed 2, landed 1 (+114u), failed 1 (top why: surface refused x1) - the seat\'s own delivery, first priced')))
-  assert.equal(solo, "the pre-position's own why (v0.809.0): surface refused owns 1 of 1 failed walk-home (100.0%) - THE WALK-HOME'S OWN SEAT: one why's own failures own the pre-position book - the why's own front prices the walk home the raw split rode unnamed")
+  assert.equal(solo, "the pre-position's own why (v0.810.0): surface refused owns 1 of 1 failed walk-home (100.0%) - THE WALK-HOME'S OWN SEAT: one why's own failures own the pre-position book - the why's own front prices the walk home the raw split rode unnamed")
 })
 
 test('pre-position why: the riders forms byte-exact + the tie law with the byte pins + the argmax-under-half why riders', () => {
@@ -86,7 +86,7 @@ test('pre-position why: the riders forms byte-exact + the tie law with the byte 
   assert.equal(prePositionClimbSeat(e86), null)
   const r86 = prePositionClimbRiders(e86)
   assert.deepEqual(r86, { leader: 'low-o2', leaderOwns: 6, runner: 'wet-sentinel', runnerOwns: 6, ofClimbs: 27, pairOwns: 12, shareOfClimbs: 12 / 27 * 100, duet: 'low-o2 x6 + wet-sentinel x6' })
-  assert.equal(prePositionClimbRidersRow(r86), "the pre-position climb's own riders (v0.809.0): no solo kind owns the majority - low-o2 x6 + wet-sentinel x6 own 12 of 27 climb-outs (44.4%) - THE CLIMB'S OWN MIX: the seat's tie law held, the spread is the shape - the climb's own crowd prices the anatomy the solo law refused to name")
+  assert.equal(prePositionClimbRidersRow(r86), "the pre-position climb's own riders (v0.810.0): no solo kind owns the majority - low-o2 x6 + wet-sentinel x6 own 12 of 27 climb-outs (44.4%) - THE CLIMB'S OWN MIX: the seat's tie law held, the spread is the shape - the climb's own crowd prices the anatomy the solo law refused to name")
   // Face 80 (37610367304): the 2-2 tie broke on 'stopped' < 'timeout'.
   const e80 = parsePrePositionCensus(FACE80)
   assert.equal(prePositionClimbSeat(e80), null)
@@ -101,7 +101,7 @@ test('pre-position why: the riders forms byte-exact + the tie law with the byte 
   assert.equal(prePositionWhySeat(under), null)
   const ur = prePositionWhyRiders(under)
   assert.deepEqual(ur, { why: 'surface refused', owns: 4, ofFailed: 10, shareOfFailed: 4 / 10 * 100 })
-  assert.equal(prePositionWhyRidersRow(ur), "the pre-position's own riders (v0.809.0): no solo why owns the majority - the top surface refused x4 holds 4 of 10 failed walk-homes (40.0%) - THE WALK-HOME'S OWN SPREAD: the line's grain carries the argmax only - the seat's law refused the under-half claim")
+  assert.equal(prePositionWhyRidersRow(ur), "the pre-position's own riders (v0.810.0): no solo why owns the majority - the top surface refused x4 holds 4 of 10 failed walk-homes (40.0%) - THE WALK-HOME'S OWN SPREAD: the line's grain carries the argmax only - the seat's law refused the under-half claim")
   // The exact-half fence: 1 of 2 is not MORE than the rest together.
   const half = parsePrePositionCensus('pre-position census: armed 3, landed 0 (+0u), failed 2 (top why: surface refused x1) - the seat\'s own delivery, first priced')
   assert.equal(prePositionWhySeat(half), null)
@@ -150,5 +150,5 @@ test('pre-position why: the junk battery + the row guards + the WIRING assert - 
   const clBlockAt = decSrc.indexOf("if (clSeat) console.log(`  ${prePositionClimbSeatRow(clSeat)}`)")
   const clRidersAt = decSrc.indexOf("if (clRiders) console.log(`  ${prePositionClimbRidersRow(clRiders)}`)")
   assert.ok(clBlockAt > -1 && clRidersAt > clBlockAt, 'the climb pair rides the same branch law')
-  assert.ok(decSrc.includes("(v0.809.0) THE PRE-POSITION'S OWN WHY"), 'the block comment names the lens')
+  assert.ok(decSrc.includes("(v0.810.0) THE PRE-POSITION'S OWN WHY"), 'the block comment names the lens')
 })
