@@ -20308,3 +20308,24 @@ Stage Summary:
 - Face 97 = 37739905661 in flight; my push-CI 37739787983 (a05711c) in flight at fire end (the 480s poll exhausted on a busy queue) - verdict BY RUN ID next fire, NOT claimed green.
 - OPEN FRONTS next fire: (1) CI verdicts BY RUN ID: push-CI 37739787983 + face 97 = 37739905661 (if SUCCESS -> mine -> /home/z/my-project/run37739905661/ - the first face whose FATAL face-read rides the v0.818.0 story row). (2) THE SPIN WALK FRONT: face 96's frozen main's last frames owned pf:spin walk - the spin breaker's own cure is the seated front (watch for a spin-breaker storm shape on face 97). (3) The budget drought continues (delivered 0 twelve straight faces through 95). (4) 0.819.0 next slot, re-verify on origin before the bump.
 - NO force-push, NO history rewrite. Identity: PLANETA9091.
+
+---
+Task ID: cron30-20261008-1500
+Agent: Super Z (fire lane, Job 414125)
+Task: A-G fire cycle on top of v0.818.0 (27d7a8a tip), zero conflicts, dispatch law on the in-flight face 97.
+
+Work Log:
+- Rebase start: clean (already up to date at 27d7a8a; the lane quiet all fire). Version slot re-verified on origin: 0.819.0 free.
+- VERDICTS BY RUN ID: push-CI 37739787983 (a05711c, the v0.818.0 gate) COMPLETED SUCCESS; the worklog push-CI 37740341006 (27d7a8a) COMPLETED SUCCESS; face 97 = 37739905661 in_progress at fire start (the law held: NO duplicate dispatch, the existing run polled instead).
+- ONE ATOMIC IMPROVEMENT: v0.819.0 THE FORMING STORM'S OWN STORY (755942f) - the RSS JUMP byte's own class, the SAME strict-majority law on the fence's other leg (one law, two words). The mined face 96 carried exactly ONE jump line and its sgStory(8) tail read the SAME frame chain as the FATAL's own (pf:spin walk 5 / other 3 of 8, the ring's 10s-earlier echo): THE SPIN WALK OWNED THE FORMING STORM AND THE KILL - one front priced twice. A jump WITHOUT a following FATAL is the re-armed storm (the watch's own reset) - the near-miss faces' own early book. stormstory.mjs grows stormFormingCensus + stormFormingSeat (the story seat's pass-through - the one-truth move) + stormFormingSeatRow; the shared parseStories/seatRowBase refactored to live once; the v0.818.0 row bytes UNTOUCHED (the existing 4 stormstory tests stayed green byte-exact through the refactor). decompose one additive block beside the v0.818.0 story block.
+- LIVE-VERIFIED byte-exact through the real decompose: face 96's fleet19.log diffs EXACTLY the one new row 'the forming storm's own story (v0.819.0): pf:spin walk owns 5 of 8 story frame(s) (62.5%) - THE FORMING STORM'S OWN EARLY WORD: ...'; faces 94+95 held logs (0 jumps) diff ZERO rows.
+- Tests: +4 (tests/unit/stormforming.test.mjs: the face-96 jump verbatim + the byte-exact row; the one-law fold deepEqual + the mix shapes reading both words + the solo 100%; the cross-fence battery - each class rides its own byte only, the pools never cross, the story-less jump the silence; the junk battery + the row guards). stormforming 4/4, stormstory 4/4, unit 308/308 files, syntax 545 0-broken. Integration rides CI. No new fleet log lines -> no fleet19.mjs filter-key.
+- Commit 755942f; rebase-push attempt-1 CLEAN (27d7a8a..755942f). NO force-push, NO history rewrite.
+- DISPATCH LAW: face 97 completed SUCCESS mid-fire (unit + integration green, the Big fleet run normal end) -> the dispatch list clear -> face 98 = 37742866497 dispatched on 755942f = the v0.819.0 tree (HTTP 204, materialized in_progress; the x122).
+
+Stage Summary:
+- Master tip 755942f = v0.819.0 (THE FORMING STORM'S OWN STORY); next free 0.820.0 (re-verify on origin before the bump).
+- FACE 97 = 37739905661 SUCCESS on the v0.818.0 tree - NOT YET MINED (the fire's box closed first): mine next fire -> /home/z/my-project/run37739905661/ (the story row's first live readout: the calm read expected - 0 FATALs; the seats' per-face verdicts ride its decompose: the chest seat's 4th, the famine seat's 2nd, the dry side's 2nd, the carry seat's 2nd, the bare seat's 4th).
+- Face 98 = 37742866497 in flight on the v0.819.0 tree (the forming row's first live face - a calm face reads silence, a jump face names the early word). My push-CI 37742206133 (755942f) in progress at fire end - verdict BY RUN ID next fire, NOT claimed green.
+- OPEN FRONTS: (1) face 97's mine + face 98's verdict BY RUN ID. (2) THE SPIN WALK FRONT (runtime): the pathfinder's own loop owned face 96's forming storm AND kill - the spin breaker's storm-edge cure is the seated runtime front. (3) The budget drought (delivered 0 twelve straight faces through 95). (4) The mob front (face 95: mob 3 + fall 2 + drown 1 + explosion 1). (5) face 93's mine still queued (37727396042).
+- NO force-push, NO history rewrite. Identity: PLANETA9091.
