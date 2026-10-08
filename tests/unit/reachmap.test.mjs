@@ -14,7 +14,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { commonsLedger } from '../../src/lib/commonsledger.mjs'
-import { reachRadius, reachRadiusRow, reachClock, reachClockRow, reachRentSeat, reachRentSeatRow } from '../../src/lib/reachmap.mjs'
+import { reachRadius, reachRadiusRow, reachClock, reachClockRow, reachRentSeat, reachRentSeatRow, reachPreflightGate, reachPreflightGateRow } from '../../src/lib/reachmap.mjs'
 
 // The 53rd's own refusals, byte-verbatim and in the live order (the
 // bots' anchor reads open one sweep each - the refusal is anatomy,
@@ -299,4 +299,74 @@ test('reachRentSeat: the honest silences + the junk battery', () => {
   assert.equal(junkLines.totals.lastMile, 1)
   assert.equal(junkLines.totals.lastMilePairs.length, 1)
   assert.deepEqual(junkLines.totals.lastMilePairs, [{ d: 8.7, ms: 1224 }])
+})
+
+test('reachPreflightGate: the 97th\'s own gate - the far owner prices d>10', () => {
+  const gate = reachPreflightGate(commonsLedger(FACE97_LINES))
+  assert.ok(gate, 'the far owner prices the gate')
+  assert.equal(gate.gate, 10)
+  assert.equal(gate.owner, 'far')
+  assert.equal(gate.refused, 17, 'every walk died beyond d=10 - the gate refuses the whole book')
+  assert.equal(gate.total, 17)
+  assert.equal(gate.keptMs, 54562, 'the whole rent kept unspent')
+  assert.equal(gate.totalMs, 54562)
+  const row = reachPreflightGateRow(gate)
+  assert.equal(row, "the preflight's own distance gate (v0.823.0): a gate at d>10 would have refused 17 of 17 walks and kept 54.6s of 54.6s (100.0%) of the rent unspent - the walk that cannot arrive should never rent the clock")
+})
+
+test('reachPreflightGateRow: the mid owner\'s gate + the honest silences', () => {
+  // the mid owner prices d>5 (the envelope's own band's lower edge)
+  const midGate = reachPreflightGate(commonsLedger([
+    ANCHOR('F2'),
+    'F2 fuel commons: the last mile refused (raw walk timeout after 1000ms (d=8.0))',
+    'F2 fuel commons: the last mile refused (raw walk timeout after 2000ms (d=7.0))',
+    'F2 fuel commons: the last mile refused (raw walk timeout after 3000ms (d=9.0))'
+  ]))
+  assert.equal(midGate.gate, 5)
+  assert.equal(midGate.owner, 'mid')
+  assert.equal(midGate.refused, 3)
+  assert.equal(reachPreflightGateRow(midGate), "the preflight's own distance gate (v0.823.0): a gate at d>5 would have refused 3 of 3 walks and kept 6.0s of 6.0s (100.0%) of the rent unspent - the walk that cannot arrive should never rent the clock")
+  // the open edge: a walk at d=5.0 exactly rides the gate d>5 unrefused (the far walks still bite)
+  const edge = reachPreflightGate({ totals: { lastMilePairs: [{ d: 8, ms: 1000 }, { d: 8, ms: 1000 }, { d: 8, ms: 1000 }, { d: 5.0, ms: 500 }, { d: 12, ms: 2000 }] } })
+  assert.equal(edge.owner, 'mid')
+  assert.equal(edge.refused, 4, 'the d=5.0 walk is NOT refused - the gate is d>5, not d>=5')
+  assert.equal(edge.keptMs, 5000)
+  assert.equal(edge.totalMs, 5500)
+  assert.equal(reachPreflightGateRow(edge), "the preflight's own distance gate (v0.823.0): a gate at d>5 would have refused 4 of 5 walks and kept 5.0s of 5.5s (90.9%) of the rent unspent - the walk that cannot arrive should never rent the clock")
+  // the close owner prices NO distance gate - the rent is not the walk's length
+  const closeGate = reachPreflightGate(commonsLedger([ANCHOR('F2'), 'F2 fuel commons: the last mile refused (raw walk: no net progress for 4000ms (best d=2.0))']))
+  assert.equal(closeGate, null, 'the close owner reads null')
+  // the mix book (no solo owner) prices nothing
+  const mixGate = reachPreflightGate(commonsLedger([
+    ANCHOR('F2'),
+    'F2 fuel commons: the last mile refused (raw walk timeout after 1500ms (d=3.0))',
+    'F2 fuel commons: the last mile refused (raw walk timeout after 1500ms (d=12.0))'
+  ]))
+  assert.equal(mixGate, null, 'the mix book reads null')
+  // a gate that refuses nothing rides no row (every mid walk at d=5.0 exactly)
+  const flat = reachPreflightGate({ totals: { lastMilePairs: [{ d: 5.0, ms: 1000 }, { d: 5.0, ms: 1000 }, { d: 5.0, ms: 1000 }] } })
+  assert.equal(flat, null, 'a gate that refuses nothing prices nothing')
+})
+
+test('reachPreflightGate: the honest silences + the junk battery', () => {
+  // no pairs: every junk shape reads null
+  assert.equal(reachPreflightGate(commonsLedger([ANCHOR('F9'), 'F9 fuel commons: budget spent (0/1 units)'])), null)
+  assert.equal(reachPreflightGate(commonsLedger([ANCHOR('F2'), 'F2 fuel commons: the last mile refused (raw walk refused by the caller)'])), null, 'the bare class pairs nothing')
+  assert.equal(reachPreflightGate({ totals: { lastMile: 3 } }), null, 'the old caller reads null')
+  assert.equal(reachPreflightGate(null), null)
+  assert.equal(reachPreflightGate({}), null)
+  assert.equal(reachPreflightGate({ totals: { lastMilePairs: 'junk' } }), null)
+  // the junk records are filtered before the gate counts (the same filter the seat rides)
+  const junked = reachPreflightGate({ totals: { lastMilePairs: [null, { d: 8, ms: 'x' }, { d: 'y', ms: 500 }, { d: 8, ms: -5 }, { d: 8, ms: 700 }] } })
+  assert.equal(junked.gate, 5)
+  assert.equal(junked.refused, 1)
+  assert.equal(junked.total, 1)
+  assert.equal(junked.keptMs, 700)
+  assert.equal(reachPreflightGateRow(junked), "the preflight's own distance gate (v0.823.0): a gate at d>5 would have refused 1 of 1 walks and kept 0.7s of 0.7s (100.0%) of the rent unspent - the walk that cannot arrive should never rent the clock")
+  // the row guards: the junk gate shapes read null - the v0.818.0 lesson
+  assert.equal(reachPreflightGateRow(null), null)
+  assert.equal(reachPreflightGateRow({ gate: 5, refused: 1, total: 1, keptMs: 0, totalMs: 0 }), null)
+  assert.equal(reachPreflightGateRow({ gate: 7, refused: 1, total: 1, keptMs: 500, totalMs: 500 }), null, 'the junk gate number reads null')
+  assert.equal(reachPreflightGateRow({ gate: 5, refused: 'x', total: 1, keptMs: 500, totalMs: 500 }), null)
+  assert.equal(reachPreflightGateRow({ gate: 5, refused: 1, total: 1, keptMs: 500 }), null, 'no totalMs reads null')
 })

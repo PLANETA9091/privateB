@@ -176,3 +176,47 @@ export function reachRentSeatRow (seat) {
   }
   return `the last mile's own rent seat (v0.821.0): the ${seat.owner} band owns ${secs(seat.bands[seat.owner].ms)}s of ${secs(seat.msSum)}s (${pct}%) - THE RENT'S OWN SEAT: ${tails[seat.owner]}`
 }
+
+// (v0.823.0) THE PREFLIGHT GATE'S OWN PRICE - the rent seat's own
+// cure. The seat named WHICH band owns the rent (v0.821.0); this lens
+// prices the early refuse at that band's own lower edge: a far owner
+// gates at d>10, a mid owner at d>5 - the same strict-majority owner
+// the seat read, one threshold each. A close owner or a mix book (no
+// solo owner) prices NO distance gate - the problem is not the walk's
+// length, and one honest null beats a invented threshold. A gate that
+// refuses nothing rides no row. Pure on the commonsLedger result - it
+// re-reads the seat (one parser one truth: the same filter, the same
+// bands). Junk-safe: no pairs / no totals / a zero book reads null.
+/**
+ * Price the preflight distance gate the rent seat's own owner implies.
+ * @param {null|{bots: Object, totals: object, rows: object[]}} ledger commonsLedger(lines)'s own result
+ * @returns {null|{gate: number, refused: number, total: number, keptMs: number, totalMs: number, owner: string}}
+ */
+export function reachPreflightGate (ledger) {
+  if (!ledger || !ledger.totals) return null
+  const seat = reachRentSeat(ledger)
+  if (!seat || seat.owner === null || seat.owner === 'close') return null // the close owner's rent is not the walk's length - no gate priced
+  const gate = seat.owner === 'far' ? 10 : 5
+  const pairs = Array.isArray(ledger.totals.lastMilePairs)
+    ? ledger.totals.lastMilePairs.filter(p => p && Number.isFinite(p.d) && Number.isFinite(p.ms) && p.ms >= 0)
+    : []
+  let refused = 0
+  let keptMs = 0
+  for (const p of pairs) {
+    if (p.d > gate) { refused++; keptMs += p.ms } // the gate refuses d > gate - the same open edge the far band rides
+  }
+  if (refused === 0 || !(keptMs > 0)) return null // a gate that refuses nothing prices nothing
+  return { gate, refused, total: pairs.length, keptMs, totalMs: seat.msSum, owner: seat.owner }
+}
+
+// ONE verdict line, only when a gate could form and bite (null / a
+// zero kept rent / a junk gate - the honest silence; the gate number
+// pinned to the seat's own two thresholds, the junk shape reads null).
+export function reachPreflightGateRow (gate) {
+  if (!gate || !(gate.keptMs > 0) || !(gate.totalMs > 0)) return null
+  if (gate.gate !== 5 && gate.gate !== 10) return null // the junk gate reads null - the v0.818.0 lesson
+  if (!Number.isFinite(gate.refused) || !Number.isFinite(gate.total)) return null
+  const secs = v => (v / 1000).toFixed(1)
+  const pct = ((gate.keptMs / gate.totalMs) * 100).toFixed(1)
+  return `the preflight's own distance gate (v0.823.0): a gate at d>${gate.gate} would have refused ${gate.refused} of ${gate.total} walks and kept ${secs(gate.keptMs)}s of ${secs(gate.totalMs)}s (${pct}%) of the rent unspent - the walk that cannot arrive should never rent the clock`
+}
