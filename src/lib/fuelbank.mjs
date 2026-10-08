@@ -118,7 +118,7 @@ export const COMMONS_SWEEP_CHESTS = 8
 // must not outlive the world it describes.
 export const COMMONS_EMPTY_TTL_MS = 90000
 
-// (v0.824.0) THE PREFLIGHT DISTANCE GATE - the far band's own lower edge.
+// (v0.825.0) THE PREFLIGHT DISTANCE GATE - the far band's own lower edge.
 // The seat (v0.821.0) named the rent's owner and the price lens (v0.823.0)
 // priced the threshold: walks that STARTED beyond d=10 owned 89.8-100.0% of
 // the raw-walk rent (faces 97/99) while delivered read 0 fourteen straight.
@@ -1242,7 +1242,7 @@ export async function withdrawFuelCommons (bot, {
   clickTimeoutMs = 5000,
   memory = null,
   anchorScan = true, // (v0.124.0) read the fleet's fuel anchor FIRST (then the nearest-first sweep); false = the legacy shape byte for byte
-  lastMileGateDist = LAST_MILE_GATE_DIST, // (v0.824.0) the preflight's own distance gate; 0/negative = the legacy shape byte for byte
+  lastMileGateDist = LAST_MILE_GATE_DIST, // (v0.825.0) the preflight's own distance gate; 0/negative = the legacy shape byte for byte
   log = () => {}
 } = {}) {
   const ask = Number(itemsNeeded)
@@ -1265,7 +1265,7 @@ export async function withdrawFuelCommons (bot, {
   // the v0.355.0 read); a dead clock stands down honestly, and every
   // refusal keeps today's lines byte for byte. Walk mechanics, not
   // outcomes - the v0.595.0 lens never claims them.
-  // (v0.824.0) THE PREFLIGHT DISTANCE GATE - the walk that cannot arrive
+  // (v0.825.0) THE PREFLIGHT DISTANCE GATE - the walk that cannot arrive
   // should never rent the clock. The seat (v0.821.0) named the rent's owner
   // and the price lens (v0.823.0) priced the threshold: the far band's own
   // lower edge d>10 owned 89.8-100.0% of the raw-walk rent across four faces
