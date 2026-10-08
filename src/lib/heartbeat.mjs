@@ -213,7 +213,7 @@ function sgTick () {
       try { process.kill(process.pid, 'SIGTERM') } catch { /* already dying */ }
       return
     }
-    // (v0.804.0) THE FROZEN BURST'S OWN FLOOR - mirrored from
+    // (v0.805.0) THE FROZEN BURST'S OWN FLOOR - mirrored from
     // stormguard.frozenBurstVerdict (the eval worker cannot import ESM).
     // Face 88 (fleet 37712326964): the main froze ~60s FLAT at 380M (the
     // recoverable class - the floor band correctly stayed silent), then burst

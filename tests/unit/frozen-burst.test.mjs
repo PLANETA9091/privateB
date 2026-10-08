@@ -3,7 +3,7 @@ import { HEARTBEAT_WORKER_SRC } from '../../src/lib/heartbeat.mjs'
 import { test } from 'node:test'
 import assert from 'node:assert'
 
-// (v0.804.0) THE FROZEN BURST'S OWN FLOOR - the allocating freeze's sub-floor
+// (v0.805.0) THE FROZEN BURST'S OWN FLOOR - the allocating freeze's sub-floor
 // leg. The datum is fleet 37712326964 (face 88, the v0.802.0 tree): the main
 // froze ~60s FLAT at 380M (the recoverable class - correctly no kill), then
 // burst 380 -> 1004M in ONE 5s window (124.7MB/s) BELOW the 1200M floor - the

@@ -224,7 +224,7 @@ export function rssJumpVerdict ({ rssMb = 0, prevRssMb = 0, stepMs = null, floor
   return { jump: true, reason: 'rss jump ' + Math.round(pr) + 'M -> ' + Math.round(r) + 'M (+' + Math.round(gain) + 'M in ' + Math.round(step / 1000) + 's = ' + rate + 'MB/s, below the ' + Math.round(floor) + 'M floor - the forming-storm leg the kill lines never name)', rate }
 }
 
-// (v0.804.0) THE FROZEN BURST'S OWN FLOOR - the allocating freeze's sub-floor
+// (v0.805.0) THE FROZEN BURST'S OWN FLOOR - the allocating freeze's sub-floor
 // leg. MEASURED (fleet 37712326964, face 88, the v0.802.0 tree, exit 143 at
 // ts~277s of 600, mined 2026-10-08): the main froze at ~ts=197s (mainLate
 // stale at exactly 1301ms across four [hb] beats - the v0.235.0 signature),
@@ -254,7 +254,7 @@ export function rssJumpVerdict ({ rssMb = 0, prevRssMb = 0, stepMs = null, floor
 export const STORM_BURST_MAX_STEP_MS = STORM_JUMP_MAX_STEP_MS // one guard tick; 5 ticks of silence is a dead clock, not a burst leg
 
 /**
- * (v0.804.0) The frozen-burst verdict, pure so the tests pin it and the eval
+ * (v0.805.0) The frozen-burst verdict, pure so the tests pin it and the eval
  * worker can mirror the arithmetic by hand. Given the CURRENT rss, the
  * PREVIOUS sample's rss, the wall-clock step between the two samples, and how
  * long the main's loop pulse has been frozen:
