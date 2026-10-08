@@ -443,6 +443,78 @@ export function relootRecoveryRow (r) {
   return `the reloot recovery's own price (v0.843.0): ${r.arrivals} arrival(s) walked, the recovered estimate ~${r.recovered}u (${named}, the armed pile(s)' own drop estimate)${unnamedNote}`
 }
 
+// (v0.847.0) THE RELOOT REFUSAL'S OWN PRICE - the refused walk's own mass
+// read (the v0.843.0 arrival price's own twin: the arrival priced the walk
+// that HAPPENED, this row prices the walk the lane REFUSED). The field's
+// own live class (faces 117/120: refusals 9 then 3, the unarmed grace's
+// own voice) rode unpriced mass - the refusal line ('F10 reloot: no walk
+// (unarmed) - the empty pocket bootstraps first, the read re-arms (a
+// delay, not a verdict)') names the bot and the why but carries no spot
+// and no mass - true, and still true. The join prices the refusal from
+// the lane's OWN goal: the walk's goal is always the bot's OWN latest
+// death spot (the emitter's own vocabulary - 'walking to the own death
+// spot'), so a refusal by bot B prices B's own LATEST pile at-or-before
+// the refusal line (the line-order law, the v0.843.0 precedent; no cell
+// match needed - the refusal names no cell, and the latest own pile IS
+// the goal the plan would arm). The mass is the pile's own drop estimate
+// ('~Nu', the death drop line's own convention - one parser one truth,
+// parseSealDeathDrop). THE DEDUPE LAW: one pile prices ONCE per face -
+// the same pile refused twice (the grace's every-pass cadence, the
+// face-36359454749 x7 anatomy) is ONE mass left sitting; the events are
+// the whys' own count (strandedPiles keeps that book), the mass is the
+// sitting union. Junk-safe: non-string rows judge nothing, non-array/
+// string -> the zero shape; an empty pocket names nothing (the piles'
+// own seat). The consistency fence (the v0.845.0 waste row's own law):
+// named must sit inside [0, refusals] and unnamed must equal the gap -
+// a self-inconsistent shape never renders. Pure: reads, never mutates.
+export function relootRefusalPrice (lines) {
+  const rows = Array.isArray(lines)
+    ? lines
+    : (typeof lines === 'string' ? lines.split('\n') : [])
+  const pilesByBot = {} // bot -> [{ idx, pos, lost }] in line order (the empty pockets never join - no pos, no price)
+  let refusals = 0
+  let refusalsNamed = 0
+  const pricedPiles = new Set() // the dedupe's own seat - bot + line idx keys
+  let refusedMass = 0
+  rows.forEach((l, idx) => {
+    if (typeof l !== 'string') return
+    const rm = l.match(RELOOT_REFUSAL_RE)
+    if (rm) {
+      refusals++
+      const bot = rm[1]
+      const own = pilesByBot[bot] || []
+      let pile = null
+      for (const p of own) { // the LATEST own pile at-or-before the refusal (the line-order law)
+        if (p.idx < idx) pile = p
+      }
+      if (pile) {
+        refusalsNamed++
+        const key = `${bot}#${pile.idx}`
+        if (!pricedPiles.has(key)) {
+          pricedPiles.add(key)
+          refusedMass += pile.lost
+        }
+      }
+      return
+    }
+    const p = parseSealDeathDrop(l)
+    if (!p || p.empty || !p.pos) return // the piles' own seat - empty pockets name nothing
+    if (!pilesByBot[p.bot]) pilesByBot[p.bot] = []
+    pilesByBot[p.bot].push({ idx, pos: p.pos, lost: p.lost })
+  })
+  return { refusals, refusalsNamed, refusalsUnnamed: refusals - refusalsNamed, refusedMass }
+}
+
+export function relootRefusalPriceRow (r) {
+  if (!r || typeof r !== 'object' || !Number.isFinite(r.refusals) || r.refusals <= 0) return null
+  if (!Number.isFinite(r.refusedMass)) return null
+  if (!Number.isFinite(r.refusalsNamed) || r.refusalsNamed < 0 || r.refusalsNamed > r.refusals) return null
+  if (r.refusalsUnnamed !== r.refusals - r.refusalsNamed) return null // the mutual fence: the three cells must agree
+  const named = `${r.refusalsNamed} of ${r.refusals} refusal(s) priced`
+  const unnamedNote = r.refusalsUnnamed > 0 ? `, ${r.refusalsUnnamed} unnamed (the own-latest read named no priced pile)` : ''
+  return `the reloot refusal's own price (v0.847.0): ${named}, the refused mass ~${r.refusedMass}u (the own-latest-pile join, distinct pile(s) priced once)${unnamedNote}`
+}
+
 // (v0.755.0) THE THIRDS' OWN VERDICT - the classification leaves the mining
 // script and becomes the lib's own one truth. The v0.733.0 thirds lens
 // (clock.thirds: early/mid/late over the face's full clock) priced the

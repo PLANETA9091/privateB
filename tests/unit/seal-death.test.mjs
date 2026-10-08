@@ -14,7 +14,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
-import { parseSealDeathDrop, sealDeathCensus, strandedPiles, relootRecovery, relootRecoveryRow, SEAL_DEATH_LOSS_RE, SEAL_DEATH_EMPTY_RE, DEATH_END_PHASE_WINDOW_S, DEATH_BURST_WINDOW_S, DEATH_BURST_MIN } from '../../src/lib/sealdeath.mjs'
+import { parseSealDeathDrop, sealDeathCensus, strandedPiles, relootRecovery, relootRecoveryRow, relootRefusalPrice, relootRefusalPriceRow, SEAL_DEATH_LOSS_RE, SEAL_DEATH_EMPTY_RE, DEATH_END_PHASE_WINDOW_S, DEATH_BURST_WINDOW_S, DEATH_BURST_MIN } from '../../src/lib/sealdeath.mjs'
 import { SEAL_PRIORITY } from '../../src/lib/shelter.mjs'
 
 const CLOCK_ZERO = { timed: 0, untimed: 0, clockEnd: null, firstTs: null, lastTs: null, endPhase: 0, endPhaseWindowS: 60, maxBurst: 0, burstWindowS: 30, burstMin: 3, burstDeaths: 0, burstClusters: 0, burstEndPhase: 0, pace: null, spanS: 0, thirds: null } // (v0.733.0) the siege's own thirds ride the zero shape as null (the calm paradox owns the zero-death face)
@@ -861,8 +861,85 @@ test('relootRecovery: junk battery - the join never invents (v0.843.0)', () => {
 
 test('WIRING: the decompose rides the reloot price beside the stranded seat (v0.843.0)', () => {
   const src = fs.readFileSync(new URL('../../scripts/fleet-mining/decompose.mjs', import.meta.url), 'utf8')
-  assert.ok(src.includes("import { sealDeathCensus, strandedPiles, relootRecovery, relootRecoveryRow, BIG_PILE_U, thirdsVerdict } from '../../src/lib/sealdeath.mjs'"), 'the price joins the sealdeath import band')
+  // (v0.847.0) THE BAND'S OWN RE-PIN: the v0.847.0 twin joined the band
+  // (relootRefusalPrice + relootRefusalPriceRow) - the byte-exact pin moves
+  // with the band, the strictness holds (the new band is the old band's
+  // strict superset, every v0.843.0 token still rides).
+  assert.ok(src.includes("import { sealDeathCensus, strandedPiles, relootRecovery, relootRecoveryRow, relootRefusalPrice, relootRefusalPriceRow, BIG_PILE_U, thirdsVerdict } from '../../src/lib/sealdeath.mjs'"), 'the price joins the sealdeath import band')
+  assert.ok(src.includes('relootRecovery, relootRecoveryRow'), 'the v0.843.0 tokens keep their band seats')
   const strandedAt = src.indexOf('stranded piles (v0.476.0)')
   const priceAt = src.indexOf('relootRecoveryRow(rr)')
   assert.ok(strandedAt > 0 && priceAt > strandedAt && priceAt - strandedAt < 900, 'the price row prints beside the stranded seat (the family\'s books adjacent)')
+})
+
+// ---- (v0.847.0) THE RELOOT REFUSAL'S OWN PRICE - the refused walk's own mass read ----
+// The verbatim corpus is face 120's REAL lines (run 37836342484, fleet19.log
+// lines 1082/1159/1345/1633/1653/1791/1881): three unarmed refusals, three
+// own piles priced, F16's pile riding between the lines and never priced.
+
+test('relootRefusalPrice reads the face-120 refusal table verbatim (the refused walk\u0027s own mass)', () => {
+  const f10drop = 'F10 [F10] death drop: ~74u lost at [-121,43,385] (cobblestone 43, oak_log 9, dirt 7, oak_planks 5, stick 3, +6 more)'
+  const f10ref = 'F10 reloot: no walk (unarmed) - the empty pocket bootstraps first, the read re-arms (a delay, not a verdict)'
+  const f7drop = 'F7 [F7] death drop: ~59u lost at [-137,50,412] (dirt 26, oak_log 10, cobblestone 6, diorite 3, sand 3, +9 more)'
+  const f7ref = 'F7 reloot: no walk (unarmed) - the empty pocket bootstraps first, the read re-arms (a delay, not a verdict)'
+  const f16drop = 'F16 [F16] death drop: ~141u lost at [-108,57,366] (cobblestone 64, dirt 26, leaf_litter 22, sand 7, coal 6, +10 more)'
+  const f19drop = 'F19 [F19] death drop: ~78u lost at [-73,62,391] (cobblestone 38, diorite 17, oak_log 5, dirt 4, oak_planks 3, +8 more)'
+  const f19ref = 'F19 reloot: no walk (unarmed) - the empty pocket bootstraps first, the read re-arms (a delay, not a verdict)'
+  const r = relootRefusalPrice([f10drop, f10ref, f7drop, f7ref, f16drop, f19drop, f19ref])
+  assert.equal(r.refusals, 3)
+  assert.equal(r.refusalsNamed, 3)
+  assert.equal(r.refusalsUnnamed, 0)
+  assert.equal(r.refusedMass, 74 + 59 + 78, 'F16\u0027s pile (141u) rides between the lines and never prices - the line-order law + the cross-bot fence')
+  const row = relootRefusalPriceRow(r)
+  assert.equal(row, 'the reloot refusal\u0027s own price (v0.847.0): 3 of 3 refusal(s) priced, the refused mass ~211u (the own-latest-pile join, distinct pile(s) priced once)')
+})
+
+test('relootRefusalPrice dedupes the every-pass grace (one pile refused twice is one mass left sitting)', () => {
+  const drop = 'F19 [F19] death drop: ~78u lost at [-73,62,391] (cobblestone 38, diorite 17, oak_log 5, dirt 4, oak_planks 3, +8 more)'
+  const ref = 'F19 reloot: no walk (unarmed) - the empty pocket bootstraps first, the read re-arms (a delay, not a verdict)'
+  const r = relootRefusalPrice([drop, ref, ref, ref])
+  assert.equal(r.refusals, 3, 'the events count every pass')
+  assert.equal(r.refusalsNamed, 3)
+  assert.equal(r.refusedMass, 78, 'the mass prices once - the dedupe law (the face-36359454749 x7 anatomy\u0027s own fence)')
+})
+
+test('relootRefusalPrice keeps the line-order law (a refusal before its own drop names nothing)', () => {
+  const drop = 'F10 [F10] death drop: ~74u lost at [-121,43,385] (cobblestone 43, oak_log 9, dirt 7, oak_planks 5, stick 3, +6 more)'
+  const ref = 'F10 reloot: no walk (unarmed) - the empty pocket bootstraps first, the read re-arms (a delay, not a verdict)'
+  const r = relootRefusalPrice([ref, drop])
+  assert.equal(r.refusals, 1)
+  assert.equal(r.refusalsNamed, 0, 'the pile after the refusal is not the walk the refusal declined')
+  assert.equal(r.refusalsUnnamed, 1)
+  assert.equal(r.refusedMass, 0)
+  const row = relootRefusalPriceRow(r)
+  assert.ok(row.includes(', 1 unnamed (the own-latest read named no priced pile)'), 'the unnamed class reads its own note')
+})
+
+test('relootRefusalPrice junk battery (the census\u0027s own convention)', () => {
+  const zero = relootRefusalPrice(null)
+  assert.deepEqual(zero, { refusals: 0, refusalsNamed: 0, refusalsUnnamed: 0, refusedMass: 0 }, 'null in the zero shape out')
+  assert.deepEqual(relootRefusalPrice('junk'), { refusals: 0, refusalsNamed: 0, refusalsUnnamed: 0, refusedMass: 0 }, 'a string splits and judges nothing')
+  assert.deepEqual(relootRefusalPrice([]), { refusals: 0, refusalsNamed: 0, refusalsUnnamed: 0, refusedMass: 0 }, 'the empty face')
+  assert.deepEqual(relootRefusalPrice([null, 42, undefined]), { refusals: 0, refusalsNamed: 0, refusalsUnnamed: 0, refusedMass: 0 }, 'junk rows judge nothing')
+  assert.equal(relootRefusalPriceRow(relootRefusalPrice([])), null, 'a face with no refusals stays silent (the whys\u0027 own counts ride above)')
+})
+
+test('relootRefusalPriceRow fences (the consistency law - a self-inconsistent shape never renders)', () => {
+  const ok = { refusals: 3, refusalsNamed: 2, refusalsUnnamed: 1, refusedMass: 100 }
+  assert.ok(relootRefusalPriceRow(ok).startsWith('the reloot refusal\u0027s own price (v0.847.0): 2 of 3 refusal(s) priced'), 'the consistent shape renders')
+  assert.equal(relootRefusalPriceRow(null), null, 'null row in null out')
+  assert.equal(relootRefusalPriceRow('junk'), null, 'a string is not a shape')
+  assert.equal(relootRefusalPriceRow({ refusals: 0, refusalsNamed: 0, refusalsUnnamed: 0, refusedMass: 0 }), null, 'the zero shape stays silent')
+  assert.equal(relootRefusalPriceRow({ refusals: 3, refusalsNamed: 4, refusalsUnnamed: -1, refusedMass: 100 }), null, 'named above refusals never renders')
+  assert.equal(relootRefusalPriceRow({ refusals: 3, refusalsNamed: 2, refusalsUnnamed: 0, refusedMass: 100 }), null, 'the unnamed gap must equal refusals minus named (the mutual fence)')
+  assert.equal(relootRefusalPriceRow({ refusals: 3, refusalsNamed: 2, refusalsUnnamed: 1, refusedMass: NaN }), null, 'a NaN mass invents nothing')
+  assert.equal(relootRefusalPriceRow({ refusals: -1, refusalsNamed: 0, refusalsUnnamed: -1, refusedMass: 0 }), null, 'a negative refusals reads junk')
+})
+
+test('WIRING: the decompose rides the refusal price beside the recovery seat (v0.847.0)', () => {
+  const src = fs.readFileSync(new URL('../../scripts/fleet-mining/decompose.mjs', import.meta.url), 'utf8')
+  assert.ok(src.includes('relootRefusalPrice, relootRefusalPriceRow'), 'the refusal price joins the sealdeath import band')
+  const priceAt = src.indexOf('relootRecoveryRow(rr)')
+  const refusalAt = src.indexOf('relootRefusalPriceRow(rp)')
+  assert.ok(priceAt > 0 && refusalAt > priceAt, 'the refusal row prints beside the recovery row (the twins adjacent)')
 })

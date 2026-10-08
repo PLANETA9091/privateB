@@ -11,7 +11,7 @@ import { shooterCensus, shooterAttackerBill, shooterAttackerBillRow, shooterAtta
 import { shelterLedger, OUTCOME_CLASSES, shelterOutcomeBill, shelterOutcomeBillRow, shelterOutcomeRiders, shelterOutcomeRidersRow } from '../../src/lib/shelterledger.mjs' // (v0.457.0) the combat verdict's price - the outcome join; (v0.466.0) the class vocabulary for the flee-ground cross-read; (v0.795.0) WHICH verdict owns the shelter book
 import { fleeForkSeatRow, fleeForkRidersRow } from '../../src/lib/fleefork.mjs' // (v0.810.0) the flee fork's own seat - WHICH fork owns the flee death book (the chased-down cells' strict majority + the bands' measure-not-owner riders)
 import { deathSweep } from '../../src/lib/deathsweep.mjs' // (v0.389.0) the honest death sweep's field read
-import { sealDeathCensus, strandedPiles, relootRecovery, relootRecoveryRow, BIG_PILE_U, thirdsVerdict } from '../../src/lib/sealdeath.mjs' // (v0.403.0) the seal economy's death leg; (v0.476.0) the stranded piles - the sweep-reach wire's price; (v0.755.0) the thirds' own verdict; (v0.843.0) the reloot's own price - the walk's own mass read
+import { sealDeathCensus, strandedPiles, relootRecovery, relootRecoveryRow, relootRefusalPrice, relootRefusalPriceRow, BIG_PILE_U, thirdsVerdict } from '../../src/lib/sealdeath.mjs' // (v0.403.0) the seal economy's death leg; (v0.476.0) the stranded piles - the sweep-reach wire's price; (v0.755.0) the thirds' own verdict; (v0.843.0) the reloot's own price - the walk's own mass read; (v0.847.0) the reloot refusal's own price - the refused walk's own mass read
 import { sealCensus, SEAL_FAMILIES } from '../../src/lib/sealcensus.mjs' // (v0.397.0) the keep families' field read
 import { hopCensus, hopZeroBotBillRow, hopZeroRidersRow } from '../../src/lib/hopcensus.mjs' // (v0.399.0) the walk-deliveries class's field read; (v0.767.0) WHICH walker owns the bleed; (v0.770.0) the shape the solo law refused to seat
 import { openDeafCensus, chestFateLedger } from '../../src/lib/opendeaf.mjs' // (v0.438.0) the open-timeout zeros against the valve + the main-late spikes; (v0.448.0) the returns to the autopsied chests
@@ -279,6 +279,15 @@ if (sweep.keywordOnly.length) {
       const rr = relootRecovery(lines)
       const rrRow = relootRecoveryRow(rr)
       if (rrRow) console.log(`  ${rrRow}`)
+      // (v0.847.0) THE RELOOT REFUSAL'S OWN PRICE - the refused walk's own
+      // mass read (the v0.843.0 arrival price's own twin): a refusal by bot
+      // B prices B's own latest pile at-or-before the refusal (the walk's
+      // goal is the OWN death spot - the emitter's own vocabulary), one
+      // pile priced once (the grace's every-pass cadence is one mass left
+      // sitting). No refusal, no row (the whys' own counts ride above).
+      const rp = relootRefusalPrice(lines)
+      const rpRow = relootRefusalPriceRow(rp)
+      if (rpRow) console.log(`  ${rpRow}`)
     }
     // (v0.407.0) THE DEATH CLOCK - the spiral read mechanical. The end-phase
     // share prices against the log's own clock end; a death before the first
