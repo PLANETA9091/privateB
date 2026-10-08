@@ -2271,16 +2271,18 @@ if (stormMem.hb.count > 0) {
 // 'no main freeze' on the honest zero.
 console.log('  ' + mainFreezeCensus(lines).row)
 const s = stormMem.storms
-if (s.probes + s.fatals > 0) {
-  console.log(`  stormguard verdicts: probes=${s.probes} fatals=${s.fatals} peak storm rss=${s.peakStormRssM === null ? '-' : s.peakStormRssM + 'M'} peak rate=${s.peakRateMBs === null ? '-' : s.peakRateMBs + 'MB/s'}`)
+// (v0.804.0) the forming leg's own cell rides the row (the jumps join the
+// gate: face 88's OOM storm now names its forming leg beside its peaks).
+if (s.probes + s.fatals + s.jumps > 0) {
+  console.log(`  stormguard verdicts: probes=${s.probes} fatals=${s.fatals} jumps=${s.jumps} peak storm rss=${s.peakStormRssM === null ? '-' : s.peakStormRssM + 'M'} peak rate=${s.peakRateMBs === null ? '-' : s.peakRateMBs + 'MB/s'}`)
 }
 const v = stormMem.valve
 if (v.closures + v.opens > 0) {
   const flavors = Object.entries(v.byFlavor).sort((a, b) => b[1] - a[1]).map(([k, n]) => `${k}=${n}`).join(' ')
   console.log(`  allocvalve: closures=${v.closures} (${flavors}) opens=${v.opens} max refused window=${v.maxRefusedS === null ? '-' : v.maxRefusedS + 's'} peak close rss=${v.peakCloseRssM === null ? '-' : v.peakCloseRssM + 'M'}`)
 }
-if (s.probes + s.fatals + v.closures > 0) {
-  console.log(`  storm verdict: the storm EVENT story FIRED this face (verdicts ${s.probes + s.fatals}, valve closures ${v.closures}) - the gauge debt read lives in the MEMORY/OOM PRECURSORS block`)
+if (s.probes + s.fatals + s.jumps + v.closures > 0) {
+  console.log(`  storm verdict: the storm EVENT story FIRED this face (verdicts ${s.probes + s.fatals + s.jumps}, valve closures ${v.closures}) - the gauge debt read lives in the MEMORY/OOM PRECURSORS block`)
 } else if (stormMem.hb.count === 0) {
   console.log('  reads: 0 (no hb/verdict/valve lines - the face predates them or the fleet leg never ran)')
 }

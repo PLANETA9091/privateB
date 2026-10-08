@@ -16,6 +16,19 @@
 //      storm's OWN numbers (the gain, the rate, the mainLate at the
 //      verdict) - the evidence the gauge's 15s cadence can miss.
 //
+//   1b. (v0.804.0) THE FORMING LEG'S OWN CELL - the worker's threshold
+//      line the gauge's own jump row never read: '[stormguard] RSS JUMP:
+//      rss A M -> B M (+D M in Ws = R.MB/s, below the F M floor - the
+//      forming-storm leg the kill lines never name; last: ...)' (the
+//      v0.677.0 emitter, heartbeat.mjs's worker rail - the same writer
+//      the probe/fatal verdicts ride). Face 88 (37712326964) rode the
+//      leg UNREAD while the FATAL took the blame: probes 0 fatals 0 -
+//      the storm's own forming rate (124.7MB/s, the face's peak) rode
+//      the honest zero. The freeze-storm FATAL form stays the mem-hb
+//      lens' own cell (FREEZE_STORM_RE, v0.677.0) - one parser per
+//      emitter, never two truths for one line (the v0.408.0 law); this
+//      census reads the jump the worker itself pronounced.
+//
 //   2. THE ALLOCVALVE'S TRANSITIONS (v0.102.0, flavors through v0.121.0):
 //      every closure names its feeder - '[allocvalve] CLOSED: rss ..M
 //      (+..MB/s storm) - long walks refused Ns (strike K, the A* fuel cut;
@@ -79,6 +92,21 @@ export function parseStormFatal (line) {
   }
 }
 
+// (v0.804.0) The worker's forming-storm leg - the v0.677.0 threshold
+// line's own read. The rate carries ONE decimal (the emitter's own
+// rounding: Math.round(gain / step * 10) / 10 - face 88's 124.7MB/s),
+// the floor is the line's own verdict byte ('below the 1200M floor').
+const RSS_JUMP_RE = /\[stormguard\] RSS JUMP: rss (\d+)M -> (\d+)M \(\+(\d+)M in (\d+)s = (\d+(?:\.\d+)?)MB\/s, below the (\d+)M floor/
+export function parseRssJump (line) {
+  if (typeof line !== 'string') return null
+  const m = RSS_JUMP_RE.exec(line)
+  if (!m) return null
+  return {
+    fromM: num(m[1]), toM: num(m[2]), gainM: num(m[3]), windowS: num(m[4]),
+    rateMBs: num(m[5]), floorM: num(m[6]), kind: 'rss-jump'
+  }
+}
+
 // The allocvalve's closures. The common tail is pinned across every
 // flavor: 'long walks refused Ns (strike K' + 'ts=Ts'. The flavor
 // classifier reads the line's own words:
@@ -135,7 +163,7 @@ export function stormCensus (lines) {
       closures: 0, opens: 0, maxRefusedS: null, peakCloseRssM: null,
       byFlavor: {}
     },
-    storms: { probes: 0, fatals: 0, peakStormRssM: null, peakRateMBs: null }
+    storms: { probes: 0, fatals: 0, jumps: 0, peakStormRssM: null, peakRateMBs: null }
   }
   if (!Array.isArray(lines)) return c
   for (const line of lines) {
@@ -164,6 +192,17 @@ export function stormCensus (lines) {
       if (c.storms.peakStormRssM === null || fatal.toM > c.storms.peakStormRssM) c.storms.peakStormRssM = fatal.toM
       if (c.storms.peakRateMBs === null || fatal.rateMBs > c.storms.peakRateMBs) c.storms.peakRateMBs = fatal.rateMBs
       if (c.rss.peakM === null || fatal.toM > c.rss.peakM) c.rss.peakM = fatal.toM
+      continue
+    }
+    // (v0.804.0) the forming leg's own cell - the jump's own numbers ride
+    // the same peaks (the storm's rate story includes its forming leg:
+    // face 88's peak rate was the JUMP's 124.7MB/s, not the FATAL's).
+    const jump = parseRssJump(line)
+    if (jump) {
+      c.storms.jumps++
+      if (c.storms.peakStormRssM === null || jump.toM > c.storms.peakStormRssM) c.storms.peakStormRssM = jump.toM
+      if (c.storms.peakRateMBs === null || jump.rateMBs > c.storms.peakRateMBs) c.storms.peakRateMBs = jump.rateMBs
+      if (c.rss.peakM === null || jump.toM > c.rss.peakM) c.rss.peakM = jump.toM
       continue
     }
     const close = parseValveClose(line)

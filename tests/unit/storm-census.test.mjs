@@ -12,8 +12,9 @@
 
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import { readFile } from 'node:fs/promises'
 import {
-  parseHeartbeat, parseStormProbe, parseStormFatal,
+  parseHeartbeat, parseStormProbe, parseStormFatal, parseRssJump,
   parseValveClose, parseValveOpen, stormCensus
 } from '../../src/lib/stormcensus.mjs'
 import {
@@ -162,4 +163,72 @@ test('honest-zero pin - the calm face reads zeros where nothing fired', () => {
   assert.equal(c.valve.opens, 0)
   assert.deepEqual(c.valve.byFlavor, {})
   assert.equal(c.rss.peakM, 312)
+})
+
+// (v0.804.0) THE FORMING LEG'S OWN CELL - the worker's RSS JUMP line (the
+// v0.677.0 emitter's threshold verdict) joins the census. Face 88
+// (37712326964) rode the leg UNREAD while the FATAL took the blame.
+test('rss jump parses verbatim (the face-88 forming leg: the decimal rate, the floor byte)', () => {
+  const j = parseRssJump('[stormguard] RSS JUMP: rss 380M -> 1004M (+624M in 5s = 124.7MB/s, below the 1200M floor - the forming-storm leg the kill lines never name; last: pf:spin wood trip @+0.0s <- pf:done walk @+-0.2s <- pf:goal walk @+-0.7s <- pf:queue walk @+-0.7s <- pf:done walk @+-0.7s <- pf:spin wood trip @+-1.1s <- pf:goal fuel commons wa @+-1.3s <- pf:queue fuel commons w @+-1.3s)')
+  assert.ok(j)
+  assert.equal(j.kind, 'rss-jump')
+  assert.equal(j.fromM, 380)
+  assert.equal(j.toM, 1004)
+  assert.equal(j.gainM, 624)
+  assert.equal(j.windowS, 5)
+  assert.equal(j.rateMBs, 124.7)
+  assert.equal(j.floorM, 1200)
+  // the split-of-labor pin: the freeze-storm FATAL form is the mem-hb
+  // lens' own cell (FREEZE_STORM_RE, v0.677.0) - this census never
+  // re-reads it (one parser per emitter, the v0.408.0 law)
+  assert.equal(parseStormFatal('[stormguard] FATAL (freeze storm: main pulse frozen 80s, rss 1004M -> 2144M growing past the 1200M floor - the closure cannot land; run 36292057377 spent the probe at 2271M and the ceiling SIGTERM lost the race to the V8 OOM at exit 134; last: pf:spin wood trip @+0.0s)'), null)
+  // the census fold on the face-88 pair: the jump's own numbers ride the
+  // peaks - the face's peak storm rate was the JUMP's 124.7MB/s, and the
+  // freeze FATAL (memhb's cell) adds nothing here
+  const c = stormCensus([
+    '[stormguard] RSS JUMP: rss 380M -> 1004M (+624M in 5s = 124.7MB/s, below the 1200M floor - the forming-storm leg the kill lines never name; last: pf:spin wood trip @+0.0s)',
+    '[stormguard] FATAL (freeze storm: main pulse frozen 80s, rss 1004M -> 2144M growing past the 1200M floor - the closure cannot land)',
+  ])
+  assert.deepEqual(c.storms, { probes: 0, fatals: 0, jumps: 1, peakStormRssM: 1004, peakRateMBs: 124.7 })
+  assert.equal(c.rss.peakM, 1004) // the jump's toM rides the rss peak; the freeze FATAL is memhb's
+})
+
+test('the forming leg rides the mixed face: the jump, the probe, the fatal fold the same peaks', () => {
+  const c = stormCensus([
+    '[workerguard] b] n=1 ts=21s rss=247M late=5ms mainLate=0ms',
+    '[stormguard] RSS JUMP: rss 380M -> 1004M (+624M in 5s = 124.7MB/s, below the 1200M floor - the forming-storm leg the kill lines never name; last: pf:spin walk @+0.0s)',
+    '[stormguard] STORM PROBE: rss 1154M -> 2271M (+1117M in 5s = 223MB/s, mainLate 2190ms; last: pf:spin walk @+0.0s) - SURVIVING the first strike',
+    '[stormguard] FATAL (hard ceiling 3000M): rss 2271M -> 3094M (+823M in 5s = 164MB/s >= 40MB/s at rss >= 1200M floor; last: pf:spin walk @+0.0s) ',
+  ])
+  assert.equal(c.storms.jumps, 1)
+  assert.equal(c.storms.probes, 1)
+  assert.equal(c.storms.fatals, 1)
+  assert.equal(c.storms.peakStormRssM, 3094) // the fatal's peak stands
+  assert.equal(c.storms.peakRateMBs, 223) // the probe's rate stands over the jump's decimal
+  // the decimal rate peaks when it is the face's own max (the honest peak law)
+  const c2 = stormCensus([
+    '[stormguard] RSS JUMP: rss 380M -> 1004M (+624M in 5s = 124.7MB/s, below the 1200M floor - the forming-storm leg the kill lines never name; last: pf:spin walk @+0.0s)',
+    '[stormguard] FATAL (hard ceiling 3000M): rss 2271M -> 3094M (+823M in 5s = 64MB/s >= 40MB/s at rss >= 1200M floor; last: pf:spin walk @+0.0s) ',
+  ])
+  assert.equal(c2.storms.peakRateMBs, 124.7)
+  assert.equal(c2.rss.peakM, 3094)
+})
+
+test('the jumps cell reads the honest zero on the calm face + the junk battery + the WIRING gates', async () => {
+  const calm = stormCensus([
+    '[workerguard] b] n=1 ts=21s rss=247M late=5ms mainLate=0ms',
+    '[workerguard] b] n=2 ts=41s rss=312M late=10ms mainLate=281ms',
+  ])
+  assert.equal(calm.storms.jumps, 0)
+  assert.equal(calm.storms.peakStormRssM, null)
+  assert.equal(calm.storms.peakRateMBs, null)
+  for (const junk of [null, undefined, 42, {}, [], '', '[stormguard] RSS JUMP: rss', '[stormguard] RSS JUMP: rss M -> M (+M in s = MB/s, below the M floor', 'RSS JUMP: rss 380M -> 1004M (+624M in 5s = 124.7MB/s, below the 1200M floor']) {
+    assert.equal(parseRssJump(junk), null, `jump rejects ${JSON.stringify(junk)}`)
+  }
+  // the WIRING: the decompose row carries the jumps cell and the gates
+  // ride the sum (the row fires where it was silent - face 88's own read)
+  const src = await readFile(new URL('../../scripts/fleet-mining/decompose.mjs', import.meta.url), 'utf8')
+  assert.ok(src.includes('probes=${s.probes} fatals=${s.fatals} jumps=${s.jumps}'))
+  assert.ok(src.includes('if (s.probes + s.fatals + s.jumps > 0) {'))
+  assert.ok(src.includes('if (s.probes + s.fatals + s.jumps + v.closures > 0) {'))
 })
