@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { sockLossCensus, sockLossVerdict, sockChurnJoin, sockJoinVerdict, sockJoinSeat, sockJoinSeatRow, sockJoinRiders, sockJoinRidersRow } from '../../src/lib/sockloss.mjs'
+import { sockLossCensus, sockLossVerdict, sockChurnJoin, sockJoinVerdict, sockJoinSeat, sockJoinSeatRow, sockJoinRiders, sockJoinRidersRow, sockBareSeat, sockBareSeatRow, sockBareRiders, sockBareRidersRow } from '../../src/lib/sockloss.mjs'
 
 // The era's socket-loss bytes, verbatim from face 89 (run 37715421436):
 // every TCP death prints a THREE-part burst - the raw stack header
@@ -274,4 +274,97 @@ test('v0.809.0 the WIRING: the seat anchors to the real join, the total folds to
   assert.deepEqual(solo.losses, { n: 1, joined: 0, unjoined: 1 })
   assert.equal(sockJoinRidersRow(solo), null, 'one unjoined kind - the solo-class fence holds through the real join')
   assert.ok(sockJoinSeatRow(solo).startsWith('unjoined owns 1 of 1 socket loss(es)'))
+})
+
+// (v0.812.0) THE BARE KICK'S OWN SEAT - the churn-without-death's own book.
+// Face 90's shape: 20 kicks ALL duplicate_login, ONE socket loss (the
+// residue), 19 bare - the bare side had no seat of its own. The fixture
+// reproduces the shape: F1 x11 + F2 x5 + F3 x4 (the whale's own reach),
+// the loss rides F2's last kick (joined), every other kick bare.
+const TIMEOUT_KICK_LINE = (b) => `${b} [${b}] KICKED: {"type":"compound","value":{"translate":{"type":"string","value":"disconnect.timeout"}}}`
+const F90SHAPE = []
+for (let i = 0; i < 11; i++) { F90SHAPE.push(KICK_LINE('F1')); for (let f = 0; f < 26; f++) F90SHAPE.push(FILLER(F90SHAPE.length)) }
+for (let i = 0; i < 4; i++) { F90SHAPE.push(KICK_LINE('F2')); for (let f = 0; f < 26; f++) F90SHAPE.push(FILLER(F90SHAPE.length)) }
+for (let i = 0; i < 4; i++) { F90SHAPE.push(KICK_LINE('F3')); for (let f = 0; f < 26; f++) F90SHAPE.push(FILLER(F90SHAPE.length)) }
+F90SHAPE.push(KICK_LINE('F2'))
+F90SHAPE.push(RAW('EPIPE'), LOSS('F2', 'EPIPE'), TWIN('F2', 'EPIPE'))
+for (let f = 0; f < 10; f++) F90SHAPE.push(FILLER(F90SHAPE.length))
+
+test('v0.812.0: the bare seat through the real join - face 90\'s own shape byte-exact (the churn\'s re-entry shape owns the bare book, the whale\'s crowd measured)', () => {
+  const j = sockChurnJoin(F90SHAPE)
+  assert.equal(j.kicks.n, 20)
+  assert.equal(j.kicks.bare, 19, 'the loss serves F2\'s last kick - 19 ride bare')
+  assert.deepEqual(j.losses, { n: 1, joined: 1, unjoined: 0 })
+  // the cells' own folds: every kick carries the translate byte
+  assert.deepEqual(j.bareByKind, { 'multiplayer.disconnect.duplicate_login': 19 })
+  assert.deepEqual(j.bareByBot, { F1: 11, F2: 4, F3: 4 })
+  // the seat row byte-exact (the face-90 verdict's own words)
+  const row = sockBareSeatRow(j)
+  assert.equal(row, 'multiplayer.disconnect.duplicate_login owns 19 of 19 bare kick(s) (100.0%) - THE BARE KICK\'S OWN SEAT: the churn\'s own re-entry shape - the session the churn rebuilds rides bare (the relog lane\'s residue candidate)')
+  // the riders row byte-exact (the whale's own reach measured, not owning)
+  const rr = sockBareRidersRow(j)
+  assert.equal(rr, 'F1 x11 + F2 x4 own 15 of 19 bare kick(s) (78.9%) - THE BARE KICK\'S OWN CROWD: the bare front\'s own bots ride measured, not owning (the relog lane\'s reach is the measure)')
+})
+
+test('v0.812.0: the bare seat\'s tie law + the kindless byte - a bare kick line without the translate byte rides nowhere, the tie owns nothing, the WIRING pin holds', () => {
+  const lines = [KICK_LINE('F4'), TIMEOUT_KICK_LINE('F5'), 'F6 [F6] KICKED: banned', FILLER(1), FILLER(2)]
+  const j = sockChurnJoin(lines)
+  assert.equal(j.kicks.n, 3)
+  assert.equal(j.kicks.bare, 3, 'no losses - every kick bare')
+  // the kindless kick (banned - no translate byte) rides nowhere in bareByKind
+  assert.deepEqual(j.bareByKind, { 'multiplayer.disconnect.duplicate_login': 1, 'disconnect.timeout': 1 })
+  assert.deepEqual(j.bareByBot, { F4: 1, F5: 1, F6: 1 })
+  // the WIRING pin: the seat's book is the cells' own sum, never the bare count
+  const sum = Object.values(j.bareByKind).reduce((s, v) => s + v, 0)
+  assert.ok(sum <= j.kicks.bare, `sum(bareByKind) ${sum} <= bare ${j.kicks.bare}`)
+  assert.equal(sum, 2)
+  // the tie law: two kinds 1-1 own nothing
+  assert.equal(sockBareSeatRow(j), 'no solo kind owns the bare book (the tie owns nothing)')
+  // the riders through the real join: three bot classes, the byte breaks the ranked tie
+  assert.equal(sockBareRidersRow(j), 'F4 x1 + F5 x1 own 2 of 3 bare kick(s) (66.7%) - THE BARE KICK\'S OWN CROWD: the bare front\'s own bots ride measured, not owning (the relog lane\'s reach is the measure)')
+})
+
+test('v0.812.0: the junk battery - non-finite/negative cells skipped and counted, zero cells silent, the empty book reads the honest silence, the row guards hold', () => {
+  // the seat's junk law: junk never invents a kind
+  const s = sockBareSeat({ dup: 2, ghost: -1, nan: NaN, zero: 0 })
+  assert.equal(s.total, 2)
+  assert.equal(s.owner, 'dup')
+  assert.equal(s.units, 2)
+  assert.equal(s.bad, 2, 'the ghost and the nan counted, never priced')
+  assert.ok(s.word.includes('the kind\'s own front'), 'an unknown kind reads the lever table\'s own lane')
+  // the timeout majority's own word
+  const t = sockBareSeat({ 'disconnect.timeout': 3 })
+  assert.ok(t.word.includes('the client\'s own stall'), 'the timeout majority reads the stall\'s own front')
+  // the tie law direct: 1-1 owns nothing
+  const tie = sockBareSeat({ a: 1, b: 1 })
+  assert.equal(tie.owner, null)
+  assert.equal(tie.units, 0)
+  // the honest silences
+  assert.equal(sockBareSeat({}), null, 'an empty book reads silence')
+  assert.equal(sockBareSeat(null), null)
+  assert.equal(sockBareSeatRow(null), null, 'no join - no row')
+  assert.equal(sockBareSeatRow('junk'), null)
+  assert.equal(sockBareSeatRow({}), null, 'a join with no bare book reads silence')
+  // the riders' junk law + the solo-class fence
+  assert.equal(sockBareRiders({ F1: 1, ghost: -2, nan: NaN }), null, 'one real class - the solo fence holds')
+  assert.equal(sockBareRidersRow({ bareByBot: { F1: 5 } }), null, 'a one-bot bare book reads silence')
+  assert.equal(sockBareRidersRow(null), null)
+  // the byte-order pin: 'F10' < 'F2' (the bot tag's own lexicographic byte)
+  const bp = sockBareRiders({ F2: 1, F10: 1 })
+  assert.equal(bp.top[0].cls, 'F10')
+  assert.equal(bp.top[1].cls, 'F2')
+})
+
+test('v0.812.0: the WIRING one-truth fold through the real join - the bare cells sum back to the join\'s own bare count, the riders\' total is the cells\' own sum', () => {
+  const j = sockChurnJoin(F90SHAPE)
+  const kindSum = Object.values(j.bareByKind).reduce((s, v) => s + v, 0)
+  const botSum = Object.values(j.bareByBot).reduce((s, v) => s + v, 0)
+  assert.equal(kindSum, j.kicks.bare, 'every bare kick carried the byte - the kinds\' own sum is the bare book (one truth)')
+  assert.equal(botSum, j.kicks.bare, 'the bots\' own sum is the bare book (one truth)')
+  const seat = sockBareSeat(j.bareByKind)
+  assert.equal(seat.total, j.kicks.bare, 'the seat\'s book is the cells\' own sum')
+  const r = sockBareRiders(j.bareByBot)
+  assert.equal(r.total, botSum, 'the riders\' total is the cells\' own sum')
+  assert.equal(r.top.reduce((s, x) => s + x.units, 0), r.sum, 'the top pair\'s own sum rides the row')
+  assert.equal(r.bad, 0, 'no junk through the real join')
 })

@@ -90,7 +90,7 @@ import { relogBill } from '../../src/lib/relogbill.mjs' // (v0.715.0) the relog'
 import { freezeBill } from '../../src/lib/freezebill.mjs' // (v0.724.0) the freeze gate's own ladder - the frozen relog's streak/gate/vitals bytes folded per bot (the doubling's own futility read)
 import { kickBill } from '../../src/lib/kickbill.mjs' // (v0.717.0) the kick's own churn - the kick cells joined to the relog cells (the pair, the split, the repeats over both lanes)
 import { kickKindCensus } from '../../src/lib/kickkinds.mjs' // (v0.730.0) the kick's own kinds - the kicked clients' reason census (the translate byte per kind; the dup class reconciles with the frozen census's dupKicks)
-import { sockLossCensus, sockChurnJoin, sockJoinSeatRow, sockJoinRidersRow } from '../../src/lib/sockloss.mjs' // (v0.806.0) the socket loss's own book - the client-side death certificates (the error/socket-error/raw-stack bursts, the twin + raw reconciles, the log's thirds clock; v0.809.0 the join's own seat)
+import { sockLossCensus, sockChurnJoin, sockJoinSeatRow, sockJoinRidersRow, sockBareSeatRow, sockBareRidersRow } from '../../src/lib/sockloss.mjs' // (v0.806.0) the socket loss's own book - the client-side death certificates (the error/socket-error/raw-stack bursts, the twin + raw reconciles, the log's thirds clock; v0.809.0 the join's own seat; v0.812.0 the bare kick's own seat)
 import { dupClock, unseenLosses, surplusKicks, burstDoor } from '../../src/lib/dupclock.mjs' // (v0.729.0) the duplicate's own clock - the server log's join side (the losses, the cadence, the bursts, the storm; v0.734.0 the unseen loss's own column, v0.735.0 the surplus kick's own side, v0.740.0 the burst's own door)
 import { pinBill } from '../../src/lib/pinbill.mjs' // (v0.722.0) the pinned seat's own bill - the water lane's launches per bot per target (the 70%/10+ concentration names the seat)
 import { memHbCensus, RSS_JUMP_STORM_M, ENT_JUMP_STORM_N } from '../../src/lib/memhb.mjs' // (v0.408.0) the OOM precursors' field read
@@ -1624,6 +1624,14 @@ console.log('  hazard memorized:', count(/hazard memorized/))
       if (sjs) console.log(`  the socket join's own seat (v0.809.0): ${sjs}`)
       const sjr = sockJoinRidersRow(sj)
       if (sjr) console.log(`  the socket join's own riders (v0.809.0): ${sjr}`)
+      // (v0.812.0) THE BARE KICK'S OWN SEAT - the churn-without-death's own
+      // book priced: which kick kind owns the bare side (the session the
+      // churn rebuilds - the relog lane's residue candidate), the bots' own
+      // crowd riding measured. One additive row pair beside the seat rows.
+      const sbs = sockBareSeatRow(sj)
+      if (sbs) console.log(`  the socket join's bare seat (v0.812.0): ${sbs}`)
+      const sbr = sockBareRidersRow(sj)
+      if (sbr) console.log(`  the socket join's bare riders (v0.812.0): ${sbr}`)
     }
   }
 }

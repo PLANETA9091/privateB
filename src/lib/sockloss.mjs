@@ -158,6 +158,12 @@ export function sockLossVerdict (byKind) {
 // own byKind (the WIRING test holds the two folds together).
 export const SOCK_JOIN_WINDOW = 20
 const SOCK_KICK_RE = /^(F\d+) \[\1\] KICKED: /
+// (v0.812.0) the bare seat's own kind byte - the translate value, exactly
+// the vocabulary kickkinds.mjs reads (v0.730.0): the fleet log's KICKED
+// line carries the server's own reason string, and the bare fold reads
+// the byte's own word or nothing (a kindless kick line rides nowhere -
+// the cells'-own-sum law keeps the seat's book honest).
+const SOCK_KICK_KIND_RE = /"translate":\{"type":"string","value":"([^"]+)"\}\}\}$/
 
 /**
  * sockChurnJoin(lines, [window]) - the socket losses' churn join.
@@ -211,6 +217,8 @@ export function sockChurnJoin (lines, window = SOCK_JOIN_WINDOW) {
   }
   let bare = 0
   let kicksN = 0
+  const bareByKind = {} // (v0.812.0) the bare kick's own kinds - the translate byte
+  const bareByBot = {} // (v0.812.0) the bare kick's own bots - the whale's measure
   for (const [b, idxs] of Object.entries(kicks)) {
     kicksN += idxs.length
     const ownLosses = lossIdx[b] || []
@@ -219,7 +227,16 @@ export function sockChurnJoin (lines, window = SOCK_JOIN_WINDOW) {
       // (the loss beyond the reach never serves it - face 89's F17 shape:
       // the timeout kick, then the EPIPE loss 171 lines later - bare)
       const within = ownLosses.some((li) => li > k && li - k <= window)
-      if (!within) bare++
+      if (!within) {
+        bare++
+        // (v0.812.0) the bare kick folds its own kind (the translate byte,
+        // kickkinds' own vocabulary) and its own bot; a kick line without
+        // the byte rides nowhere here - the cells'-own-sum law keeps the
+        // seat's book honest (sum(bareByKind) <= bare, the WIRING pin).
+        const km = SOCK_KICK_KIND_RE.exec(typeof lines[k] === 'string' ? lines[k] : '')
+        if (km) bareByKind[km[1]] = (bareByKind[km[1]] || 0) + 1
+        bareByBot[b] = (bareByBot[b] || 0) + 1
+      }
     }
   }
   return {
@@ -229,6 +246,8 @@ export function sockChurnJoin (lines, window = SOCK_JOIN_WINDOW) {
     unjoinedByKind,
     joinedPairs,
     kicks: { n: kicksN, bare },
+    bareByKind, // (v0.812.0) the bare kick's own kinds ride additively
+    bareByBot, // (v0.812.0) the bare kick's own bots ride additively
     verdict: sockJoinVerdict(joinedByKind, unjoinedByKind), // (v0.808.0) the kinds' own words ride additively
   }
 }
@@ -342,4 +361,111 @@ export function sockJoinRidersRow (join) {
   if (!r) return null
   const pair = r.top.map(({ cls, units }) => `${cls} x${units}`).join(' + ')
   return `${pair} own ${r.sum} of ${r.total} unjoined loss(es) (${(r.share * 100).toFixed(1)}%) - THE OWN-FRONT'S OWN KINDS: the teardown front's own mix rides measured, not owning (the seat's measure-not-owner law)`
+}
+
+// (v0.812.0) THE BARE KICK'S OWN SEAT - the churn-without-death's own book
+// priced. Face 90's 20 kicks carried ONE socket loss - 19 rode bare, and
+// the join's bare side had no seat of its own (the inversion of face 89's
+// 2-of-19 shape rode unnamed; face 91 rode the bare 7 of 8). The seat law
+// (the v0.802.0 seat's own shape, the v0.809.0 join seat's own words): the
+// join's own bareByKind cells only, zero re-parsing; the book is the
+// cells' own sum; the strict-majority law, a tie owns nothing; junk never
+// invents a kind - a non-finite or negative cell is skipped and counted,
+// the real cells still tally. The words ride the kickkinds lever table's
+// own fronts: a duplicate_login majority is the churn's own re-entry shape
+// (the relog lane's residue candidate - the session the churn rebuilds),
+// a timeout majority is the client's own stall.
+/**
+ * sockBareSeat(bareByKind) - the bare kick's own seat.
+ * @param {Object<string, number>|null} [bareByKind] the join's own bare kinds
+ * @returns {null|{total: number, owner: null|string, units: number,
+ *   share: number, word: null|string, bad: number}}
+ *   the seat (null on an empty book)
+ */
+export function sockBareSeat (bareByKind) {
+  const cells = []
+  let bad = 0
+  for (const [k, v] of Object.entries(bareByKind && typeof bareByKind === 'object' && !Array.isArray(bareByKind) ? bareByKind : {})) {
+    if (!Number.isFinite(v) || v < 0) { if (v !== undefined) bad++; continue }
+    if (v === 0) continue
+    cells.push([k, v])
+  }
+  if (!cells.length) return null
+  cells.sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0))
+  const total = cells.reduce((s, [, v]) => s + v, 0)
+  const [topKind, topUnits] = cells[0]
+  const tie = cells.length > 1 && cells[1][1] === topUnits
+  const owner = tie ? null : topKind
+  const units = tie ? 0 : topUnits
+  const word = tie
+    ? null
+    : topKind.includes('duplicate_login')
+      ? 'the churn\'s own re-entry shape - the session the churn rebuilds rides bare (the relog lane\'s residue candidate)'
+      : topKind === 'disconnect.timeout'
+        ? 'the client\'s own stall is the front - the server dropped the silence and the socket never died'
+        : 'the kind\'s own front prices the book (the v0.763.0 lever table\'s own lane)'
+  return { total, owner, units, share: total ? +(units / total).toFixed(3) : 0, word, bad }
+}
+
+// (v0.812.0) the bare seat's row - the prose lives only in the lib, the
+// decompose rides the builder. A tie reads the no-owner row (one row never
+// both); an empty book reads the honest silence (null).
+/**
+ * sockBareSeatRow(join) - the bare seat's row.
+ * @param {Object|null} [join] the sockChurnJoin shape
+ * @returns {null|string} the row (null on an empty book)
+ */
+export function sockBareSeatRow (join) {
+  if (!join || typeof join !== 'object' || Array.isArray(join)) return null
+  const seat = sockBareSeat(join.bareByKind)
+  if (!seat) return null
+  if (!seat.owner) return 'no solo kind owns the bare book (the tie owns nothing)'
+  return `${seat.owner} owns ${seat.units} of ${seat.total} bare kick(s) (${(seat.share * 100).toFixed(1)}%) - THE BARE KICK'S OWN SEAT: ${seat.word}`
+}
+
+// (v0.812.0) THE BARE KICK'S OWN BOTS - the bare book's riders (the
+// v0.809.0 riders' own law): measure-not-owner (the bots price the bare
+// front's own mix, they never own the book - the whale's reach is the
+// measure), >=2 classes only (the solo-class fence), the byte order
+// decides the ranked ties ('F1' < 'F10' < 'F2' - the bot tag's own
+// lexicographic byte), junk never invents a bot (a non-finite or negative
+// cell is skipped and counted, the real cells still tally).
+/**
+ * sockBareRiders(bareByBot) - the bare book's bot riders.
+ * @param {Object<string, number>|null} [bareByBot] the join's own bare bots
+ * @returns {null|{total: number, top: {cls: string, units: number}[],
+ *   sum: number, share: number, bad: number}}
+ *   the riders (null under the solo-class fence)
+ */
+export function sockBareRiders (bareByBot) {
+  const u = (bareByBot && typeof bareByBot === 'object' && !Array.isArray(bareByBot)) ? bareByBot : {}
+  const cells = []
+  let bad = 0
+  for (const [k, v] of Object.entries(u)) {
+    if (!Number.isFinite(v) || v < 0) { if (v !== undefined) bad++; continue }
+    if (v === 0) continue
+    cells.push([k, v])
+  }
+  if (cells.length < 2) return null
+  cells.sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0))
+  const total = cells.reduce((s, [, v]) => s + v, 0)
+  const top = cells.slice(0, 2)
+  const sum = top.reduce((s, [, v]) => s + v, 0)
+  return { total, top: top.map(([cls, units]) => ({ cls, units })), sum, share: +(sum / total).toFixed(3), bad }
+}
+
+// (v0.812.0) the bare riders' row - fires only when the bare book holds
+// two or more bots (the solo-class fence); a one-bot bare book reads the
+// honest silence (null).
+/**
+ * sockBareRidersRow(join) - the bare riders' row.
+ * @param {Object|null} [join] the sockChurnJoin shape
+ * @returns {null|string} the row (null under the solo-class fence)
+ */
+export function sockBareRidersRow (join) {
+  if (!join || typeof join !== 'object' || Array.isArray(join)) return null
+  const r = sockBareRiders(join.bareByBot)
+  if (!r) return null
+  const pair = r.top.map(({ cls, units }) => `${cls} x${units}`).join(' + ')
+  return `${pair} own ${r.sum} of ${r.total} bare kick(s) (${(r.share * 100).toFixed(1)}%) - THE BARE KICK'S OWN CROWD: the bare front's own bots ride measured, not owning (the relog lane's reach is the measure)`
 }
