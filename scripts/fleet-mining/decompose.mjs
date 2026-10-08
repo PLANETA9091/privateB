@@ -39,7 +39,7 @@ import { tierDeferCensus } from '../../src/lib/tierdefer.mjs' // (v0.463.0) the 
 import { deathGrounds, DEATH_GROUND_RADIUS, deathGroundSeat, deathGroundSeatRow, deathGroundRiders, deathGroundRidersRow } from '../../src/lib/deathground.mjs' // (v0.464.0) the combat deaths' spatial join - the mob-cure's WHERE input; (v0.793.0) WHICH ground owns the combat book
 import { hazardBoardCensus, hazardBoardCensusRow, hazardWalkBack, hazardWalkBackRow, hazardRefusalCensus, hazardRefusalCensusRow } from '../../src/lib/waterhazard.mjs'
 import { deepPocketCensus, deepPocketCensusRow } from '../../src/lib/deeppocket.mjs' // (v0.835.0) the deep-pocket ascend's own shape - the dig's ceiling name, the pocket's own geography (the spot repeats), the o2 floor over the numeric reads, the lid/why lane (the sibling climb family fenced out)
-import { wetCeilingCensus, wetCeilingCensusRow } from '../../src/lib/climbwet.mjs' // (v0.836.0) the water column's own dig - the climb lane's wet-ceiling ascend family, the deep-pocket lens' sibling priced on its own seat: the ceiling spread (the no-guard writer lets water dominate), the spot census, the y-blind column map (the bot's own descent between climbs), the within-episode dig vs the budget print
+import { wetCeilingCensus, wetCeilingCensusRow, wetColumnCompletion, wetColumnCompletionRow } from '../../src/lib/climbwet.mjs' // (v0.836.0) the water column's own dig - the climb lane's wet-ceiling ascend family, the deep-pocket lens' sibling priced on its own seat: the ceiling spread (the no-guard writer lets water dominate), the spot census, the y-blind column map (the bot's own descent between climbs), the within-episode dig vs the budget print; (v0.839.0) + the wet column's kept promise - the family's own completion read on the same parser: the whole-budget spend vs the early abandonment (the real faces so far read kept=0 - the budget always outran the climb)
 import { columnToll, columnTollRow } from '../../src/lib/columntoll.mjs' // (v0.838.0) the column's own toll - the wet lane's digs joined to the death book (line order + Chebyshev 2, y-blind): did the dig SAVE the bot or did the bot die in the band it was digging (face 109: F13 dug [-135,410] three times, then drowned at [-135,49,409] with the sensor dead and the rescue never); the join is the toll's CANDIDATE - the lens names no cause
 import { aquiferCensus, aquiferCensusRow } from '../../src/lib/aquifer.mjs' // (v0.832.0) the aquifer's own book - the water table program's two voices (the strike writes + the lid readbacks) and the carousel's terminals priced per face // (v0.826.0) the water hazard board's own read - the memorize line's own census (the repeats, the 240s TTL's own work, the foreign records); (v0.828.0) + the board's own walk-back - the deaths that landed on water an earlier death had already named; (v0.831.0) + the refusals' own read - the veto's own voice priced per face (the wide share past the 4b spot ceiling; the tier law: the line alone cannot name the tier - the zone tier rides past 4b on every tree, the v0.829.0 body veto on its own)
 import { deathDropCensus } from '../../src/lib/deathdropcensus.mjs' // (v0.647.0) the death-drop stakes' own census - the silent-arm join; (v0.663.0) the stakes' own clock rides the same shape
@@ -1474,6 +1474,13 @@ if (shooter.total > 0) {
   // with no wet ascend (the honest silence).
   const wcRow = wetCeilingCensusRow(wetCeilingCensus(lines))
   if (wcRow) console.log(`  ${wcRow}`)
+  // (v0.839.0) THE WET COLUMN'S KEPT PROMISE beside the census seat - the
+  // family's own completion read on the same parser: how many of the
+  // face's own ascends spent the WHOLE budget in the column and how many
+  // abandoned it early (the counts, never the cause - the trend law).
+  // Silent on a face with no wet ascend (the honest silence).
+  const wcompRow = wetColumnCompletionRow(wetColumnCompletion(lines))
+  if (wcompRow) console.log(`  ${wcompRow}`)
   // (v0.838.0) THE COLUMN'S OWN TOLL beside the sibling seats - the wet
   // lane's digs joined to the death book (line order = the clock,
   // Chebyshev 2 on the y-blind plane): did the dig SAVE the bot or did

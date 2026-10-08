@@ -1,18 +1,19 @@
 //
-// climbwet.test.mjs - the water column's own dig lens' proofs (v0.836.0).
-// The verbatim corpora are the field's REAL lines: face 106's four (run
-// 37770102755, fleet19.log lines 1208/1251/1272/1297) + face 108's one
-// (run 37779457427, line 1162). The non-water ceiling shape rides the
-// emitter's own no-guard grammar (any diggable block at feet+2 passes the
-// writer - in 26.2 water reads diggable:true, so water dominates the
-// field; the constructed stone line pins the grammar's full breadth).
+// climbwet.test.mjs - the water column's own dig lens' proofs (v0.836.0)
+// and the kept promise's own proofs (v0.839.0). The verbatim corpora are
+// the field's REAL lines: face 106's four (run 37770102755, fleet19.log
+// lines 1208/1251/1272/1297) + face 108's one (run 37779457427, line
+// 1162). The non-water ceiling shape rides the emitter's own no-guard
+// grammar (any diggable block at feet+2 passes the writer - in 26.2
+// water reads diggable:true, so water dominates the field; the
+// constructed stone line pins the grammar's full breadth).
 //
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
-import { parseWetCeilingAscent, wetCeilingCensus, wetCeilingCensusRow } from '../../src/lib/climbwet.mjs'
+import { parseWetCeilingAscent, wetCeilingCensus, wetCeilingCensusRow, wetColumnCompletion, wetColumnCompletionRow } from '../../src/lib/climbwet.mjs'
 
 const here = dirname(fileURLToPath(import.meta.url))
 
@@ -130,4 +131,48 @@ test('the row: byte-exact on the face-106/108 corpora, the honest silence on zer
   assert.ok(src.includes("from '../../src/lib/climbwet.mjs'"), 'the import rides')
   assert.ok(src.includes('wetCeilingCensusRow(wetCeilingCensus(lines))'), 'the additive row rides')
   assert.ok(src.includes('v0.836.0'), 'the version tag rides')
+})
+
+test("the wet column's kept promise (v0.839.0): the real corpora's whole-spend law, the kept cell, the row byte-exact + the guards + the wiring", () => {
+  // the real faces so far: the budget always outran the climb
+  const f106 = wetColumnCompletion(F106_ALL)
+  assert.deepEqual(f106, { ascends: 4, kept: 0, abandoned: 4, maxDig: 2, budget: 4 })
+  // the stone line's 3/4 rides the same law (the deepest real face dig)
+  const stony = wetColumnCompletion([...F106_ALL, STONE_F9])
+  assert.deepEqual(stony, { ascends: 5, kept: 0, abandoned: 5, maxDig: 3, budget: 4 })
+  // the kept cell: the whole spend rode the column (template-true 4/4
+  // print - the counter reached the budget's own constant)
+  const KEPT = 'F10 [F10] climb wet ascend: dug the ceiling water at [-148,59,389] (the water column owns every bearing - the vertical digs instead, 4/4)'
+  const kept = wetColumnCompletion([F106_F10_A, KEPT])
+  assert.deepEqual(kept, { ascends: 2, kept: 1, abandoned: 1, maxDig: 4, budget: 4 })
+  // junk-safe: non-array null, zero ascends the zero shape, junk skipped
+  assert.equal(wetColumnCompletion(null), null)
+  assert.equal(wetColumnCompletion('nope'), null)
+  assert.deepEqual(wetColumnCompletion([]), { ascends: 0, kept: 0, abandoned: 0, maxDig: 0, budget: null })
+  assert.equal(wetColumnCompletion([F106_ASCEND, 'garbage', null, 7]).ascends, 0)
+  // the row: byte-exact on the real face-106 corpus
+  assert.equal(
+    wetColumnCompletionRow(wetColumnCompletion(F106_ALL)),
+    "the wet column's kept promise (v0.839.0): 0 of 4 ascend(s) kept the budget (the column's whole spend), 4 abandoned it early, max dig 2 of 4"
+  )
+  // the kept row + the '?' budget cell (read never invented)
+  assert.equal(
+    wetColumnCompletionRow(wetColumnCompletion([KEPT])),
+    "the wet column's kept promise (v0.839.0): 1 of 1 ascend(s) kept the budget (the column's whole spend), 0 abandoned it early, max dig 4 of 4"
+  )
+  assert.equal(
+    wetColumnCompletionRow({ ascends: 1, kept: 0, abandoned: 1, maxDig: 1, budget: null }),
+    "the wet column's kept promise (v0.839.0): 0 of 1 ascend(s) kept the budget (the column's whole spend), 1 abandoned it early, max dig 1 of ?"
+  )
+  // the honest silence + the guards: junk cells never render
+  assert.equal(wetColumnCompletionRow(wetColumnCompletion([])), null)
+  assert.equal(wetColumnCompletionRow(null), null)
+  assert.equal(wetColumnCompletionRow(42), null)
+  assert.equal(wetColumnCompletionRow([F106_F15]), null)
+  assert.equal(wetColumnCompletionRow({ ascends: 0, kept: 0, abandoned: 0, maxDig: 0, budget: null }), null)
+  assert.equal(wetColumnCompletionRow({ ascends: 1, kept: NaN, abandoned: 1, maxDig: 1, budget: 4 }), null)
+  // the wiring: the completion row rides beside the census seat
+  const src2 = readFileSync(join(here, '../../scripts/fleet-mining/decompose.mjs'), 'utf8')
+  assert.ok(src2.includes('wetColumnCompletionRow(wetColumnCompletion(lines))'), 'the additive row rides')
+  assert.ok(src2.includes('v0.839.0'), 'the version tag rides')
 })

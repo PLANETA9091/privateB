@@ -35,6 +35,16 @@
 // mutates. Zero fleet wiring (mining-surface only, the
 // v0.379/.../v0.835.0 precedent).
 //
+// (v0.839.0) THE WET COLUMN'S KEPT PROMISE - the family's own completion
+// read, on the SAME parser (one parser one truth, no new regex): of the
+// face's own ascends, how many spent the WHOLE budget in the column
+// (dig >= budget, the promise kept) and how many abandoned it early
+// (dig < budget). The lens counts, it names NO cause - why the climb
+// stopped short rides the emitter's own story, not this book. The real
+// faces so far read kept=0 everywhere (106: max 2 of 4, 109: max 3 of 4,
+// 110: max 1 of 4) - the budget always outran the climb; the row prints
+// the honest count either way.
+//
 
 const WETASCEND_RE = /^(F\d+) \[F\d+\] climb wet ascend: dug the ceiling (\S+) at \[(-?\d+),(-?\d+),(-?\d+)\] \(the water column owns every bearing - the vertical digs instead, (\d+)\/(\d+)\)$/
 
@@ -139,4 +149,49 @@ export function wetCeilingCensusRow (c) {
   const names = Object.keys(c.names).sort().map((k) => `${k} x${c.names[k]}`).join(', ')
   const budget = c.budget == null ? '?' : String(c.budget)
   return `the water column's own dig (v0.836.0): ${c.ascends} ascend(s) dug the ceiling (${names}), ${c.distinctSpots} spot(s) - [${c.topSpot}] owned ${c.topSpotDigs} dig(s), ${c.distinctColumns} column(s) - [${c.topColumn}] owned ${c.topColumnDigs} dig(s), max dig ${c.maxDig} of ${budget}`
+}
+
+/**
+ * wetColumnCompletion(lines) - the wet column's kept promise (v0.839.0).
+ *
+ * The family's own completion read on the SAME parser (one parser one
+ * truth, no new regex): an ascend KEPT the budget when its own dig
+ * counter reached the budget print (dig >= budget - the column's whole
+ * spend rode the climb); it ABANDONED the budget early when the climb
+ * stopped short (dig < budget). The lens counts, it names NO cause.
+ *
+ * @param {string[]} [lines] the face log (array of lines)
+ * @returns {null|{ascends: number, kept: number, abandoned: number,
+ *   maxDig: number, budget: number|null}} the completion read (null on
+ *   non-array; zero ascends = the zero shape, the row stays silent;
+ *   budget = the faces' own print, the first one, null when unprinted)
+ */
+export function wetColumnCompletion (lines) {
+  if (!Array.isArray(lines)) return null
+  const w = { ascends: 0, kept: 0, abandoned: 0, maxDig: 0, budget: null }
+  for (const line of lines) {
+    const p = parseWetCeilingAscent(line)
+    if (!p) continue
+    w.ascends++
+    if (p.dig >= p.budget) w.kept++
+    else w.abandoned++
+    if (p.dig > w.maxDig) w.maxDig = p.dig
+    if (w.budget == null) w.budget = p.budget
+  }
+  return w
+}
+
+/**
+ * wetColumnCompletionRow(w) - the kept promise's own byte-exact row.
+ *
+ * @param {Object|null} [w] a wetColumnCompletion result
+ * @returns {string|null} the row (null on junk cells or the honest
+ *   silence - a face with zero ascends prints nothing)
+ */
+export function wetColumnCompletionRow (w) {
+  if (w == null || typeof w !== 'object' || Array.isArray(w)) return null
+  if (!Number.isFinite(w.ascends) || w.ascends <= 0) return null
+  if (!Number.isFinite(w.kept) || !Number.isFinite(w.abandoned) || !Number.isFinite(w.maxDig)) return null
+  const budget = w.budget == null ? '?' : String(w.budget)
+  return `the wet column's kept promise (v0.839.0): ${w.kept} of ${w.ascends} ascend(s) kept the budget (the column's whole spend), ${w.abandoned} abandoned it early, max dig ${w.maxDig} of ${budget}`
 }
