@@ -1311,6 +1311,7 @@ async function runBot (name, target, index) {
             const drec = deathCensusRecord(`${name} ${m}`)
             if (drec) deathCensusRecords.push(drec)
           } catch { /* the census never holds the death strip */ }
+          if (/combat|died|death drop|reloot|KICKED|error|climb|water|scan:|hop|chest skip|approach|swallowed|bank |banked|deposit|torch|craft|smelt|fuel|vein sweep|wood trip|drown context|suffocate context|drowned-kill context|void context|steer tier defer|steer hazard|cobble tithe|quarry ascent|chest ascent|smelt tithe|ration/.test(m)) console.log(`${name} ${m}`) // (v0.277.0) 'void context' joins the tail - the out-of-world class's first voice (two mute deaths: [117,-90,0], [118,-148,2]); (v0.511.0) 'ration' joins - the flesh ration's attempts and verdicts are survivability law, not noise; (v0.839.0) 'banked' joins - the per-chest receipt's own verb (the 44-opens/2-receipts blindness was the filter's, not the emitter's)
           // (v0.839.0) THE RECEIPT'S OWN FILTER KEY - 'banked' joins: the
           // per-chest deposit receipt ('F3 [F3] banked 113 items at (...) (direct=6
           // ...)') matched NO key and never reached the artifact - the v0.837.0
@@ -1326,7 +1327,11 @@ async function runBot (name, target, index) {
           // <= 1 receipt per visit, <= 8 visits per chain, <= 2 seal arms per
           // visit. NB: 'bank ' never matched the receipt ('banked' has no space
           // after 'bank'), and the receipt text carries no 'deposit' substring.
-          if (/combat|died|death drop|reloot|KICKED|error|climb|water|scan:|hop|chest skip|approach|swallowed|bank |banked|deposit|torch|craft|smelt|fuel|vein sweep|wood trip|drown context|suffocate context|drowned-kill context|void context|steer tier defer|steer hazard|cobble tithe|quarry ascent|chest ascent|smelt tithe|ration/.test(m)) console.log(`${name} ${m}`) // (v0.277.0) 'void context' joins the tail - the out-of-world class's first voice (two mute deaths: [117,-90,0], [118,-148,2]); (v0.511.0) 'ration' joins - the flesh ration's attempts and verdicts are survivability law, not noise; (v0.839.0) 'banked' joins - the per-chest receipt's own verb (the 44-opens/2-receipts blindness was the filter's, not the emitter's)
+          // (v0.841.0) the block rides BELOW the one-liner now - the
+          // deathcensus WIRING pin's window search (observe -> filter < 1200)
+          // priced the in-between seat over budget (1695) and the red rode two
+          // worklog commits (1aa6466, 1b21f6f); the bytes move, the doc stays
+          // at the site, the pin's strength is untouched.
         },
         // (v0.269.0) THE TORCH-COAL RESUPPLY - the pocket-closed torch economy's
         // cure (face 36374720492: 199 'no coal' skips while the tithe banked the
