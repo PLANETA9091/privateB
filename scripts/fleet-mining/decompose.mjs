@@ -51,6 +51,7 @@ import { flipDrift } from '../../src/lib/flipdrift.mjs' // (v0.487.0) the execut
 import { shelterLadder } from '../../src/lib/shieldledger.mjs' // (v0.489.0) the shield ladder - the shelter attempt's own book (the wall door, the ring door, the re-scan tax)
 import { famineCensus, famineLaneSeat, famineLaneSeatRow, famineLaneRiders, famineLaneRidersRow } from '../../src/lib/famineledger.mjs' // (v0.687.0) the famine anatomy - the trip's own starvation read (which slot starves); (v0.814.0) + the famine's own lane - the two lanes' own seat
 import { dryTripCensus, dryTripSeat, dryTripSeatRow, dryTripRiders, dryTripRidersRow } from '../../src/lib/carrybook.mjs' // (v0.817.0) the dry trip's own arm - the carry drought's own walk book (the plate refill ladder's terminal split: the shelf vs the reach)
+import { stormStoryCensus, stormStorySeat, stormStorySeatRow } from '../../src/lib/stormstory.mjs' // (v0.818.0) the freeze storm's own story - the FATAL byte's own sgStory frames (WHICH activity owned the frozen main's last word)
 import { woodTripCensus } from '../../src/lib/tripcensus.mjs' // (v0.690.0) the walk's delivery - the famine→gathered pairing prices the gather walk's own cure rate (SLOT COLLISION #16: 0.689.0 taken by fire-1639's THE DECIDE WEATHER mid-fire)
 import { woodClimbCost } from '../../src/lib/climbcost.mjs' // (v0.694.0) the climb's price - the trip's real rent (+levels/steps/dug/seconds) filed under the delivery class
 import { woodRefusalCensus } from '../../src/lib/climbrefusal.mjs' // (v0.691.0) the refusal's why - the climb-fail→refusal join names the walk's start seat
@@ -1765,6 +1766,16 @@ console.log('  air-bar ledger rows:', count(/air-bar ledger:/))
 console.log('  sensor liar census rows:', count(/sensor liar census:/))
 console.log('  sentry per-bot rows:', count(/sentry per-bot:/))
 console.log('  freeze storm FATAL lines:', count(/freeze storm/))
+// (v0.818.0) THE FREEZE STORM'S OWN STORY - the FATAL line's own sgStory
+// tail (the blackbox ring's last frames), the seat names WHICH activity
+// owned the frozen main's last frames (face 96 = 37736268597: the pulse
+// froze 5s at rss 840M -> 1902M and the story rode unnamed - the spin
+// walk's own 5 of 8). The story-less FATAL reads the honest silence.
+{
+  const ssCensus = stormStoryCensus(lines)
+  const ssSeat = ssCensus && ssCensus.n ? stormStorySeat(ssCensus.frames) : null
+  if (ssSeat) console.log(`  ${stormStorySeatRow(ssSeat)}`)
+}
 console.log('  last-pulse chain lines (pf:):', count(/pf:(goal|queue|done)/))
 console.log('  climb rise assist lines:', count(/climb rise assist/), 'per-bot:', fmt(perBot(/climb rise assist/)))
 console.log('  assist timeouts (the 4.5s class):', count(/climb rise assist: .*timeout/))
