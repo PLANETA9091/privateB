@@ -1561,7 +1561,7 @@ console.log('  hazard memorized:', count(/hazard memorized/))
     } else if (sl.verdict) {
       console.log('  the socket loss\'s own seat (v0.806.0): no single kind owns the socket losses (the storm has no seat)')
     }
-    // (v0.807.0) THE CHURN JOIN'S OWN REACH - the levers' candidates priced:
+    // (v0.808.0) THE CHURN JOIN'S OWN REACH - the levers' candidates priced:
     // every loss looks back within the burst's own reach (20 lines) for its
     // own bot's KICKED line; the kinds' own words ride the per-kind rates.
     // One additive row pair beside the book - the cells reconcile with the
@@ -1570,10 +1570,10 @@ console.log('  hazard memorized:', count(/hazard memorized/))
     if (sj) {
       const sjUn = Object.entries(sj.unjoinedByKind).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k} ${v}`).join(' / ')
       const sjPair = sj.joinedPairs.length ? ` (${sj.joinedPairs.slice(0, 6).join(' ')})` : ''
-      console.log(`  the socket loss's own join (v0.807.0): the churn window ${sj.window} line(s) - joined ${sj.losses.joined} of ${sj.losses.n}${sjPair}, unjoined ${sj.losses.unjoined}${sjUn ? ` (${sjUn})` : ''}; the kicks ${sj.kicks.n}, the bare ${sj.kicks.bare}`)
+      console.log(`  the socket loss's own join (v0.808.0): the churn window ${sj.window} line(s) - joined ${sj.losses.joined} of ${sj.losses.n}${sjPair}, unjoined ${sj.losses.unjoined}${sjUn ? ` (${sjUn})` : ''}; the kicks ${sj.kicks.n}, the bare ${sj.kicks.bare}`)
       if (sj.verdict) {
         const sjWords = Object.entries(sj.verdict).filter(([k]) => k !== 'bad').map(([k, v]) => `${k} ${v.word} (${v.joined} of ${v.n} joined)`).join(' / ')
-        console.log(`  the socket join's own words (v0.807.0): ${sjWords}`)
+        console.log(`  the socket join's own words (v0.808.0): ${sjWords}`)
       }
     }
   }

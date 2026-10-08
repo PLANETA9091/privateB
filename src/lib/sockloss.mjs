@@ -142,7 +142,7 @@ export function sockLossVerdict (byKind) {
   return { total, topKind, bad }
 }
 
-// (v0.807.0) THE CHURN JOIN'S OWN REACH - the socket book's churn leg. The
+// (v0.808.0) THE CHURN JOIN'S OWN REACH - the socket book's churn leg. The
 // v0.806.0 levers named two candidates - EPIPE as the kick churn's residue,
 // ECONNRESET as the end-phase teardown's own front - and both rode the word
 // 'candidate'. The join prices them: every loss looks back within the
@@ -229,11 +229,11 @@ export function sockChurnJoin (lines, window = SOCK_JOIN_WINDOW) {
     unjoinedByKind,
     joinedPairs,
     kicks: { n: kicksN, bare },
-    verdict: sockJoinVerdict(joinedByKind, unjoinedByKind), // (v0.807.0) the kinds' own words ride additively
+    verdict: sockJoinVerdict(joinedByKind, unjoinedByKind), // (v0.808.0) the kinds' own words ride additively
   }
 }
 
-// (v0.807.0) THE JOIN'S OWN WORDS - the per-kind classification (the
+// (v0.808.0) THE JOIN'S OWN WORDS - the per-kind classification (the
 // levers' candidates priced): a kind whose every loss sits inside a kick's
 // reach rides the churn (the residue class); a kind the churn never
 // touched rides its own front; anything between reads the mix (the

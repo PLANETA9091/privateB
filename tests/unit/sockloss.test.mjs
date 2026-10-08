@@ -115,7 +115,7 @@ test('v0.806.0 the honest silences + the log\'s own thirds clock + the WIRING', 
   assert.equal(edges.verdict.topKind.shareOfLosses, 1)
 })
 
-// (v0.807.0) THE CHURN JOIN'S OWN REACH - the levers' candidates priced.
+// (v0.808.0) THE CHURN JOIN'S OWN REACH - the levers' candidates priced.
 // Face 89's own shapes: the kick's raw stack eats ~15 lines between the
 // KICKED line and the attributed pair (the gap rode 16), the end-phase
 // ECONNRESET storm rode 14/14 unjoined, and F17's timeout kick sat 171
@@ -129,7 +129,7 @@ function burst (bot, kind, gapLines) {
   return [...out, ...STACK(kind), LOSS(bot, kind), TWIN(bot, kind)]
 }
 
-test('v0.807.0 the join: face 89\'s own shapes (the 16-line residue, the unjoined storm, the bare 171-line kick)', () => {
+test('v0.808.0 the join: face 89\'s own shapes (the 16-line residue, the unjoined storm, the bare 171-line kick)', () => {
   const F89J = [
     ...burst('F14', 'EPIPE', 16), // the kick churn's residue - joined@16
     ...burst('F10', 'EPIPE', 16),
@@ -152,7 +152,7 @@ test('v0.807.0 the join: face 89\'s own shapes (the 16-line residue, the unjoine
   assert.equal(j.verdict.ECONNRESET.word, 'rides its own front - the churn never touched it')
 })
 
-test('v0.807.0 the window edges: the exact reach joins, one past refuses, the kick after the loss never joins', () => {
+test('v0.808.0 the window edges: the exact reach joins, one past refuses, the kick after the loss never joins', () => {
   const at = (gap) => sockChurnJoin(burst('F2', 'ECONNRESET', gap))
   assert.deepEqual(at(20).losses, { n: 1, joined: 1, unjoined: 0 }, 'the exact reach joins')
   assert.deepEqual(at(21).losses, { n: 1, joined: 0, unjoined: 1 }, 'one past the reach refuses')
@@ -166,7 +166,7 @@ test('v0.807.0 the window edges: the exact reach joins, one past refuses, the ki
   assert.equal(sockChurnJoin([FILLER(1)]), null, 'a loss-free, kick-free face reads the honest silence')
 })
 
-test('v0.807.0 the words: the residue class, the own front, and the junk fences', () => {
+test('v0.808.0 the words: the residue class, the own front, and the junk fences', () => {
   const residue = sockJoinVerdict({ EPIPE: 5 }, { EPIPE: 0 })
   assert.deepEqual(residue.EPIPE, { n: 5, joined: 5, unjoined: 0, word: 'rides the kick churn - the residue class' })
   const front = sockJoinVerdict({ ECONNRESET: 0 }, { ECONNRESET: 14 })
@@ -178,7 +178,7 @@ test('v0.807.0 the words: the residue class, the own front, and the junk fences'
   assert.equal(sockJoinVerdict({}, {}), null)
 })
 
-test('v0.807.0 the WIRING: the join\'s per-kind cells sum back to the census\'s own byKind', () => {
+test('v0.808.0 the WIRING: the join\'s per-kind cells sum back to the census\'s own byKind', () => {
   const F89J = [
     ...burst('F14', 'EPIPE', 16),
     RAW('ECONNRESET'), LOSS('F5', 'ECONNRESET'), TWIN('F5', 'ECONNRESET'),
