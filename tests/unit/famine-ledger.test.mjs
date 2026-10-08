@@ -113,7 +113,7 @@ test('famineCensus downstream seat names the unanimity break (v0.699.0): the fac
   assert.deepEqual(r.wood.repeats, { n: 1, byBot: { F6: 1 }, span: { min: 6, median: 6, max: 6 } })
 })
 
-// (v0.813.0) THE FAMINE'S OWN LANE - the face-92 verbatim through the real
+// (v0.814.0) THE FAMINE'S OWN LANE - the face-92 verbatim through the real
 // census: wood 3 + food 8, the food lane's own carry drought owns the book
 // (the plate read 8/8 rode the same face).
 test('famineLaneSeat reads face 92 byte-exact: food owns 8 of 11 famines, the carry drought\'s own seat', () => {
@@ -137,7 +137,7 @@ test('famineLaneSeat reads face 92 byte-exact: food owns 8 of 11 famines, the ca
   assert.deepEqual(seat, { lane: 'food', owns: 8, ofFamines: 11, shareOfFamines: 8 / 11 * 100 })
   assert.equal(
     famineLaneSeatRow(seat),
-    "the famine's own lane (v0.813.0): food owns 8 of 11 famines (72.7%) - THE FAMINE'S OWN SEAT: one lane's own starves own the book - the lane's own front prices the trip the raw split rode unnamed"
+    "the famine's own lane (v0.814.0): food owns 8 of 11 famines (72.7%) - THE FAMINE'S OWN SEAT: one lane's own starves own the book - the lane's own front prices the trip the raw split rode unnamed"
   )
   // the riders are measure-not-owner (the climb shape): the pair reads
   // even on the seat's face - the BRANCH law (one row never both) lives
@@ -166,7 +166,7 @@ test('famineLaneRiders reads the even split byte-exact: the face-87 shape - food
   assert.deepEqual(r, { leader: 'food', leaderOwns: 5, runner: 'wood', runnerOwns: 5, ofFamines: 10, pairOwns: 10, shareOfFamines: 100, duet: 'food x5 + wood x5' })
   assert.equal(
     famineLaneRidersRow(r),
-    "the famine's own riders (v0.813.0): no solo lane owns the majority - food x5 + wood x5 own 10 of 10 famines (100.0%) - THE FAMINE'S OWN TIE: the seat's tie law held, the lanes' own crowd prices the starvation the solo law refused to name"
+    "the famine's own riders (v0.814.0): no solo lane owns the majority - food x5 + wood x5 own 10 of 10 famines (100.0%) - THE FAMINE'S OWN TIE: the seat's tie law held, the lanes' own crowd prices the starvation the solo law refused to name"
   )
 })
 
@@ -179,14 +179,14 @@ test('famineLaneSeat lone-lane arms: the face-84 food sweep and the singular fam
   const s84 = famineLaneSeat(f84)
   assert.equal(
     famineLaneSeatRow(s84),
-    "the famine's own lane (v0.813.0): food owns 2 of 2 famines (100.0%) - THE FAMINE'S OWN SEAT: one lane's own starves own the book - the lane's own front prices the trip the raw split rode unnamed"
+    "the famine's own lane (v0.814.0): food owns 2 of 2 famines (100.0%) - THE FAMINE'S OWN SEAT: one lane's own starves own the book - the lane's own front prices the trip the raw split rode unnamed"
   )
   assert.equal(famineLaneRiders(f84), null) // a lone lane is no crowd
   // the singular arm: 1 of 1 reads the singular noun
   const one = famineLaneSeat({ wood: { n: 0 }, food: { n: 1 } })
   assert.equal(
     famineLaneSeatRow(one),
-    "the famine's own lane (v0.813.0): food owns 1 of 1 famine (100.0%) - THE FAMINE'S OWN SEAT: one lane's own starves own the book - the lane's own front prices the trip the raw split rode unnamed"
+    "the famine's own lane (v0.814.0): food owns 1 of 1 famine (100.0%) - THE FAMINE'S OWN SEAT: one lane's own starves own the book - the lane's own front prices the trip the raw split rode unnamed"
   )
   // the wood-led majority: the gather drought's own seat (the face-82 shape)
   const f82 = famineLaneSeat({ wood: { n: 3 }, food: { n: 2 } })

@@ -55,7 +55,7 @@
 // the fleet's own famine byte is the filter-key, it already rides.
 //
 
-// v0.813.0 THE FAMINE'S OWN LANE - WHICH lane owns the starvation book.
+// v0.814.0 THE FAMINE'S OWN LANE - WHICH lane owns the starvation book.
 // The census rows (v0.687.0) price the two lanes' own anatomies raw - the
 // wood line's chain (logs/planks/sticks) and the food line's plate - but
 // no row ever said whether the WOOD or the FOOD lane OWNS the face's
@@ -91,7 +91,7 @@ function famineLaneCells (fc) {
 }
 
 // The famine's own seat - the strict-majority owner of the starvation
-// book, or null when no lane holds more than the rest together (v0.813.0).
+// book, or null when no lane holds more than the rest together (v0.814.0).
 export function famineLaneSeat (fc) {
   const t = famineLaneCells(fc)
   if (!t) return null
@@ -104,7 +104,7 @@ export function famineLaneSeat (fc) {
 
 // The famine's own riders - the top-two pair when the solo law refuses to
 // seat (measure-not-owner; a lone lane is no crowd and reads null,
-// v0.813.0 - a two-lane book's only crowd shape is the even split).
+// v0.814.0 - a two-lane book's only crowd shape is the even split).
 export function famineLaneRiders (fc) {
   const t = famineLaneCells(fc)
   if (!t || t.cells.length < 2) return null
@@ -121,7 +121,7 @@ export function famineLaneRiders (fc) {
 
 // The lane seat row - the byte-exact read the decompose prints beside the
 // famine census (the branch law: the owner case leaves the companion
-// unprinted). Guarded end to end; junk reads null (v0.813.0).
+// unprinted). Guarded end to end; junk reads null (v0.814.0).
 export function famineLaneSeatRow (seat) {
   if (!seat || typeof seat !== 'object') return null
   const { lane, owns, ofFamines, shareOfFamines } = seat
@@ -131,10 +131,10 @@ export function famineLaneSeatRow (seat) {
   if (owns > ofFamines) return null
   if (!Number.isFinite(shareOfFamines)) return null
   const s = ofFamines === 1 ? 'famine' : 'famines'
-  return `the famine's own lane (v0.813.0): ${lane} owns ${owns} of ${ofFamines} ${s} (${shareOfFamines.toFixed(1)}%) - THE FAMINE'S OWN SEAT: one lane's own starves own the book - the lane's own front prices the trip the raw split rode unnamed`
+  return `the famine's own lane (v0.814.0): ${lane} owns ${owns} of ${ofFamines} ${s} (${shareOfFamines.toFixed(1)}%) - THE FAMINE'S OWN SEAT: one lane's own starves own the book - the lane's own front prices the trip the raw split rode unnamed`
 }
 
-// The riders row - the byte-exact read for the no-owner faces (v0.813.0).
+// The riders row - the byte-exact read for the no-owner faces (v0.814.0).
 export function famineLaneRidersRow (r) {
   if (!r || typeof r !== 'object') return null
   const { leader, leaderOwns, runner, runnerOwns, ofFamines, pairOwns, shareOfFamines, duet } = r
@@ -149,7 +149,7 @@ export function famineLaneRidersRow (r) {
   if (typeof duet !== 'string' || duet === '') return null
   if (!Number.isFinite(shareOfFamines)) return null
   const s = ofFamines === 1 ? 'famine' : 'famines'
-  return `the famine's own riders (v0.813.0): no solo lane owns the majority - ${duet} own ${pairOwns} of ${ofFamines} ${s} (${shareOfFamines.toFixed(1)}%) - THE FAMINE'S OWN TIE: the seat's tie law held, the lanes' own crowd prices the starvation the solo law refused to name`
+  return `the famine's own riders (v0.814.0): no solo lane owns the majority - ${duet} own ${pairOwns} of ${ofFamines} ${s} (${shareOfFamines.toFixed(1)}%) - THE FAMINE'S OWN TIE: the seat's tie law held, the lanes' own crowd prices the starvation the solo law refused to name`
 }
 
 const medianOf = (xs) => {

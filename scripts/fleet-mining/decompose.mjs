@@ -49,7 +49,7 @@ import { verdictExecution } from '../../src/lib/verdictflip.mjs' // (v0.484.0) t
 import { fightLedger, fightExitBill, fightExitBillRow, fightExitRiders, fightExitRidersRow } from '../../src/lib/fightledger.mjs' // (v0.486.0) the fight cost ledger - the stand-and-fight lane's own episode book (the win's cost anatomy priced); (v0.782.0) WHICH exit class owns the fight book
 import { flipDrift } from '../../src/lib/flipdrift.mjs' // (v0.487.0) the execution drift - the decision-to-flight gap priced (the flip book's fled rows joined back to the decision; SLOT COLLISION #14: 0.486.0 taken by fire-2130's THE FIGHT COST LEDGER mid-fire)
 import { shelterLadder } from '../../src/lib/shieldledger.mjs' // (v0.489.0) the shield ladder - the shelter attempt's own book (the wall door, the ring door, the re-scan tax)
-import { famineCensus, famineLaneSeat, famineLaneSeatRow, famineLaneRiders, famineLaneRidersRow } from '../../src/lib/famineledger.mjs' // (v0.687.0) the famine anatomy - the trip's own starvation read (which slot starves); (v0.813.0) + the famine's own lane - the two lanes' own seat
+import { famineCensus, famineLaneSeat, famineLaneSeatRow, famineLaneRiders, famineLaneRidersRow } from '../../src/lib/famineledger.mjs' // (v0.687.0) the famine anatomy - the trip's own starvation read (which slot starves); (v0.814.0) + the famine's own lane - the two lanes' own seat
 import { woodTripCensus } from '../../src/lib/tripcensus.mjs' // (v0.690.0) the walk's delivery - the famine→gathered pairing prices the gather walk's own cure rate (SLOT COLLISION #16: 0.689.0 taken by fire-1639's THE DECIDE WEATHER mid-fire)
 import { woodClimbCost } from '../../src/lib/climbcost.mjs' // (v0.694.0) the climb's price - the trip's real rent (+levels/steps/dug/seconds) filed under the delivery class
 import { woodRefusalCensus } from '../../src/lib/climbrefusal.mjs' // (v0.691.0) the refusal's why - the climb-fail→refusal join names the walk's start seat
@@ -3055,7 +3055,7 @@ console.log('  plan lines:', count(/materials plan|plan progress/i))
         console.log(`  food repeats: ${fc.food.repeats.n} (${rb}) - the commons walk between famines fed nothing (span ${sp.min}..${sp.max} lines${sp.min === sp.max ? '' : `, median ${sp.median}`})`)
       }
     }
-    // (v0.813.0) THE FAMINE'S OWN LANE - WHICH lane owns the starvation
+    // (v0.814.0) THE FAMINE'S OWN LANE - WHICH lane owns the starvation
     // book. The wood row prices the gather leg, the food row prices the
     // carry, but no row said whether the WOOD or the FOOD lane OWNS the
     // face's famine book. The seat XOR the riders (one row never both).
