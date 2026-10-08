@@ -161,7 +161,7 @@ test('waterhazard: the junk battery + the honest silences', () => {
   assert.equal(hazardBoardCensusRow({ memorizes: NaN, distinctSpots: 1, repeatSpots: 0, repeatMemorizes: 0, peakLive: 1, finalLive: 1, drops: 0, dropMass: 0, jumps: 0 }), null)
 })
 
-// (v0.827.0) THE WALK-BACK SEAT - the board's own coverage read, imported
+// (v0.828.0) THE WALK-BACK SEAT - the board's own coverage read, imported
 // beside the census tests. The join is the deathground square (BOTH axis
 // deltas within R12, the edge rides), the honest-claim law ('named' is
 // line order only - the TTL's liveness reads nowhere), the first memorize
@@ -190,7 +190,7 @@ test('waterhazard walk-back: the hand-counted square join + the edge + the real 
   assert.equal(w.clean, 1) // C beyond on both axes
   assert.equal(
     hazardWalkBackRow(w),
-    "the hazard board's own walk-back (v0.827.0): 2 of 3 death(s) landed within 12 of water an earlier death had already named - the spot-exact board named the water one death at a time and the body kept the toll"
+    "the hazard board's own walk-back (v0.828.0): 2 of 3 death(s) landed within 12 of water an earlier death had already named - the spot-exact board named the water one death at a time and the body kept the toll"
   )
 
   // The real face-101 dup pair: the same spot - dist 0, the square's own

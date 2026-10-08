@@ -147,7 +147,7 @@ export function hazardBoardCensusRow (c) {
 export const WALKBACK_RADIUS = 12
 
 /**
- * The walk-back seat (v0.827.0) - the board's own coverage read. For each
+ * The walk-back seat (v0.828.0) - the board's own coverage read. For each
  * memorize line: does an EARLIER memorize sit within the priced square
  * (both planar axis deltas <= WALKBACK_RADIUS, the deathground join)? A
  * within death is the WALK-BACK: the log had already named this water -
@@ -206,5 +206,5 @@ export function hazardWalkBackRow (w) {
   if (!cells.every((n) => Number.isFinite(n))) return null
   if (w.eligible <= 0) return null
   if (w.walkBacks <= 0) return null
-  return `the hazard board's own walk-back (v0.827.0): ${w.walkBacks} of ${w.eligible} death(s) landed within ${WALKBACK_RADIUS} of water an earlier death had already named - the spot-exact board named the water one death at a time and the body kept the toll`
+  return `the hazard board's own walk-back (v0.828.0): ${w.walkBacks} of ${w.eligible} death(s) landed within ${WALKBACK_RADIUS} of water an earlier death had already named - the spot-exact board named the water one death at a time and the body kept the toll`
 }
