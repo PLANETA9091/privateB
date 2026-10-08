@@ -9,6 +9,7 @@ import { bankFlowCensus, bankYield, writeOffBill, writeOffBillRow, writeOffRider
 import { routeGateCensus, ROUTE_GATE_RIM_TRAP_REFUSALS } from '../../src/lib/routecensus.mjs' // (v0.388.0) the route gate's field read
 import { shooterCensus, shooterAttackerBill, shooterAttackerBillRow, shooterAttackerRiders, shooterAttackerRidersRow } from '../../src/lib/shootercensus.mjs' // (v0.390.0) the shooter band's field read; (v0.792.0) WHICH attacker owns the combat pressure
 import { shelterLedger, OUTCOME_CLASSES, shelterOutcomeBill, shelterOutcomeBillRow, shelterOutcomeRiders, shelterOutcomeRidersRow } from '../../src/lib/shelterledger.mjs' // (v0.457.0) the combat verdict's price - the outcome join; (v0.466.0) the class vocabulary for the flee-ground cross-read; (v0.795.0) WHICH verdict owns the shelter book
+import { fleeForkSeatRow, fleeForkRidersRow } from '../../src/lib/fleefork.mjs' // (v0.810.0) the flee fork's own seat - WHICH fork owns the flee death book (the chased-down cells' strict majority + the bands' measure-not-owner riders)
 import { deathSweep } from '../../src/lib/deathsweep.mjs' // (v0.389.0) the honest death sweep's field read
 import { sealDeathCensus, strandedPiles, BIG_PILE_U, thirdsVerdict } from '../../src/lib/sealdeath.mjs' // (v0.403.0) the seal economy's death leg; (v0.476.0) the stranded piles - the sweep-reach wire's price; (v0.755.0) the thirds' own verdict
 import { sealCensus, SEAL_FAMILIES } from '../../src/lib/sealcensus.mjs' // (v0.397.0) the keep families' field read
@@ -1063,6 +1064,16 @@ if (shooter.total > 0) {
             ? 'THE ARROWS WIN - the flee gains ground and the arc still takes the trade'
             : 'the split is open - read the rows'
       console.log(`  the flee fork: ${fleeRows.length} flee death(s) - chase ${chase} / crossfire ${crossfire} / no-verdict-attacker ${noAtt}; bands close ${nClose} / mid ${nMid} / far ${nFar} / blind ${nBlind} - ${verdict}`)
+      // (v0.810.0) THE FLEE FORK'S OWN SEAT - the chased-down fork priced:
+      // WHICH fork owns the flee death book (the chase's own reach vs the
+      // crossfire's own front). One additive row; the riders measure the
+      // dist bands (the death-time distance's own mix, measure-not-owner)
+      // when the book holds two or more - the tie and the empty book read
+      // the honest silence.
+      const ffs = fleeForkSeatRow(fleeRows)
+      if (ffs) console.log(`  the flee fork's own seat (v0.810.0): ${ffs}`)
+      const ffr = fleeForkRidersRow(fleeRows)
+      if (ffr) console.log(`  the flee fork's own riders (v0.810.0): ${ffr}`)
     } else {
       console.log(`  the flee fork: no flee deaths - the disengage pricing waits`)
     }
