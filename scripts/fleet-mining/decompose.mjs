@@ -38,6 +38,7 @@ import { fuelYieldOf } from '../../src/lib/smelting.mjs' // (v0.666.0) the vanil
 import { tierDeferCensus } from '../../src/lib/tierdefer.mjs' // (v0.463.0) the tool ladder's own voice - the steer's deferred names counted
 import { deathGrounds, DEATH_GROUND_RADIUS, deathGroundSeat, deathGroundSeatRow, deathGroundRiders, deathGroundRidersRow } from '../../src/lib/deathground.mjs' // (v0.464.0) the combat deaths' spatial join - the mob-cure's WHERE input; (v0.793.0) WHICH ground owns the combat book
 import { hazardBoardCensus, hazardBoardCensusRow, hazardWalkBack, hazardWalkBackRow, hazardRefusalCensus, hazardRefusalCensusRow } from '../../src/lib/waterhazard.mjs'
+import { deepPocketCensus, deepPocketCensusRow } from '../../src/lib/deeppocket.mjs' // (v0.835.0) the deep-pocket ascend's own shape - the dig's ceiling name, the pocket's own geography (the spot repeats), the o2 floor over the numeric reads, the lid/why lane (the sibling climb family fenced out)
 import { aquiferCensus, aquiferCensusRow } from '../../src/lib/aquifer.mjs' // (v0.832.0) the aquifer's own book - the water table program's two voices (the strike writes + the lid readbacks) and the carousel's terminals priced per face // (v0.826.0) the water hazard board's own read - the memorize line's own census (the repeats, the 240s TTL's own work, the foreign records); (v0.828.0) + the board's own walk-back - the deaths that landed on water an earlier death had already named; (v0.831.0) + the refusals' own read - the veto's own voice priced per face (the wide share past the 4b spot ceiling; the tier law: the line alone cannot name the tier - the zone tier rides past 4b on every tree, the v0.829.0 body veto on its own)
 import { deathDropCensus } from '../../src/lib/deathdropcensus.mjs' // (v0.647.0) the death-drop stakes' own census - the silent-arm join; (v0.663.0) the stakes' own clock rides the same shape
 import { RELOOT_DESPAWN_MS } from '../../src/lib/reloot.mjs' // (v0.663.0) the despawn one-truth - the arm-lag row's own inversion base
@@ -1451,6 +1452,15 @@ if (shooter.total > 0) {
   // a face where none of the four voices spoke (the honest silence).
   const aqRow = aquiferCensusRow(aquiferCensus(lines))
   if (aqRow) console.log(`  ${aqRow}`)
+  // (v0.835.0) THE DEEP-POCKET ASCEND'S OWN SHAPE beside the aquifer's -
+  // the dig's own cells (which block, where, how deep the lid, the o2
+  // read at the buyout) priced per face; the trend law: the lens names
+  // NO cause - the spot repeats and the ceiling spread read across
+  // faces (106: F8's same-pocket x4 whale, the o2 floor 6). Independent
+  // of the death book and of the v0.707/v0.708 seats' counts, silent on
+  // a face with no ascend (the honest silence).
+  const dpRow = deepPocketCensusRow(deepPocketCensus(lines))
+  if (dpRow) console.log(`  ${dpRow}`)
 }
 
 // (v0.647.0) THE DEATH-DROP CENSUS - the deathdrop class's own arm join:
