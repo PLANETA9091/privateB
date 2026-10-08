@@ -105,3 +105,77 @@ export function droughtTimelineRow (t) {
   }
   return `the pump's own timeline: ${pump}; ${reads} - before the first bank ${t.prePrime}, after it ${t.postPrime} (${pct(t.postPrime, t.dryReads)}%) - the pump primed and the yard still read dry - the delivery's own break (the stock sat while the sweeps starved)`
 }
+
+//
+// (v0.816.0) THE DRY READ'S OWN SIDE - WHICH side of the first bank
+// owns the dry book. The timeline's break branch (banks present, dry
+// reads after the first bank) printed the {prePrime, postPrime} split
+// raw with ONE fixed prose tail - "the delivery's own break (the stock
+// sat while the sweeps starved)" - while the three held break faces all
+// rode the BEFORE side dominant: face 92 before 48 of 52 (92.3%),
+// face 94 before 10 of 16 (62.5%), face 95 before 86 of 111 (77.5%) -
+// the pump primed LATE and the honest front is the tithe's own clock,
+// not the delivery's break. drySideSeat(cells) prices the seat on the
+// timeline's own two cells only (zero re-parsing - the v0.802.0 seat
+// law): the book is the cells' own sum; the strict-majority law
+// (topUnits * 2 > total - the v0.815.0 chest seat's own law), a tie
+// owns nothing; junk never invents a side - a non-finite or negative
+// cell is skipped and counted, an empty book reads the honest silence
+// (null). The seat rides the break's own branch only (the print site's
+// gate): a drought-ended-at-the-prime face already names its front and
+// a pump-silence face owns its book in the timeline's own words.
+//
+
+// the two cells' own row labels (the timeline's own before/after words)
+const DRY_SIDE_CLASSES = [
+  ['prePrime', 'before the first bank', 'the pump primed late - the tithe\'s own clock is the front (the dry reads queued before the first bank)'],
+  ['postPrime', 'after the first bank', 'the delivery\'s own break - the stock sat while the sweeps starved (the inflow arrived and the yard still read dry)'],
+]
+
+/**
+ * drySideSeat(cells) - the dry book's own side seat.
+ * @param {Object<string, number>|null} [cells] the timeline's own {prePrime, postPrime}
+ * @returns {null|{total: number, owner: null|string, units: number,
+ *   share: number, word: null|string, bad: number}}
+ *   the seat (null on an empty book)
+ */
+export function drySideSeat (cells) {
+  const c = (cells && typeof cells === 'object' && !Array.isArray(cells)) ? cells : {}
+  const picked = []
+  let bad = 0
+  for (const [key, label] of DRY_SIDE_CLASSES) {
+    const v = c[key]
+    if (v === undefined) continue
+    if (!Number.isFinite(v) || v < 0) { bad++; continue }
+    if (v === 0) continue
+    picked.push([label, v])
+  }
+  if (!picked.length) return null
+  picked.sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0))
+  const total = picked.reduce((s, [, v]) => s + v, 0)
+  const [topLabel, topUnits] = picked[0]
+  // the strict-majority law: the top must hold more than the rest together
+  const owns = topUnits * 2 > total
+  const owner = owns ? topLabel : null
+  const units = owns ? topUnits : 0
+  const word = owns ? DRY_SIDE_CLASSES.find(([, l]) => l === topLabel)[2] : null
+  return { total, owner, units, share: total ? +(units / total).toFixed(3) : 0, word, bad }
+}
+
+/**
+ * drySideSeatRow(seat) - the seat's row (the prose lives only in the lib).
+ * @param {null|{total: number, owner: null|string, units: number,
+ *   share: number, word: null|string, bad: number}} [seat] drySideSeat's own read
+ * @returns {null|string} the row (null on an empty book)
+ */
+export function drySideSeatRow (seat) {
+  if (!seat || typeof seat !== 'object') return null
+  const { total, owner, units, share, word } = seat
+  if (!Number.isFinite(total) || total <= 0) return null
+  if (!Number.isFinite(share)) return null
+  if (!owner) return 'no solo side owns the dry book (the tie owns nothing)'
+  if (typeof owner !== 'string' || !DRY_SIDE_CLASSES.some(([, l]) => l === owner)) return null
+  if (!Number.isFinite(units) || units <= 0 || units > total) return null
+  if (typeof word !== 'string' || !word) return null
+  return `${owner} owns ${units} of ${total} dry read(s) (${(share * 100).toFixed(1)}%) - THE DRY READ'S OWN SIDE: ${word}`
+}

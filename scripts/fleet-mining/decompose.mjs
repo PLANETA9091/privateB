@@ -68,7 +68,7 @@ import { assistLedger } from '../../src/lib/assistledger.mjs' // (v0.499.0) the 
 import { torchBook } from '../../src/lib/torchbook.mjs' // (v0.500.0) the torch ledger - the light supply's floors, rungs, asks and yield
 import { veinLedger, tierGuardBill } from '../../src/lib/veinledger.mjs' // (v0.501.0) the vein ledger - the sweep's terminals, walk yield, gallery digs, refusals and the tier guard; (v0.768.0) the tier guard's own bill - the repeat rider's own seat
 import { commonsLedger, sweepBookSeat, sweepBookSeatRow, sweepBookRiders, sweepBookRidersRow, chestCloseSeat, chestCloseSeatRow } from '../../src/lib/commonsledger.mjs' // (v0.502.0) the commons ledger - the ask's answer: the sweeps, the walk anatomy, the deliveries; (v0.800.0) WHICH close class owns the sweep book; (v0.815.0) + the chest's own close - WHICH chest-side close owns the chest book
-import { droughtTimeline, droughtTimelineRow } from '../../src/lib/droughttimeline.mjs' // (v0.738.0) the pump's own timeline - the tithe's banks vs the dry reads' positions
+import { droughtTimeline, droughtTimelineRow, drySideSeat, drySideSeatRow } from '../../src/lib/droughttimeline.mjs' // (v0.738.0) the pump's own timeline - the tithe's banks vs the dry reads' positions; (v0.816.0) + the dry read's own side - WHICH side of the first bank owns the dry book
 import { reachRadius, reachRadiusRow, reachClock, reachClockRow } from '../../src/lib/reachmap.mjs' // (v0.740.0) the reach's own radius - the last mile's refused distances; (v0.742.0) the last mile's own clock - the refused walks' elapsed ms (the raw walk's own rent)
 import { bridgeBook, bridgePocketBill, bridgePocketBillRow, bridgePocketRiders, bridgePocketRidersRow } from '../../src/lib/bridgebook.mjs' // (v0.496.0) the bridge book - the vertical walk's fill lane (the refusals' why-flip, the cobble signature, the server's own veto; SLOT COLLISION #17: 0.495.0 taken by fire-0008's THE TABLE GATE mid-fire); (v0.786.0) WHICH bot owns the pocket tax
 import { bridgeRefusalCensus, bridgeRefusalRow } from '../../src/lib/climbbridge.mjs' // (v0.665.0) THE CLIMB BRIDGE'S FIELD READ - the refusal book's own grains wired to the mining surface: the gate, the pit donor, the plant clear, the shadow gate's defers
@@ -3888,6 +3888,18 @@ console.log('  plan lines:', count(/materials plan|plan progress/i))
     const dt = droughtTimeline(lines)
     const dtRow = droughtTimelineRow(dt)
     if (dtRow) console.log(`  ${dtRow}`)
+    // (v0.816.0) the dry read's own side - WHICH side of the first bank
+    // owns the dry book (the timeline's own {prePrime, postPrime} cells,
+    // zero re-parsing; the strict-majority law, a tie owns nothing; the
+    // honest silence end to end). The gate is the break's own branch:
+    // the seat rides only when the book is genuinely two-sided (banks
+    // present AND dry reads after the first bank) - a drought-ended-at-
+    // the-prime face already names its front, a pump-silence face owns
+    // its book in the timeline's own words. One additive row.
+    if (dt && dt.banks.length > 0 && dt.postPrime > 0 && dt.dryReads > 0) {
+      const dsSeat = drySideSeat({ prePrime: dt.prePrime, postPrime: dt.postPrime })
+      if (dsSeat) console.log(`  the dry read's own side (v0.816.0): ${drySideSeatRow(dsSeat)}`)
+    }
     console.log(`  asks ${t.asks} (${t.askCoal} coal asked): re-plans ${t.rePlan} / still-dry ${t.stillDry} / cap ${t.cap} / reserve ${t.reserve} / error ${t.error} / open ${t.askOpen} - deaths on the walk ${t.deaths}${t.askDefers ? ` - the ask deferred ${t.askDefers} (a stance dry up to ${t.maxDeferSpan}s ago re-arms the clock)` : ''}`)
     const rows = Object.entries(cl.bots).sort((a, b) => b[1].sweeps - a[1].sweeps).slice(0, 6)
     if (rows.length) console.log(`  bots heaviest-first: ${rows.map(([b, r]) => `${b} ${r.sweeps}sw/${r.asks}ask`).join(' ')}`)
