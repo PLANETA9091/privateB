@@ -50,6 +50,7 @@ import { fightLedger, fightExitBill, fightExitBillRow, fightExitRiders, fightExi
 import { flipDrift } from '../../src/lib/flipdrift.mjs' // (v0.487.0) the execution drift - the decision-to-flight gap priced (the flip book's fled rows joined back to the decision; SLOT COLLISION #14: 0.486.0 taken by fire-2130's THE FIGHT COST LEDGER mid-fire)
 import { shelterLadder } from '../../src/lib/shieldledger.mjs' // (v0.489.0) the shield ladder - the shelter attempt's own book (the wall door, the ring door, the re-scan tax)
 import { famineCensus, famineLaneSeat, famineLaneSeatRow, famineLaneRiders, famineLaneRidersRow } from '../../src/lib/famineledger.mjs' // (v0.687.0) the famine anatomy - the trip's own starvation read (which slot starves); (v0.814.0) + the famine's own lane - the two lanes' own seat
+import { dryTripCensus, dryTripSeat, dryTripSeatRow, dryTripRiders, dryTripRidersRow } from '../../src/lib/carrybook.mjs' // (v0.817.0) the dry trip's own arm - the carry drought's own walk book (the plate refill ladder's terminal split: the shelf vs the reach)
 import { woodTripCensus } from '../../src/lib/tripcensus.mjs' // (v0.690.0) the walk's delivery - the famine→gathered pairing prices the gather walk's own cure rate (SLOT COLLISION #16: 0.689.0 taken by fire-1639's THE DECIDE WEATHER mid-fire)
 import { woodClimbCost } from '../../src/lib/climbcost.mjs' // (v0.694.0) the climb's price - the trip's real rent (+levels/steps/dug/seconds) filed under the delivery class
 import { woodRefusalCensus } from '../../src/lib/climbrefusal.mjs' // (v0.691.0) the refusal's why - the climb-fail→refusal join names the walk's start seat
@@ -3064,6 +3065,33 @@ console.log('  plan lines:', count(/materials plan|plan progress/i))
     else {
       const flRiders = famineLaneRiders(fc)
       if (flRiders) console.log(`  ${famineLaneRidersRow(flRiders)}`)
+    }
+  }
+}
+
+// (v0.817.0) THE DRY TRIP'S OWN ARM - the carry drought's own walk book.
+// The famine census prices the starvation and the lane seat names the
+// lane, but the food lane's own CURE - the plate refill ladder - ends
+// every dry trip in ONE terminal byte ('the plate stays empty (REASON) -
+// the next trip retries') and the byte's own split rode unnamed: the
+// SHELF (commons empty - reached chests stood bare, the tithe's own gap,
+// the food income front) vs the REACH (no chest reached - the walk's own
+// gap, the pathing front). The terminal only: the mid-loop 'budget spent'
+// note is not the terminal - a budget-dead trip still prints its own
+// stays-empty terminal at return (the face-92 read: F2's 'budget spent
+// (0/6 units)' rode WITH 'commons empty' on the same trip). The seat XOR
+// the riders (one row never both - the climb shape, the branch lives at
+// the print site).
+{
+  const dt = dryTripCensus(lines)
+  if (dt && (dt.shelf > 0 || dt.reach > 0)) {
+    console.log('--- DRY TRIP CENSUS (v0.817.0: the carry drought\'s own terminal anatomy) ---')
+    console.log(`  dry trips: ${dt.shelf + dt.reach} (the shelf ${dt.shelf}, the reach ${dt.reach}) - the plate stays empty terminal's own two arms`)
+    const dtSeat = dryTripSeat(dt)
+    if (dtSeat) console.log(`  ${dryTripSeatRow(dtSeat)}`)
+    else {
+      const dtRiders = dryTripRiders(dt)
+      if (dtRiders) console.log(`  ${dryTripRidersRow(dtRiders)}`)
     }
   }
 }
