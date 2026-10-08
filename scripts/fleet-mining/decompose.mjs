@@ -4077,9 +4077,17 @@ console.log('  plan lines:', count(/materials plan|plan progress/i))
       // 104's three firings (52u) landed NEITHER - the ghost seat. The
       // split: the ghost vs the death's own paperwork. One additive
       // row beside the seat's (the gate: the blind seat spoke).
+      // (v0.837.0) THE CHAIN'S OWN VOICE - the audit grew the trip-close
+      // lane: the fleet's three bank chains close every delivery with one
+      // chain-level line ('+N' / '0 (reason)'), and face 104's own sizes
+      // (23 positive closes, 2 per-chest receipts) read the v0.833
+      // 'ghosts' as PHANTOM ghosts - the mass rode the trips' own totals.
+      // The four-class law: the chain's voice / the trip's zero / the
+      // death's net / the emitter front - strict majority, a tie owns
+      // nothing (the gate: the blind seat spoke).
       if (tr.blind > 0) {
         const tgs = titheGhostSplit(tr)
-        if (tgs) console.log(`  the summary's own ghost (v0.833.0): ${titheGhostSplitRow(tgs)}`)
+        if (tgs) console.log(`  the receiptless firing's own close audit (v0.837.0): ${titheGhostSplitRow(tgs)}`)
       }
     }
     const rows = Object.entries(cl.bots).sort((a, b) => b[1].sweeps - a[1].sweeps).slice(0, 6)

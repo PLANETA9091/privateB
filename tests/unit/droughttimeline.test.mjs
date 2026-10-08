@@ -249,7 +249,7 @@ test('titheFamily: the honest silences and the junk battery', () => {
 // d=10.0 inside one yard chest row; F7's firing carried NO receipt;
 // face 104 = run 37762508948: three fuel firings, zero receipts - the
 // accounting's own blind).
-import { titheReceipts, titheReceiptSeat, titheReceiptSeatRow, BANK_LANDED_RE, HOP_CLOSE_RE, parseHopClose, titheGhostSplit, titheGhostSplitRow } from '../../src/lib/droughttimeline.mjs' // (v0.833.0) + the summary's own ghost - the receiptless firing's own close audit (the three-outcome law)
+import { titheReceipts, titheReceiptSeat, titheReceiptSeatRow, BANK_LANDED_RE, HOP_CLOSE_RE, parseHopClose, titheGhostSplit, titheGhostSplitRow, TRIP_CLOSE_RE, parseTripClose } from '../../src/lib/droughttimeline.mjs' // (v0.833.0) + the summary's own ghost - the receiptless firing's own close audit (the three-outcome law); (v0.837.0) + the chain's own voice - the trip-close lane's own parser and RE
 
 test('titheReceipts: the face-103 two-mouths shape verbatim + the byte-exact wiring row', () => {
   const lines = [
@@ -371,10 +371,15 @@ test('titheReceipts: the honest silences and the junk battery', () => {
 test('titheGhostSplit: the face-104 three-ghost shape verbatim + the byte-exact ghost row', () => {
   // face 104's own shape (run 37762508948): three fuel firings (F7 11u +
   // F1 24u + F18 17u = 52u of counter coal) - the in-loop voice banked
-  // every one of them, and the book holds NEITHER the summary receipt NOR
-  // the arm-2 death line for any of the three trips (F18's only hop-close
-  // at d=35 rides BEFORE its firing at line 3404 - a later trip's zero
-  // never excuses an earlier trip's ghost)
+  // every one of them, and the REDUCED corpus (the v0.833 lens's own
+  // sight: the hop close + the dry read + the firings) holds NEITHER the
+  // summary receipt NOR the arm-2 death line NOR the chain close for any
+  // of the three trips (F18's only hop-close at d=35 rides BEFORE its
+  // firing at line 3404 - a later trip's zero never excuses an earlier
+  // trip's ghost). v0.833 read this shape THE SUMMARY'S OWN GHOST;
+  // v0.837.0 renames the class honestly: the close never rode ANY lane
+  // - THE EMITTER'S OWN FRONT (the full corpus with the chain closes
+  // reads THE CHAIN'S OWN VOICE - the next test).
   const lines = [
     'F18 [F18] hop: chest at [-126,65,397] d=35 zero: chest unreachable (Took to long to decide path to goal!)',
     'F2 fuel commons: chest holds no fuel at [-113,82,414]',
@@ -386,12 +391,117 @@ test('titheGhostSplit: the face-104 three-ghost shape verbatim + the byte-exact 
   assert.equal(read.firings, 3)
   assert.equal(read.receipted, 0)
   assert.equal(read.blind, 3)
-  assert.equal(read.ghost, 3, 'all three firings closed with no line of their own - the ghost owns the seat')
+  assert.equal(read.summaryClosed, 0, 'the reduced corpus carries no chain close - the front class reads')
+  assert.equal(read.zeroClosed, 0)
+  assert.equal(read.ghost, 3, 'all three firings closed with no line of their own - the front owns the seat')
   assert.equal(read.deathClosed, 0, 'no arm-2 death line ever landed for the three trips')
   assert.equal(read.ghostUnits, 52, '11 + 24 + 17 - the mass the in-loop voice banked')
   const split = titheGhostSplit(read)
-  assert.equal(split.owner, 'ghost')
-  assert.equal(titheGhostSplitRow(split), '3 of 3 receiptless firing(s) closed with no line of their own - 52u the in-loop voice banked and the book never closed - THE SUMMARY\'S OWN GHOST: the tithe feeds the banked total, so the visit\'s own arithmetic owed the close - the emitter\'s own front')
+  assert.equal(split.owner, 'front')
+  assert.equal(titheGhostSplitRow(split), '3 receiptless firing(s): 0 closed the chain\'s own voice (+0u the trips delivered), 0 the trip\'s own zero, 0 the death\'s own net, 3 the book never closed - THE EMITTER\'S OWN FRONT: the close never rode the log\'s own stream')
+})
+
+test('titheGhostSplit: the chain\'s own voice - the trip-close lane\'s own law (v0.837.0)', () => {
+  // face 104's FULL corpus (run 37762508948, the real line order): the
+  // three firings' mass rode the trips' OWN totals - F7's chain closed
+  // '+182' (2517), F1's pre-position chain '+100' (2912), F18's final
+  // bank '+159' (3529) - while the per-chest receipt lane stayed silent
+  // (2 receipts in the whole log). The v0.833 'ghosts' were PHANTOM
+  // ghosts - the audit was blind to the chain lane.
+  const lines = [
+    'F18 [F18] hop: chest at [-126,65,397] d=35 zero: chest unreachable (Took to long to decide path to goal!)',
+    'F2 fuel commons: chest holds no fuel at [-113,82,414]',
+    'F7 [F7] fuel tithe: banked 11 x coal (pocket keeps 6)',
+    'F1 bank: +96', // F1's EARLIER trip's close - before F1's firing, never binds
+    'F1 [F1] fuel tithe: banked 24 x coal (pocket keeps 6)',
+    'F18 [F18] fuel tithe: banked 17 x coal (pocket keeps 6)',
+    'F7 bank: +182', // the mid-run chain's own voice
+    'F1 pre-position bank: +100', // the pre-position chain's own voice
+    'F18 final bank: +159' // the final bank's own voice
+  ]
+  const read = titheReceipts(lines)
+  assert.equal(read.firings, 3)
+  assert.equal(read.receipted, 0)
+  assert.equal(read.blind, 3)
+  assert.equal(read.summaryClosed, 3, 'all three firings rode the chain lane\'s own voice')
+  assert.equal(read.zeroClosed, 0)
+  assert.equal(read.ghost, 0, 'no phantom ghosts - the audit sees the chain lane now')
+  assert.equal(read.ghostUnits, 0, 'the front\'s own mass is zero - the mass rode the trips')
+  assert.equal(read.summaryUnits, 441, '182 + 100 + 159 - the chains\' own delivered totals')
+  const split = titheGhostSplit(read)
+  assert.equal(split.owner, 'summary')
+  assert.equal(titheGhostSplitRow(split), '3 receiptless firing(s): 3 closed the chain\'s own voice (+441u the trips delivered), 0 the trip\'s own zero, 0 the death\'s own net, 0 the book never closed - THE CHAIN\'S OWN VOICE: the mass rode the trip\'s own total - the per-chest receipt\'s silence is the accounting\'s own blind')
+  // face 103's own shape (run 37759188855): F8 receipted (the seat's own
+  // d=10.0 two mouths) + F7's 2u blind firing whose pre-position chain
+  // closed '+129' - the summary class on the lane's debut face
+  const f103 = titheReceipts([
+    'F2 fuel commons: chest holds no fuel at [-113,82,414]',
+    'F8 [F8] fuel tithe: banked 14 x coal (pocket keeps 6)',
+    'F8 [F8] banked 43 items at (-123, 82, 414) (direct=2 fallback=0 mirror=true kept: wooden_pickaxe, stick, torch, oak_sapling)',
+    'F7 [F7] fuel tithe: banked 2 x coal (pocket keeps 6)',
+    'F7 pre-position bank: +129'
+  ])
+  assert.equal(f103.firings, 2)
+  assert.equal(f103.receipted, 1)
+  assert.equal(f103.blind, 1)
+  assert.equal(f103.summaryClosed, 1)
+  assert.equal(f103.summaryUnits, 129)
+  assert.equal(f103.ghost, 0)
+  const seat103 = titheReceiptSeat(f103)
+  assert.equal(seat103.owner, 'wiring', 'the seat\'s own law rides byte-untouched - the d=10.0 two mouths')
+  const split103 = titheGhostSplit(f103)
+  assert.equal(split103.owner, 'summary')
+  assert.equal(titheGhostSplitRow(split103), '1 receiptless firing(s): 1 closed the chain\'s own voice (+129u the trips delivered), 0 the trip\'s own zero, 0 the death\'s own net, 0 the book never closed - THE CHAIN\'S OWN VOICE: the mass rode the trip\'s own total - the per-chest receipt\'s silence is the accounting\'s own blind')
+  // the trip's own zero: the chain closed NOTHING of theirs - the mass's
+  // fate the book never named
+  const zeroTrip = titheReceipts([
+    'F9 [F9] fuel tithe: banked 5 x coal (pocket keeps 6)',
+    'F9 final bank: 0 (still underground after 1 climb attempt - the chain from the shaft bottom is doomed walks)'
+  ])
+  assert.equal(zeroTrip.blind, 1)
+  assert.equal(zeroTrip.zeroClosed, 1)
+  assert.equal(zeroTrip.ghost, 0)
+  assert.equal(titheGhostSplit(zeroTrip).owner, 'zero')
+  assert.equal(titheGhostSplitRow(titheGhostSplit(zeroTrip)), '1 receiptless firing(s): 0 closed the chain\'s own voice (+0u the trips delivered), 1 the trip\'s own zero, 0 the death\'s own net, 0 the book never closed - THE TRIP\'S OWN ZERO: the chain closed nothing of theirs - the mass\'s fate the book never named')
+  // the line-order law: the EARLIER close-class marker wins - a positive
+  // trip close before a later arm-2 death line reads the summary, not the
+  // death (the death line rode a LATER trip's chain)
+  const tripFirst = titheReceipts([
+    'F9 [F9] fuel tithe: banked 5 x coal (pocket keeps 6)',
+    'F9 bank: +77',
+    'F9 [F9] hop: chest at [-120,65,400] d=8 zero: visit died mid-visit (inventory torn down) - the chain excludes it, the pocket rides the next window'
+  ])
+  assert.equal(tripFirst.summaryClosed, 1)
+  assert.equal(tripFirst.deathClosed, 0, 'the death line rode after the trip close - a later trip\'s paperwork')
+  assert.equal(titheGhostSplit(tripFirst).owner, 'summary')
+  // the mirror: the death close BEFORE the trip close keeps the death class
+  const deathFirst = titheReceipts([
+    'F9 [F9] fuel tithe: banked 5 x coal (pocket keeps 6)',
+    'F9 [F9] hop: chest at [-120,65,400] d=8 zero: visit died mid-visit (inventory torn down) - the chain excludes it, the pocket rides the next window',
+    'F9 bank: +77'
+  ])
+  assert.equal(deathFirst.deathClosed, 1)
+  assert.equal(deathFirst.summaryClosed, 0, 'the trip close rode after the death close - NOT consumed, but the first marker owns the class')
+  assert.equal(titheGhostSplit(deathFirst).owner, 'death')
+  // the arms ride the parser: mid / pre / final
+  assert.equal(parseTripClose('F7 bank: +182').arm, 'mid')
+  assert.equal(parseTripClose('F1 pre-position bank: +100').arm, 'pre')
+  assert.equal(parseTripClose('F18 final bank: +159').arm, 'final')
+  assert.equal(parseTripClose('F18 final bank: +159').units, 159)
+  assert.equal(parseTripClose('F18 final bank: +159').bot, 'F18')
+  // the junk battery: the malformed trip closes never invent a read
+  assert.equal(parseTripClose('F7 final bank: staggered +72s'), null, 'the deferral marker rides no lane')
+  assert.equal(parseTripClose('F6 final bank: 0 (budget exhausted)'), null, 'the zero rides bankfail\'s own BANK_ZERO_RE, not the positive')
+  assert.equal(parseTripClose('F7 bank: +0'), null, 'a zero-mass positive is junk')
+  assert.equal(parseTripClose('x F7 bank: +5'), null, 'the head anchors')
+  assert.equal(parseTripClose('F7 [F7] bank: +5'), null, 'the bracket-tagged head is not the chain lane')
+  assert.equal(parseTripClose('F7 bank: +abc'), null, 'the non-numeric mass drops')
+  assert.equal(parseTripClose('F7 bank: holding 45s of 168s for the smelt leg'), null, 'the hold marker is not a close')
+  assert.equal(parseTripClose(null), null)
+  assert.equal(parseTripClose(42), null)
+  assert.equal(parseTripClose('no close here'), null)
+  assert.ok(TRIP_CLOSE_RE.test('F9 bank: +157'))
+  assert.ok(!TRIP_CLOSE_RE.test('F9 bank: +157'.replace(/^/, ' ')), 'the head anchors - a leading space drops')
 })
 
 test('titheGhostSplit: the death\'s own paperwork, the zero that never excuses, the non-consumption', () => {
@@ -407,7 +517,7 @@ test('titheGhostSplit: the death\'s own paperwork, the zero that never excuses, 
   assert.equal(death.ghost, 0)
   assert.equal(death.ghostUnits, 0, 'the death\'s firing rides no ghost mass')
   assert.equal(titheGhostSplit(death).owner, 'death')
-  assert.equal(titheGhostSplitRow(titheGhostSplit(death)), '1 of 1 receiptless firing(s) closed in the hop lane\'s own voice - the death ate the summary and named itself - THE NET\'S OWN PAPERWORK: the close landed where the book could read it - the summary\'s shape is what died')
+  assert.equal(titheGhostSplitRow(titheGhostSplit(death)), '1 receiptless firing(s): 0 closed the chain\'s own voice (+0u the trips delivered), 0 the trip\'s own zero, 1 the death\'s own net, 0 the book never closed - THE NET\'S OWN PAPERWORK: the close landed where the book could read it - the summary\'s shape is what died')
   // the ordering law: a plain zero-close BEFORE the firing and a plain
   // zero-close AFTER never excuse the ghost - a zero hop cannot close a
   // visit the tithe already funded (the later trip's paperwork)
@@ -419,6 +529,7 @@ test('titheGhostSplit: the death\'s own paperwork, the zero that never excuses, 
   assert.equal(zeroNeverExcuses.deathClosed, 0, 'the far-skip and the zero hop are not the death\'s voice')
   assert.equal(zeroNeverExcuses.ghost, 1, 'the ghost stands - the close never landed')
   assert.equal(zeroNeverExcuses.ghostUnits, 5)
+  assert.equal(titheGhostSplit(zeroNeverExcuses).owner, 'front', 'the zero hop is no chain close - the front class reads')
   // the non-consumption law: two firings of one trip share the death's one close
   const shared = titheReceipts([
     'F3 [F3] fuel tithe: banked 3 x coal (pocket keeps 6)',
@@ -435,7 +546,7 @@ test('titheGhostSplit: the death\'s own paperwork, the zero that never excuses, 
     'F5 [F5] hop: chest at [-120,65,400] d=8 zero: visit died mid-visit (window race) - the chain excludes it, the pocket rides the next window'
   ]))
   assert.equal(tie.owner, null, '1 ghost and 1 death - the tie owns nothing')
-  assert.equal(titheGhostSplitRow(tie), '1 and 1 split the 2 receiptless firing(s) even - THE RECEIPTLESS SPLIT: no solo shape owns the book, the verdict waits')
+  assert.equal(titheGhostSplitRow(tie), '2 receiptless firing(s): 0 closed the chain\'s own voice (+0u the trips delivered), 0 the trip\'s own zero, 1 the death\'s own net, 1 the book never closed - THE RECEIPTLESS SPLIT: no solo shape owns the book, the verdict waits')
 })
 
 test('titheGhostSplit: the honest silences and the junk battery', () => {
@@ -452,7 +563,10 @@ test('titheGhostSplit: the honest silences and the junk battery', () => {
   assert.equal(titheGhostSplitRow(42), null)
   assert.equal(titheGhostSplitRow([]), null)
   assert.equal(titheGhostSplitRow({ owner: 'ghost', blind: 0, ghost: 0, deathClosed: 0, ghostUnits: 0 }), null, 'an empty blind seat owns no row')
+  assert.equal(titheGhostSplitRow({ owner: 'front', blind: 2, ghost: 1, deathClosed: 0, ghostUnits: 3, summaryClosed: 0, zeroClosed: 0, summaryUnits: 0 }), null, 'the row reads the book the cells carry - 1 is not 2')
   assert.equal(titheGhostSplitRow({ owner: 'other', blind: 1, ghost: 1, deathClosed: 0, ghostUnits: 1 }), null, 'an unknown owner is junk')
+  assert.equal(titheGhostSplit({ firings: 2, receipted: 1, blind: 1, ghost: 1, deathClosed: 0, ghostUnits: 3, summaryClosed: 0, zeroClosed: 1 }), null, 'the four-class cells must carry the book - 1 + 1 is not 1')
+  assert.equal(titheGhostSplit({ firings: 2, receipted: 1, blind: 1, ghost: 0, deathClosed: 0, ghostUnits: 0, summaryClosed: 1, zeroClosed: 0, summaryUnits: -2 }), null, 'a negative summary mass is junk')
   // the junk line battery: the malformed hop closes never invent a read
   const junk = titheReceipts([
     'F8 [F8] fuel tithe: banked 14 x coal (pocket keeps 6)',

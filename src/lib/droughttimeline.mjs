@@ -48,6 +48,7 @@
 
 import { COMMONS_EMPTY_RE } from './commonsledger.mjs'
 import { SEAL_BANKED_RE } from './sealcensus.mjs'
+import { BANK_ZERO_RE } from './bankfail.mjs' // (v0.837.0) the chain zero's own shape - one parser one truth, bankfail owns it
 
 /**
  * Read the pump's own timeline - the fuel-tithe coal banks' positions
@@ -406,6 +407,33 @@ export const BANK_LANDED_RE = /^(F\d+) \[F\d+\] banked (\d+) items at \((-?\d+),
 // the firing is a LATER trip's paperwork and never excuses the ghost.
 export const HOP_CLOSE_RE = /^(F\d+) \[F\d+\] hop: chest at \[(-?\d+),(-?\d+),(-?\d+)\](?: d=(\d+))? zero: (.+)$/
 
+// (v0.837.0) THE CHAIN'S OWN VOICE - the trip-close lane read back. The
+// fleet's three bank chains (testbed/fleet19.mjs one writer each: the
+// mid-run 'bank:', the 'pre-position bank:', the 'final bank:') close every
+// delivery with ONE chain-level line - '+N' the delivered side, '0 (reason)'
+// the named zero (the zero shape is bankfail's own BANK_ZERO_RE, one parser
+// one truth). Face 104's own sizes: 23 positive closes, 12 zeros, 2
+// per-chest receipts in the whole log - the per-chest receipt lane is the
+// run-wide silent one, the chain lane is the accounting's real voice.
+export const TRIP_CLOSE_RE = /^(F\d+) (pre-position bank|final bank|bank): \+(\d+)$/
+
+/**
+ * parseTripClose(line) - one chain-level close read back (junk in, null out).
+ * @param {string} line one fleet-log line
+ * @returns {null|{bot: string, arm: string, units: number}}
+ *   the close (null on junk) - arm: 'mid' | 'pre' | 'final' (bankfail's own
+ *   classification law); the deferral marker ('staggered +Ns') rides no lane
+ */
+export function parseTripClose (line) {
+  if (typeof line !== 'string') return null
+  const m = TRIP_CLOSE_RE.exec(line)
+  if (!m) return null
+  const units = Number(m[3])
+  if (!Number.isFinite(units) || units <= 0) return null
+  const arm = m[2] === 'bank' ? 'mid' : (m[2] === 'pre-position bank' ? 'pre' : 'final')
+  return { bot: m[1], arm, units }
+}
+
 /**
  * parseHopClose(line) - one hop-lane close read back (junk in, null out).
  * @param {string} line one fleet-log line
@@ -447,6 +475,7 @@ export function titheReceipts (lines) {
   const firings = []
   const receipts = []
   const closes = [] // (v0.833.0) the hop lane's own closes (the death's voice for the ghost audit)
+  const trips = [] // (v0.837.0) the chain lane's own closes - the positive '+N' and the named zero
   const dryLocs = []
   lines.forEach((line, idx) => {
     if (typeof line !== 'string') return
@@ -467,6 +496,16 @@ export function titheReceipts (lines) {
       if (chest.every((n) => Number.isFinite(n))) closes.push({ idx, bot: h[1], chest, d: h[5] == null ? null : Number(h[5]), reason: h[6] })
       return
     }
+    // (v0.837.0) the trip-close lane - the chain's own positive voice first,
+    // the named zero second (the shapes are disjoint: ':+N' vs ':0 (')
+    const tc = TRIP_CLOSE_RE.exec(line)
+    if (tc) {
+      const units = Number(tc[3])
+      if (Number.isFinite(units) && units > 0) trips.push({ idx, bot: tc[1], arm: tc[2] === 'bank' ? 'mid' : (tc[2] === 'pre-position bank' ? 'pre' : 'final'), units })
+      return
+    }
+    const tz = BANK_ZERO_RE.exec(line)
+    if (tz) trips.push({ idx, bot: tz[1], arm: tz[2] === 'bank' ? 'mid' : (tz[2] === 'pre-position bank' ? 'pre' : 'final'), zero: true, reason: tz[3] })
     const d = COMMONS_EMPTY_RE.exec(line)
     if (d && d[2]) {
       const loc = parseLoc(d[2])
@@ -478,9 +517,12 @@ export function titheReceipts (lines) {
   let withinBody = 0
   let beyond = 0
   let minDist = null
-  let ghost = 0 // (v0.833.0) the receiptless firings whose close never landed
+  let ghost = 0 // (v0.833.0) the receiptless firings whose close never landed (the front class)
   let deathClosed = 0 // the receiptless firings the arm-2 death net closed by name
-  let ghostUnits = 0 // the mass the ghost firings' own in-loop voice banked
+  let ghostUnits = 0 // the mass the front ghosts' own in-loop voice banked
+  let summaryClosed = 0 // (v0.837.0) the receiptless firings whose trip closed '+N' - the chain's own voice
+  let zeroClosed = 0 // (v0.837.0) the receiptless firings whose trip closed the named zero
+  let summaryUnits = 0 // (v0.837.0) the chains' own delivered totals the summary-class firings rode
   const joined = firings.map((f) => {
     // the same bot's FIRST receipt after the firing - line order only,
     // NOT consumed (two firings of one trip share the trip's receipt)
@@ -491,9 +533,23 @@ export function titheReceipts (lines) {
       // visit's own close is the summary or the arm-2 death line. The
       // same bot's first DEATH close after the firing rides line order
       // only, NOT consumed (two firings of one trip share the death's
-      // one close). A plain zero-close after the firing is a LATER
+      // one close). A plain zero HOP-close after the firing is a LATER
       // trip's paperwork - it never excuses the ghost.
+      // (v0.837.0) THE FOUR-CLASS LAW - the audit was blind to the chain
+      // lane (face 104: 23 positive closes, 2 per-chest receipts - the
+      // 'ghosts' rode delivered trips). The same bot's first close-class
+      // marker after the firing - the chain's positive close, the chain's
+      // named zero, the arm-2 death close - line order only, NOT
+      // consumed; only the firing whose close never rode ANY lane reads
+      // the emitter front.
       const death = closes.find((c) => c.bot === f.bot && c.idx > f.idx && typeof c.reason === 'string' && c.reason.startsWith('visit died mid-visit')) || null
+      const trip = trips.find((t) => t.bot === f.bot && t.idx > f.idx) || null
+      if (trip && (!death || trip.idx < death.idx)) {
+        if (trip.zero) { zeroClosed++; return { ...f, receipt: null, dist: null, close: 'zero' } }
+        summaryClosed++
+        summaryUnits += trip.units
+        return { ...f, receipt: null, dist: null, close: 'summary', tripUnits: trip.units }
+      }
       if (death) { deathClosed++; return { ...f, receipt: null, dist: null, close: 'death' } }
       ghost++
       if (Number.isFinite(f.units) && f.units > 0) ghostUnits += f.units
@@ -516,6 +572,9 @@ export function titheReceipts (lines) {
     ghost,
     deathClosed,
     ghostUnits,
+    summaryClosed,
+    zeroClosed,
+    summaryUnits,
     withinBody,
     beyond,
     minDist,
@@ -577,19 +636,23 @@ export function titheReceiptSeatRow (seat) {
 
 /**
  * titheGhostSplit(read) - the receiptless firings' own split (the
- * strict-majority law, a tie owns nothing): the ghost (the visit's own
- * close never landed in the book) vs the death's own paperwork (the arm-2
- * net closed the trip in the hop lane's voice). The three-outcome law
- * behind the audit: the tithe feeds the banked total, so a firing's own
- * visit owes the book ONE close - the summary or the death line; a plain
- * zero hop cannot close a visit the tithe already funded.
- * @param {null|{firings: number, receipted: number, blind: number, ghost: number, deathClosed: number, ghostUnits: number}} [read] titheReceipts's own read
- * @returns {null|{owner: string|null, firings: number, blind: number, ghost: number, deathClosed: number, ghostUnits: number}}
+ * strict-majority law over the FOUR close classes - the chain's own
+ * voice (v0.837.0), the trip's own zero (v0.837.0), the death's own
+ * paperwork (the arm-2 net closed the trip in the hop lane's voice),
+ * the emitter front (the visit's own close never landed in the book)
+ * - a tie owns nothing). The three-outcome law behind the audit grew
+ * the fourth lane: the tithe feeds the banked total, so a firing's own
+ * visit owes the book ONE close - the chain's positive line, the
+ * chain's named zero, or the death line; only a firing whose close
+ * never rode ANY lane reads the front. A plain zero hop still cannot
+ * close a visit the tithe already funded.
+ * @param {null|{firings: number, receipted: number, blind: number, ghost: number, deathClosed: number, ghostUnits: number, summaryClosed: number, zeroClosed: number, summaryUnits: number}} [read] titheReceipts's own read
+ * @returns {null|{owner: string|null, firings: number, blind: number, ghost: number, deathClosed: number, ghostUnits: number, summaryClosed: number, zeroClosed: number, summaryUnits: number}}
  *   the split (null on junk, on a receipt-full book, or on an empty receiptless seat)
  */
 export function titheGhostSplit (read) {
   if (!read || typeof read !== 'object' || Array.isArray(read)) return null
-  const { firings, receipted, blind, ghost, deathClosed, ghostUnits } = read
+  const { firings, receipted, blind, ghost, deathClosed, ghostUnits, summaryClosed, zeroClosed, summaryUnits } = read
   if (!Number.isFinite(firings) || firings <= 0) return null
   if (!Number.isFinite(receipted) || receipted < 0) return null
   if (!Number.isFinite(blind) || blind < 0 || blind > firings) return null
@@ -597,31 +660,44 @@ export function titheGhostSplit (read) {
   if (receipted + blind !== firings) return null // the cells must carry the book
   const g = Number.isFinite(ghost) ? ghost : 0
   const dc = Number.isFinite(deathClosed) ? deathClosed : 0
-  if (g + dc !== blind) return null // the cells must carry the book - junk never invents a split
+  const sc = Number.isFinite(summaryClosed) ? summaryClosed : 0
+  const zc = Number.isFinite(zeroClosed) ? zeroClosed : 0
+  if (g + dc + sc + zc !== blind) return null // the cells must carry the book - junk never invents a split
   const gu = Number.isFinite(ghostUnits) ? ghostUnits : 0
   if (gu < 0) return null
+  const su = Number.isFinite(summaryUnits) ? summaryUnits : 0
+  if (su < 0) return null
+  // the strict-majority law: one class alone holds more than half the seat
+  const summaryOwns = sc * 2 > blind
+  const zeroOwns = zc * 2 > blind
   const ghostOwns = g * 2 > blind
   const deathOwns = dc * 2 > blind
-  const owner = ghostOwns ? 'ghost' : deathOwns ? 'death' : null
-  return { owner, firings, blind, ghost: g, deathClosed: dc, ghostUnits: gu }
+  const owner = summaryOwns ? 'summary' : zeroOwns ? 'zero' : ghostOwns ? 'front' : deathOwns ? 'death' : null
+  return { owner, firings, blind, ghost: g, deathClosed: dc, summaryClosed: sc, zeroClosed: zc, ghostUnits: gu, summaryUnits: su }
 }
 
 /**
  * titheGhostSplitRow(split) - the ghost split's own row (the prose
- * lives only in the lib).
- * @param {null|{owner: string|null, firings: number, blind: number, ghost: number, deathClosed: number, ghostUnits: number}} [split] titheGhostSplit's own read
+ * lives only in the lib). The four-class cells ride the row always -
+ * the book must be readable even when the verdict waits.
+ * @param {null|{owner: string|null, firings: number, blind: number, ghost: number, deathClosed: number, ghostUnits: number, summaryClosed: number, zeroClosed: number, summaryUnits: number}} [split] titheGhostSplit's own read
  * @returns {null|string} the row (null on junk)
  */
 export function titheGhostSplitRow (split) {
   if (!split || typeof split !== 'object' || Array.isArray(split)) return null
-  const { owner, blind, ghost, deathClosed, ghostUnits } = split
+  const { owner, blind, ghost, deathClosed, summaryClosed, zeroClosed, summaryUnits } = split
   if (!Number.isFinite(blind) || blind <= 0) return null
-  if (owner === 'ghost') {
-    return `${ghost} of ${blind} receiptless firing(s) closed with no line of their own - ${ghostUnits}u the in-loop voice banked and the book never closed - THE SUMMARY'S OWN GHOST: the tithe feeds the banked total, so the visit's own arithmetic owed the close - the emitter's own front`
-  }
-  if (owner === 'death') {
-    return `${deathClosed} of ${blind} receiptless firing(s) closed in the hop lane's own voice - the death ate the summary and named itself - THE NET'S OWN PAPERWORK: the close landed where the book could read it - the summary's shape is what died`
-  }
+  const g = Number.isFinite(ghost) ? ghost : 0
+  const dc = Number.isFinite(deathClosed) ? deathClosed : 0
+  const sc = Number.isFinite(summaryClosed) ? summaryClosed : 0
+  const zc = Number.isFinite(zeroClosed) ? zeroClosed : 0
+  const su = Number.isFinite(summaryUnits) ? summaryUnits : 0
+  if (g + dc + sc + zc !== blind) return null // the row reads the book the cells carry
+  const cells = `${blind} receiptless firing(s): ${sc} closed the chain's own voice (+${su}u the trips delivered), ${zc} the trip's own zero, ${dc} the death's own net, ${g} the book never closed`
+  if (owner === 'summary') return `${cells} - THE CHAIN'S OWN VOICE: the mass rode the trip's own total - the per-chest receipt's silence is the accounting's own blind`
+  if (owner === 'zero') return `${cells} - THE TRIP'S OWN ZERO: the chain closed nothing of theirs - the mass's fate the book never named`
+  if (owner === 'death') return `${cells} - THE NET'S OWN PAPERWORK: the close landed where the book could read it - the summary's shape is what died`
+  if (owner === 'front') return `${cells} - THE EMITTER'S OWN FRONT: the close never rode the log's own stream`
   if (owner !== null) return null
-  return `${ghost} and ${deathClosed} split the ${blind} receiptless firing(s) even - THE RECEIPTLESS SPLIT: no solo shape owns the book, the verdict waits`
+  return `${cells} - THE RECEIPTLESS SPLIT: no solo shape owns the book, the verdict waits`
 }
