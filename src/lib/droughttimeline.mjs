@@ -350,3 +350,173 @@ export function titheFamilySeatRow (seat) {
     : `the fuel tithe ${f} of ${total} firing(s) (${(f * 100 / total).toFixed(1)}%) beside the family's own voice`
   return `${head} - ${fuel}`
 }
+
+//
+// (v0.830.0) THE YARD'S OWN TWO MOUTHS - the receipt's own seat. The
+// family's voice (v0.827.0) priced WHICH lane speaks and the answer's
+// size (v0.824.0) priced HOW MUCH the counter moved - but both ride
+// the tithe's own COUNTER, and the counter's mass has a geography the
+// lenses never read: the deposit trip's own receipt line ('F8 [F8]
+// banked 43 items at (-123, 82, 414) (direct=2 ...)' - deposit.mjs's
+// own emitter, printed once per trip when the chest physically took
+// items) names the CHEST the mass landed in, while the ask's located
+// dry read ('fuel commons: chest holds no fuel at [-113,82,414]') names
+// the chest the walk actually reads. Face 103 (run 37759188855) named
+// the hole live: F8's 14u fuel firing carried a receipt at (-123, 82,
+// 414) while the ask's own chest sat at [-113,82,414] - TEN BLOCKS of
+// x inside one yard chest row (the row's own receipts span x -128..
+// -113 at z=414) - the fuel mass landed in a chest the ask's walk
+// never reads, and F7's firing carried NO receipt at all (the trip's
+// report never closed - deposit.mjs prints the receipt only when
+// deposited > 0, a budget death or a throw mid-loop skips it; no
+// receipt is NOT no delivery - the honest-claim law). The join: for
+// each fuel firing, the same bot's FIRST receipt line AFTER the firing
+// (line order only - the v0.826.0 honest-claim law; NOT consumed - two
+// firings of one trip share the trip's one receipt); the distance is
+// the deathground square's own metric (the max axis delta - one
+// distance law across the lenses, the v0.828.0 law) from the receipt
+// chest to the NEAREST located dry chest; within 1 is the double
+// chest's own body (the two halves share one inventory - the join
+// would rather miss a break than invent one). The seat: the
+// strict-majority law on the receipted firings (the v0.827.0 law), a
+// tie owns nothing, a receiptless family or a droughtless yard reads
+// the honest silence (null). The verdict's own fork: the mass beyond
+// the ask's read is the yard's own two mouths (the wiring's own cure:
+// bank into the ask's chest), the mass beside it is the arrival's own
+// clock (the trigger's own cure), the mass with no receipt is the
+// accounting's own blind (the emitter's own front).
+//
+
+// the trip's own receipt - deposit.mjs's emitter read back verbatim
+// ('F8 [F8] banked 43 items at (-123, 82, 414) (direct=2 fallback=0
+// mirror=true kept: ...)'; the tail rides unanchored - the head is
+// the shape's own identity)
+export const BANK_LANDED_RE = /^(F\d+) \[F\d+\] banked (\d+) items at \((-?\d+), (-?\d+), (-?\d+)\)/
+
+// the deathground square's own metric (the max axis delta) - one
+// distance law across the lenses
+const squareDist = (a, b) => Math.max(Math.abs(a[0] - b[0]), Math.abs(a[1] - b[1]), Math.abs(a[2] - b[2]))
+
+// the double chest's own body: the two halves share one inventory
+const CHEST_BODY_RADIUS = 1
+
+const parseLoc = (s) => {
+  if (typeof s !== 'string') return null
+  const parts = s.split(',').map(Number)
+  if (parts.length !== 3 || parts.some((n) => !Number.isFinite(n))) return null
+  return parts
+}
+
+/**
+ * titheReceipts(lines) - the fuel tithe's trip receipts vs the yard's
+ * located dry reads, one stream, one walk.
+ * @param {string[]} lines one fleet-log, all lines
+ * @returns {null|{firings: number, receipted: number, blind: number, withinBody: number, beyond: number, minDist: number|null, dryLocs: number, receipts: Object[]}}
+ *   the read (null on a fuel-silent face)
+ */
+export function titheReceipts (lines) {
+  if (!Array.isArray(lines)) return null
+  const firings = []
+  const receipts = []
+  const dryLocs = []
+  lines.forEach((line, idx) => {
+    if (typeof line !== 'string') return
+    const f = SEAL_BANKED_RE.exec(line)
+    if (f && f[2] === 'fuel tithe' && f[4] === 'coal') {
+      firings.push({ idx, bot: f[1], units: Number(f[3]) })
+      return
+    }
+    const r = BANK_LANDED_RE.exec(line)
+    if (r) {
+      const chest = [Number(r[3]), Number(r[4]), Number(r[5])]
+      if (chest.every((n) => Number.isFinite(n))) receipts.push({ idx, bot: r[1], chest, items: Number(r[2]) })
+      return
+    }
+    const d = COMMONS_EMPTY_RE.exec(line)
+    if (d && d[2]) {
+      const loc = parseLoc(d[2])
+      if (loc) dryLocs.push({ idx, loc })
+    }
+  })
+  if (!firings.length) return null
+  let receipted = 0
+  let withinBody = 0
+  let beyond = 0
+  let minDist = null
+  const joined = firings.map((f) => {
+    // the same bot's FIRST receipt after the firing - line order only,
+    // NOT consumed (two firings of one trip share the trip's receipt)
+    const rec = receipts.find((r) => r.bot === f.bot && r.idx > f.idx) || null
+    if (!rec) return { ...f, receipt: null, dist: null }
+    receipted++
+    const dists = dryLocs.map((d) => squareDist(rec.chest, d.loc))
+    const dist = dists.length ? Math.min(...dists) : null
+    if (dist !== null) {
+      if (dist <= CHEST_BODY_RADIUS) withinBody++
+      else beyond++
+      if (minDist === null || dist < minDist) minDist = dist
+    }
+    return { ...f, receipt: rec, dist }
+  })
+  return {
+    firings: firings.length,
+    receipted,
+    blind: firings.length - receipted,
+    withinBody,
+    beyond,
+    minDist,
+    dryLocs: dryLocs.length,
+    receipts: joined
+  }
+}
+
+/**
+ * titheReceiptSeat(read) - the receipt's own seat (the
+ * strict-majority law on the receipted firings, a tie owns nothing).
+ * @param {null|{firings: number, receipted: number, blind: number, withinBody: number, beyond: number, minDist: number|null, dryLocs: number}} [read] titheReceipts's own read
+ * @returns {null|{owner: string|null, firings: number, receipted: number, withinBody: number, beyond: number, minDist: number|null}}
+ *   the seat (null on junk, on a droughtless yard, or on an empty receipt book)
+ */
+export function titheReceiptSeat (read) {
+  if (!read || typeof read !== 'object' || Array.isArray(read)) return null
+  const { firings, receipted, withinBody, beyond, minDist, dryLocs } = read
+  if (!Number.isFinite(firings) || firings <= 0) return null
+  if (dryLocs === 0) return null // no located dry reads - no drought, no mouth to price
+  if (!Number.isFinite(receipted) || receipted < 0) return null
+  if (receipted === 0) return { owner: 'blind', firings, receipted, withinBody: 0, beyond: 0, minDist: null }
+  const r = Number.isFinite(withinBody) ? withinBody : 0
+  const b = Number.isFinite(beyond) ? beyond : 0
+  if (r + b !== receipted) return null // the cells must carry the book - junk never invents a split
+  const arrivalOwns = r * 2 > receipted
+  const wiringOwns = b * 2 > receipted
+  const owner = arrivalOwns ? 'arrival' : wiringOwns ? 'wiring' : null
+  const md = (minDist === null || !Number.isFinite(minDist)) ? null : minDist
+  return { owner, firings, receipted, withinBody: r, beyond: b, minDist: md }
+}
+
+/**
+ * titheReceiptSeatRow(seat) - the receipt seat's own row (the prose
+ * lives only in the lib).
+ * @param {null|{owner: string|null, firings: number, receipted: number, withinBody: number, beyond: number, minDist: number|null}} [seat] titheReceiptSeat's own read
+ * @returns {null|string} the row (null on junk)
+ */
+export function titheReceiptSeatRow (seat) {
+  if (!seat || typeof seat !== 'object' || Array.isArray(seat)) return null
+  const { owner, firings, receipted, withinBody, beyond, minDist } = seat
+  if (!Number.isFinite(firings) || firings <= 0) return null
+  if (owner === 'blind') {
+    return `0 of ${firings} fuel firing(s) carry a trip receipt - the trip's own report never closed - THE ACCOUNTING'S OWN BLIND: no receipt is not no delivery, but the mass the receipt never named rides uncounted`
+  }
+  if (!Number.isFinite(receipted) || receipted <= 0) return null
+  const head = `${receipted} of ${firings} fuel firing(s) carry a trip receipt`
+  if (owner === 'wiring') {
+    if (minDist === null || !Number.isFinite(minDist)) return null
+    return `${head} - the nearest receipt landed d=${minDist.toFixed(1)} from the ask's own dry chest - THE YARD'S OWN TWO MOUTHS: the deposit's chest and the ask's chest are different chests - the walk between them is the delivery's own break, not the arrival's own clock`
+  }
+  if (owner === 'arrival') {
+    if (minDist === null || !Number.isFinite(minDist)) return null
+    return `${head} - the receipt met the ask's own read (d=${minDist.toFixed(1)}) - THE ARRIVAL'S OWN CLOCK: the stock reached the chest the ask reads - the break is the arrival's own timing, not the yard's own geography`
+  }
+  if (owner !== null) return null
+  return `${head} (${withinBody} within the ask's own chest, ${beyond} beyond) - THE RECEIPT'S OWN SPLIT: the break rides both shapes, no solo shape owns the book`
+}

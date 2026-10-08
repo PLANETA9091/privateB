@@ -241,3 +241,129 @@ test('titheFamily: the honest silences and the junk battery', () => {
   assert.equal(titheFamilySeatRow({ total: 5, owner: '', firings: 3, share: 0.6, fuelFirings: 0 }), null, 'the empty owner reads junk')
   assert.equal(titheFamilySeatRow({ total: 5, owner: 'cobble tithe', firings: 0, share: 0, fuelFirings: 0 }), null)
 })
+
+// (v0.830.0) THE YARD'S OWN TWO MOUTHS - the receipt's own seat. The
+// lines are byte-verbatim from the stored faces (face 103 = run
+// 37759188855: F8's 14u fuel firing carried a trip receipt at
+// (-123, 82, 414) while the ask's own chest sat at [-113,82,414] -
+// d=10.0 inside one yard chest row; F7's firing carried NO receipt;
+// face 104 = run 37762508948: three fuel firings, zero receipts - the
+// accounting's own blind).
+import { titheReceipts, titheReceiptSeat, titheReceiptSeatRow, BANK_LANDED_RE } from '../../src/lib/droughttimeline.mjs'
+
+test('titheReceipts: the face-103 two-mouths shape verbatim + the byte-exact wiring row', () => {
+  const lines = [
+    'F3 fuel commons: chest holds no fuel at [-113,82,414]',
+    'F19 fuel commons: chest holds no fuel at [-117,71,415]',
+    'F8 [F8] fuel tithe: banked 14 x coal (pocket keeps 6)',
+    'F8 [F8] banked 43 items at (-123, 82, 414) (direct=2 fallback=0 mirror=true kept: wooden_pickaxe, stick, torch, oak_sapling)',
+    'F8 [F8] banked 12 items at (-128, 82, 414) (direct=3 fallback=0 mirror=true kept: wooden_pickaxe, stick, torch, oak_sapling)',
+    'F7 [F7] cobble tithe: banked 40 x cobblestone (pocket keeps 14)',
+    'F7 [F7] fuel tithe: banked 2 x coal (pocket keeps 6)',
+    'F7 [F7] end-bank budget spent - smelt skipped'
+  ]
+  const read = titheReceipts(lines)
+  assert.equal(read.firings, 2)
+  assert.equal(read.receipted, 1)
+  assert.equal(read.blind, 1)
+  assert.equal(read.beyond, 1)
+  assert.equal(read.withinBody, 0)
+  assert.equal(read.minDist, 10, 'the receipt chest (-123,82,414) vs the ask chest [-113,82,414]: dx=10 - the square metric')
+  assert.equal(read.dryLocs, 2)
+  assert.equal(read.receipts[0].receipt.chest.join(','), '-123,82,414', 'the first same-bot receipt after the firing binds')
+  assert.equal(read.receipts[0].receipt.items, 43, 'the trip receipt carries the TRIP mass, the firing rides its own units')
+  assert.equal(read.receipts[1].receipt, null, 'F7\'s firing carries no receipt - the trip\'s report never closed')
+  const seat = titheReceiptSeat(read)
+  assert.equal(seat.owner, 'wiring')
+  assert.equal(seat.receipted, 1)
+  assert.equal(seat.minDist, 10)
+  assert.equal(titheReceiptSeatRow(seat), "1 of 2 fuel firing(s) carry a trip receipt - the nearest receipt landed d=10.0 from the ask's own dry chest - THE YARD'S OWN TWO MOUTHS: the deposit's chest and the ask's chest are different chests - the walk between them is the delivery's own break, not the arrival's own clock")
+  // the non-consumption law: two firings of one trip share the trip's one receipt
+  const shared = titheReceipts([
+    'F2 fuel commons: chest holds no fuel at [-113,82,414]',
+    'F7 [F7] fuel tithe: banked 2 x coal (pocket keeps 6)',
+    'F7 [F7] fuel tithe: banked 3 x coal (pocket keeps 6)',
+    'F7 [F7] banked 9 items at (-113, 82, 414) (direct=1 fallback=0 mirror=true kept: stick)'
+  ])
+  assert.equal(shared.receipted, 2, 'both firings bind the same receipt - NOT consumed')
+  assert.equal(shared.minDist, 0, 'the receipt at the ask\'s own chest reads d=0')
+  assert.equal(shared.withinBody, 2)
+})
+
+test('titheReceipts: the arrival seat, the split tie, the blind book, the edge rides', () => {
+  // the arrival shape: the receipt lands at the ask's own chest (d=0)
+  const arrival = titheReceiptSeat(titheReceipts([
+    'F2 fuel commons: chest holds no fuel at [-113,82,414]',
+    'F8 [F8] fuel tithe: banked 5 x coal (pocket keeps 6)',
+    'F8 [F8] banked 5 items at (-113, 82, 414) (direct=1 fallback=0 mirror=true kept: stick)'
+  ]))
+  assert.equal(arrival.owner, 'arrival')
+  assert.equal(arrival.minDist, 0)
+  assert.equal(titheReceiptSeatRow(arrival), "1 of 1 fuel firing(s) carry a trip receipt - the receipt met the ask's own read (d=0.0) - THE ARRIVAL'S OWN CLOCK: the stock reached the chest the ask reads - the break is the arrival's own timing, not the yard's own geography")
+  // the double chest's own body: d=1 rides within (the join would rather miss a break than invent one)
+  const body = titheReceiptSeat(titheReceipts([
+    'F2 fuel commons: chest holds no fuel at [-113,82,414]',
+    'F8 [F8] fuel tithe: banked 5 x coal (pocket keeps 6)',
+    'F8 [F8] banked 5 items at (-113, 82, 415) (direct=1 fallback=0 mirror=true kept: stick)'
+  ]))
+  assert.equal(body.owner, 'arrival', 'd=1 is the double chest\'s own body - the edge rides')
+  // the split tie: one within, one beyond - a tie owns nothing
+  const split = titheReceiptSeat(titheReceipts([
+    'F2 fuel commons: chest holds no fuel at [-113,82,414]',
+    'F8 [F8] fuel tithe: banked 5 x coal (pocket keeps 6)',
+    'F8 [F8] banked 5 items at (-113, 82, 414) (direct=1 fallback=0 mirror=true kept: stick)',
+    'F1 [F1] fuel tithe: banked 7 x coal (pocket keeps 6)',
+    'F1 [F1] banked 7 items at (-103, 82, 414) (direct=1 fallback=0 mirror=true kept: stick)'
+  ]))
+  assert.equal(split.owner, null, 'the tie owns nothing')
+  assert.equal(titheReceiptSeatRow(split), "2 of 2 fuel firing(s) carry a trip receipt (1 within the ask's own chest, 1 beyond) - THE RECEIPT'S OWN SPLIT: the break rides both shapes, no solo shape owns the book")
+  // the blind book: the face-104 shape - three firings, zero receipts
+  const blind = titheReceiptSeat(titheReceipts([
+    'F2 fuel commons: chest holds no fuel at [-113,82,414]',
+    'F7 [F7] fuel tithe: banked 11 x coal (pocket keeps 6)',
+    'F1 [F1] fuel tithe: banked 24 x coal (pocket keeps 6)',
+    'F18 [F18] fuel tithe: banked 17 x coal (pocket keeps 6)'
+  ]))
+  assert.equal(blind.owner, 'blind')
+  assert.equal(blind.receipted, 0)
+  assert.equal(blind.minDist, null)
+  assert.equal(titheReceiptSeatRow(blind), "0 of 3 fuel firing(s) carry a trip receipt - the trip's own report never closed - THE ACCOUNTING'S OWN BLIND: no receipt is not no delivery, but the mass the receipt never named rides uncounted")
+})
+
+test('titheReceipts: the honest silences and the junk battery', () => {
+  assert.equal(titheReceipts(null), null)
+  assert.equal(titheReceipts(undefined), null)
+  assert.equal(titheReceipts(42), null)
+  assert.equal(titheReceipts([]), null, 'a fuel-silent face reads the honest silence')
+  assert.equal(titheReceipts([42, null, '', 'F8 [F8] banked 43 items at (-123, 82, 414) (direct=2 fallback=0)']), null, 'a receipt with no firing binds nothing')
+  assert.equal(titheReceipts([
+    'F2 fuel commons: chest holds no fuel at [-113,82,414]',
+    'F8 [F8] cobble tithe: banked 40 x cobblestone (pocket keeps 14)'
+  ]), null, 'the cobble lane is not the fuel lane - the silence holds')
+  assert.equal(titheReceiptSeat(null), null)
+  assert.equal(titheReceiptSeat({}), null)
+  assert.equal(titheReceiptSeat({ firings: 2, receipted: 1, withinBody: 0, beyond: 0, minDist: 10, dryLocs: 0 }), null, 'a droughtless yard reads the silence')
+  assert.equal(titheReceiptSeat({ firings: 2, receipted: 1, withinBody: 0, beyond: 0, minDist: 10, dryLocs: 3 }), null, 'the cells must carry the book - junk never invents a split')
+  assert.equal(titheReceiptSeatRow(null), null)
+  assert.equal(titheReceiptSeatRow(42), null)
+  assert.equal(titheReceiptSeatRow([]), null)
+  assert.equal(titheReceiptSeatRow({ owner: 'wiring', firings: 1, receipted: 1, withinBody: 0, beyond: 1, minDist: null }), null, 'the wiring word needs its distance')
+  assert.equal(titheReceiptSeatRow({ owner: 'wiring', firings: 1, receipted: 0, withinBody: 0, beyond: 0, minDist: 10 }), null)
+  // the junk line battery: malformed shapes never invent a read
+  const junk = titheReceipts([
+    'F8 [F8] fuel tithe: banked 14 x coal (pocket keeps 6)',
+    'F8 [F8] banked 43 items at (-123, 82) (direct=2)', // the two-part loc is not a chest
+    'F8 [F8] banked many items at (-123, 82, 414)', // the non-numeric mass
+    'F9 [F9] banked 4 items at (a, b, c)', // the non-numeric loc
+    'the banked 12 items at (-128, 82, 414) (no bot tag)', // the untagged head
+    'F2 fuel commons: chest holds no fuel at [a,b,c]', // the junk dry loc never invents
+    'F2 fuel commons: chest holds no fuel', // the bare form carries no position
+    'F2 fuel commons: chest holds no fuel at [-113,82,414]'
+  ])
+  assert.equal(junk.receipted, 0, 'the malformed receipts all drop - the blind is honest')
+  assert.equal(junk.dryLocs, 1, 'only the well-formed dry loc counts')
+  assert.equal(titheReceiptSeat(junk).owner, 'blind')
+  // the RE's own identity: the head anchors, the tail rides
+  assert.ok(BANK_LANDED_RE.test('F8 [F8] banked 43 items at (-123, 82, 414) (direct=2 fallback=0 mirror=true kept: wooden_pickaxe)'))
+  assert.ok(!BANK_LANDED_RE.test('F8 [F8] banked 43 items at (-123, 82, 414)'.replace(/^/, 'x ')))
+})
