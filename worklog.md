@@ -20684,3 +20684,24 @@ Stage Summary:
 - Master tip 9a7a7c9 = v0.835.0 (THE DEEP-POCKET ASCEND'S OWN SHAPE); next free 0.836.0 (re-verify on origin before the bump - the lane's announced THE VISIT'S OWN OPEN may take it).
 - Face 108 = 37779457427 SUCCESS UNMINED (the healed tree's first face: the ghost audit's true debut + the aquifer's second point + the cure's third face) - the mine rides the next fire (artifacts by artifact-ID curl -> /home/z/my-project/run37779457427/).
 - Next fire: (1) CI verdicts BY RUN ID: push-CI 37783283153 + face 109 = 37783367117 (the deeppocket row's first fresh face). (2) mine face 108 with the v0.835.0 stack. (3) face 109 SUCCESS -> mine -> the deeppocket trend (face 106: F8's same-pocket x4 whale, o2 floor 6). (4) zero-collision check at droughttimeline/deposit before building (the lane's front).
+
+---
+Task ID: cron30-20261008-2130
+Agent: Super Z (fire 2130 lane, Job 414125)
+Task: fire cron30-20261008-2130 - one atomic improvement, zero-conflict protocol; face 108 mined, the sibling family priced.
+
+Work Log:
+- Sync clean at open (origin 958d247 = v0.835.0; the lane's THE VISIT'S OWN OPEN still unpushed). VERDICTS BY RUN ID: my v0.835.0 push-CI 37783283153 (9a7a7c9) SUCCESS - the deeppocket gate CLOSED; face 109 = 37783367117 IN_PROGRESS all fire.
+- FACE 108 MINED (37779457427 SUCCESS, the healed tree's first face): deaths suffocate=1 mob=1 (the cure's trend holds 2->2); the aquifer's second point 10 strike (10 water) / 20 lid / peak 2 / 0 give-up - the arc 44/0 -> 21/44 -> 20/18 -> 10/20, the lid keeps taking the strikes' work; my deeppocket row's field debut: 1 ascend (F11, sandstone, [-166,55,406], o2 floor 10); the ascendstall fence cross-check agrees (1 live, F11=1); stranded piles 2 ~90u the reloot lane never walked (the biggest 65u = 72%).
+- ONE ATOMIC IMPROVEMENT: v0.836.0 THE WATER COLUMN'S OWN DIG (c653d1f) - the climb lane's wet-ceiling ascend family priced on its own seat (the fire-2030 conflation completed, the fence mutual): src/lib/climbwet.mjs parseWetCeilingAscent/wetCeilingCensus/wetCeilingCensusRow (zero imports, pure, mining-surface) - the ceiling spread (the emitter has NO isWaterName guard, in 26.2 water reads diggable:true so the water ceiling dominates - the water ceiling IS this lane's own voice), the spot census, the y-blind COLUMN map (same x,z across y = the bot's own descent between climbs; face 106: F10's column owned 3 digs, the gravity ladder 62->61->60), the within-episode dig vs the budget print. ONE PARSER ONE TRUTH: the regex rides the emitter's own template byte-exact. decompose +1 additive row beside the deep-pocket seat.
+- LIVE-VERIFIED byte-exact on TWO faces: face 106 diff EXACTLY the one new row ('...4 ascend(s) dug the ceiling (water x4), 4 spot(s) - [-134,62,385] owned 1 dig(s), 2 column(s) - [-148,389] owned 3 dig(s), max dig 2 of 4'), every neighbor row byte-untouched; face 108 rows the sibling lanes MEETING at F11's one pocket (sandstone at [-166,55,406] o2 10 vs water at [-166,54,406] - one column, two emitters).
+- Tests +4: climbwet 4/4, unit 313/313 files, syntax 555 0-broken. No new fleet log lines -> no fleet19.mjs filter-key (mining-surface only, the v0.379/.../v0.835.0 precedent).
+- Version 0.836.0 verified free (origin was 0.835.0, mine). Commit c653d1f; push attempt-1 CLEAN (958d247..c653d1f). NO force-push, NO history rewrite. Identity: PLANETA9091.
+- CI: my v0.836.0 push-CI 37786101368 (c653d1f) PENDING through the honest 480s window (the queue busy: face 109 in flight) - verdict BY RUN ID next fire, NOT claimed green (unit green locally 313/313).
+- DISPATCH: face 109 = 37783367117 IN_PROGRESS at decision time -> the max-one-active law -> NO dispatch this fire (the honest hold).
+
+Stage Summary:
+- Master tip c653d1f = v0.836.0 (THE WATER COLUMN'S OWN DIG); next free 0.837.0 (re-verify on origin before the bump).
+- Face 109 = 37783367117 IN FLIGHT (the deeppocket lens's field debut + the ghost audit's second read) - poll + mine next fire (artifacts -> /home/z/my-project/run37783367117/).
+- Fronts: face 109's mine (the deeppocket trend's second point); the stranded-piles front (face 108: 2 piles ~90u, the reloot lane never walked - the dropped mass sits where it fell); the sensor-death class (the runtime lever); face 93's mine still queued (37727396042).
+- Next fire: (1) CI verdicts BY RUN ID: push-CI 37786101368 + face 109 = 37783367117. (2) face 109 SUCCESS -> mine with the v0.836.0 stack (both sibling rows price their cells). (3) dispatch law on clear (0.837.0 next slot, re-verify on origin before the bump).
