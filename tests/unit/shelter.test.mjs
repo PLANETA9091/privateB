@@ -568,3 +568,20 @@ test('REGRESSION PIN: the miner carries the sill lane (the v0.849.0 uneven-groun
   // the refusal line keeps its byte on the no-carry path
   assert.ok(/ring not buildable \[\$\{sides\.map\(mark\)\.join\(' '\)\}\]/.test(minerSrc), "the honest refusal line keeps its byte (the decode greps survive)")
 })
+
+test('REGRESSION PIN: the sill decline names its reads (the v0.851.0 opacity cure)', async () => {
+  // MEASURED (face 126 = 37857285783, the sill's first live face): ONE
+  // sill-shaped refusal ([Bo oo -o oo] vs zombie@3.6, a single dead '-o'
+  // side) and the carry DECLINED it invisibly - the mark line cannot say
+  // which legality read failed (ground busy / no under-bot reference / head
+  // blocked), so the decode cannot price the sill's opportunities. The
+  // v0.59.0 law: the silent fall-through is the bug class.
+  const fs = await import('node:fs')
+  const minerSrc = fs.readFileSync(new URL('../../src/bots/miner.mjs', import.meta.url), 'utf8')
+  // the decline line rides the refusal path, ONLY when sill-shaped sides exist
+  assert.ok(/if \(sillSides\.length > 0\) \{\s*const busy = sillSides\.filter\(s => hostileIn\(s\.fx, here\.y - 1, s\.fz\)\)\.length\s*const noRef = underBotBlock \? 0 : sillSides\.length\s*const unclosable = sillSides\.filter\(s => !ringSideBuildable\(\{ \.\.\.s, groundSolid: true \}\)\)\.length\s*log\(`\$\{tag\} combat: shelter ring sill decline: \$\{sillSides\.length\} seat-shaped side\(s\) unseatable \(ground busy \$\{busy\}, no reference \$\{noRef\}, head blocked \$\{unclosable\}\)`\)/.test(minerSrc), 'the decline line names all three reads with the live re-checks (the decode prices the sill)')
+  // the decline lives INSIDE the refusal branch (after the notbuildable log, before the return)
+  const declineIdx = minerSrc.indexOf('shelter ring sill decline:')
+  const refuseIdx = minerSrc.indexOf("shelter skip (open field: ring not buildable [")
+  assert.ok(declineIdx > refuseIdx && declineIdx - refuseIdx < 1200, 'the decline follows the refusal line it explains (the same branch, the same return)')
+})

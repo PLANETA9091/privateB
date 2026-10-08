@@ -1269,6 +1269,19 @@ export function createMiner ({
       // still has to be buildable - otherwise the same honest skip line
       if ((!ranged || !ringSideBuildable(sides[threatIdx])) && !sillCarries) {
         log(`${tag} combat: shelter skip (open field: ring not buildable [${sides.map(mark).join(' ')}]${ranged ? ', no arrow wall either' : ''} vs ${threat.name}@${threat.dist.toFixed(1)})`)
+        // (v0.851.0) THE SILL'S OWN DECLINE: the carry refused a ring that
+        // had sill-shaped sides - the silent decline is the v0.59.0 bug
+        // class (face 126 measured it live: ONE [-o] refusal, the decline
+        // invisible, the decode cannot price the sill's opportunities). One
+        // line names the reads: ground busy (a hostile in the ground cell),
+        // no reference (the under-bot block empty or unreadable), head
+        // blocked (the side would never close even seated).
+        if (sillSides.length > 0) {
+          const busy = sillSides.filter(s => hostileIn(s.fx, here.y - 1, s.fz)).length
+          const noRef = underBotBlock ? 0 : sillSides.length
+          const unclosable = sillSides.filter(s => !ringSideBuildable({ ...s, groundSolid: true })).length
+          log(`${tag} combat: shelter ring sill decline: ${sillSides.length} seat-shaped side(s) unseatable (ground busy ${busy}, no reference ${noRef}, head blocked ${unclosable})`)
+        }
         return false
       }
       if (!sillCarries) {
