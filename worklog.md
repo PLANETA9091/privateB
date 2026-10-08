@@ -20149,3 +20149,26 @@ Stage Summary:
 - Fronts: the SURFACE GATE front (the walk-home's own constant 16 of 17 - the cure rides the climb-outs' anatomy: stalled x22 the face-90 debut names the stall class, the low-o2 trio the wet faces); the budget drought (delivered 0 EIGHT straight faces, the 10% granted share, the 1615s gap); the zero-delivery seat's streak (underground broke 4/4 to the mix on face 90 - does it return?); the socket book's own front (the bare 19 kicks whose sockets survived - the churn's own norm); the shaft-gate front; the mob front (face 91: Zombie/Skeleton seats).
 - Next fire: (1) CI verdicts BY RUN ID: 37728240256 (ee3b64d, the v0.811.0 gate) + face 92's artifacts. (2) mine face 92 (artifacts by artifact-ID -> /home/z/my-project/run37724826492/) with the v0.812.0 stack. (3) dispatch law x116 on clear (0.812.0 next slot after the mine's bump if any, re-verify on origin).
 - NO force-push, NO history rewrite. Identity: PLANETA9091.
+
+---
+Task ID: cron30-20261008-1230
+Agent: Super Z (fire 1230 lane)
+Task: fire cron30-20261008-1230 (Job 414125) - one atomic improvement, zero-conflict protocol, both worklogs, dispatch law.
+
+Work Log:
+- Repo synced 55cae50; VERDICTS BY RUN ID: face 93 = 37727396042 (the x116 dispatch on 0c37813 = the v0.810.0 flee-fork tree) COMPLETED SUCCESS at the decision window (the mine rides the next fire); my push-CI 37727148019 (0c37813) SUCCESS.
+- THE HOLE: the v0.809.0 join seat priced the LOSS side's reach, but the join's BARE side rode unnamed - face 90's 20 kicks carried ONE socket loss (19 bare, all duplicate_login), face 91 rode the bare 7 of 8; the churn-without-death's own question (WHO re-creates the sessions) had no seat.
+- ONE ATOMIC IMPROVEMENT: v0.812.0 THE BARE KICK'S OWN SEAT (5a1f6c4) - WHICH kind owns the bare book. sockloss.mjs grows sockBareSeat + sockBareSeatRow + sockBareRiders + sockBareRidersRow (the join's own bareByKind/bareByBot cells only, zero re-parsing - the v0.802.0 seat law; the cells'-own-sum book; the strict-majority law, a tie owns nothing; junk never invents a kind - skipped and counted; the kindless byte: a bare kick line without the translate byte rides nowhere, sum(bareByKind) <= bare is the WIRING pin; the words: a duplicate_login majority is the churn's own re-entry shape (the relog lane's residue candidate), a timeout majority is the client's own stall; the riders fold the bareByBot crowd measure-not-owner, >=2 classes only, the byte order 'F1' < 'F10' < 'F2' decides the ranked ties). sockChurnJoin folds the two additive cells on the existing bare read. decompose one additive row pair beside the v0.809.0 seat rows.
+- LIVE-VERIFIED byte-exact on the face-90 shape: 'multiplayer.disconnect.duplicate_login owns 19 of 19 bare kick(s) (100.0%) - THE BARE KICK'S OWN SEAT: the churn's own re-entry shape...' + the riders 'F1 x11 + F2 x4 own 15 of 19 bare kick(s) (78.9%) - THE BARE KICK'S OWN CROWD...'.
+- Tests: +4. sockloss 16/16, unit 302/302 files (pre-retag AND post-retag trees), syntax 536 0-broken. Integration rode CI. No new fleet log lines -> no fleet19.mjs filter-key.
+- RACE #36: the lane's fire-1140 pushed ee3b64d (v0.811.0 retag, race #35) + b8c4cf7 mid-fire - master rode TWO v0.811.0 seats. The rebase replayed clean (the package.json double-bump merged identical); THIS seat's refs retagged surgically to 0.812.0 (sockloss 10 + sockloss tests 5 + decompose 4 + package.json); THEIR v0.811.0 refs byte-untouched (decompose lines 8/829 keep v0.811.0; bankcensus.mjs + preposition-seat.test.mjs diff-empty vs ee3b64d).
+- Push 5a1f6c4 attempt-1 clean (b8c4cf7..5a1f6c4). Identity verified before the commit.
+- DISPATCH LAW x117 FIRED: face 93 completed + the dispatch list clean -> POST 204 -> FACE 94 = 37729795006 IN_PROGRESS on 5a1f6c4 = the v0.812.0 tree, materialization verified.
+
+Stage Summary:
+- Master tip 5a1f6c4 (origin, code+worklog pending push); version 0.812.0 (THE BARE KICK'S OWN SEAT); next free 0.813.0 (re-verify on origin).
+- Face 94 (37729795006, the v0.812.0 tree) in flight - the bare seat's field debut + the flee fork seat's 2nd + the pre-position seats' 2nd ride its mine.
+- Faces 92 + 93 BOTH queued for the next fire's mine (92: artifacts 11528615215 + 11527768131 + 11527459435 -> /home/z/my-project/run37724826492/, the join seat's field debut on the v0.809.0 runtime; 93: -> /home/z/my-project/run37727396042/, the flee fork seat's field debut).
+- Fronts: the three-face mine queue; the bare seat's verdict now names the churn's re-entry shape vs the stall's own front per face; the budget drought (delivered = 0 NINE straight faces); the mob front; the shaft-gate front.
+- Next fire: (1) CI verdicts BY RUN ID: face 94 = 37729795006 + 37729769876 (my push-CI). (2) mine 92 -> 93 -> 94. (3) dispatch law on clear (0.813.0 next slot).
+- NO force-push, NO history rewrite. Identity: PLANETA9091.
