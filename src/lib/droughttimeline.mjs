@@ -179,3 +179,67 @@ export function drySideSeatRow (seat) {
   if (typeof word !== 'string' || !word) return null
   return `${owner} owns ${units} of ${total} dry read(s) (${(share * 100).toFixed(1)}%) - THE DRY READ'S OWN SIDE: ${word}`
 }
+
+//
+// (v0.824.0) THE ANSWER'S OWN SIZE - the tithe's own answer against
+// the asks' own hunger. The pump's own book priced the tithe's CLOCK
+// twice (the v0.738.0 timeline's before/after positions, the
+// v0.816.0 side's strict-majority owner) but never the ANSWER'S OWN
+// SIZE: the asks' hunger rode in the commons ledger's own cells
+// (t.asks asks, t.askCoal coal asked - torchbook's own
+// TORCH_RESUPPLY_RE, one parser) and the tithe's answer rode in the
+// timeline's own cells (banks, units), and the two numbers never
+// met. Face 100 (run 37749215341, the v0.822.0 tree): asks 39 (78
+// coal asked), still-dry 39 - every ask's answer read zero - while
+// the tithe banked 9 coal in ONE firing: the answer is 11.5% of the
+// hunger, and the drought's own arithmetic rode unnamed. THE HOLE
+// THE FACE NAMED: the clocks (which side of the bank the dry reads
+// queue on) and the owners (which side owns the book) are priced;
+// WHAT THE PUMP'S ANSWER WAS WORTH against the demand the asks rode
+// is the drought's own arithmetic - the inflow's own size front.
+// titheAnswerSize(asked, banked) prices the share on the two cells
+// only (zero re-parsing - the v0.802.0 seat law, the v0.816.0
+// cells' own law). Junk never invents an answer: a non-finite or
+// negative cell reads the honest silence (null), and a hungerless
+// face (asks 0 / askCoal 0) has no size to price - the print site's
+// gate keeps the row beside the asks' own line, where the hunger is
+// already on the record. The verdict words: the share >= 100% - the
+// tithe met the ask's hunger this face (the drought is not the
+// size); the share 0 - the firing answered nothing the asks rode
+// (the answer's own zero); otherwise the fraction - the tithe's
+// answer is a fraction of the ask's hunger, the inflow's own size
+// is the drought's own arithmetic.
+//
+
+/**
+ * titheAnswerSize(asked, banked) - the answer's own size read.
+ * @param {number} asked the asks' own hunger (the commons ledger's askCoal cell)
+ * @param {number} banked the tithe's own answer (the timeline's units cell)
+ * @returns {null|{asked: number, banked: number, share: number}}
+ *   the read (null on junk or a hungerless face)
+ */
+export function titheAnswerSize (asked, banked) {
+  const a = Number(asked)
+  const b = Number(banked)
+  if (!Number.isFinite(a) || !Number.isFinite(b) || a <= 0 || b < 0) return null
+  return { asked: a, banked: b, share: +(b / a).toFixed(3) }
+}
+
+/**
+ * titheAnswerSizeRow(read) - the answer's own size row (the prose
+ * lives only in the lib).
+ * @param {null|{asked: number, banked: number, share: number}} [read] titheAnswerSize's own read
+ * @returns {null|string} the row (null on junk)
+ */
+export function titheAnswerSizeRow (read) {
+  if (!read || typeof read !== 'object' || Array.isArray(read)) return null
+  const { asked, banked, share } = read
+  if (!Number.isFinite(asked) || asked <= 0) return null
+  if (!Number.isFinite(banked) || banked < 0) return null
+  if (!Number.isFinite(share)) return null
+  const pct = (share * 100).toFixed(1)
+  const head = `${banked}u banked against ${asked}u asked (${pct}%)`
+  if (share >= 1) return `${head} - THE ANSWER'S OWN SIZE: the tithe met the ask's hunger this face (the drought is not the size)`
+  if (share <= 0) return `${head} - THE ANSWER'S OWN SIZE: the firing answered nothing the asks rode (the answer's own zero)`
+  return `${head} - THE ANSWER'S OWN SIZE: the tithe's answer is a fraction of the ask's hunger - the inflow's own size is the drought's own arithmetic`
+}

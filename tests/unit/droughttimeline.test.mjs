@@ -12,7 +12,7 @@
 //
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { droughtTimeline, droughtTimelineRow } from '../../src/lib/droughttimeline.mjs'
+import { droughtTimeline, droughtTimelineRow, titheAnswerSize, titheAnswerSizeRow } from '../../src/lib/droughttimeline.mjs'
 
 // Face 53's own shape, verbatim lines and in the live order: the
 // early drought (the dry reads ride), F19's 21-coal bank mid-face,
@@ -114,4 +114,53 @@ test('droughtTimeline: the honest zero and the junk battery', () => {
   assert.equal(junk.banks.length, 1, 'the seal-units clause reads; the suffixed line does not (the strict grammar)')
   assert.equal(junk.units, 30)
   assert.equal(junk.dryReads, 0)
+})
+
+// (v0.824.0) THE ANSWER'S OWN SIZE - the tithe's banked units against
+// the asks' own hunger. Face 100's own arithmetic (run 37749215341,
+// the v0.822.0 tree): asks 39 (78 coal asked), still-dry 39 - every
+// ask's answer read zero - while the tithe banked 9 coal in ONE
+// firing: the answer is 11.5% of the hunger.
+test('titheAnswerSize: face 100 verbatim - 9u banked against 78u asked is 11.5%', () => {
+  const r = titheAnswerSize(78, 9)
+  assert.deepEqual(r, { asked: 78, banked: 9, share: 0.115 })
+  const row = titheAnswerSizeRow(r)
+  assert.equal(row, "9u banked against 78u asked (11.5%) - THE ANSWER'S OWN SIZE: the tithe's answer is a fraction of the ask's hunger - the inflow's own size is the drought's own arithmetic")
+})
+
+test('titheAnswerSize: the met hunger, the exact meet and the answer\'s own zero', () => {
+  const met = titheAnswerSizeRow(titheAnswerSize(50, 60))
+  assert.equal(met, "60u banked against 50u asked (120.0%) - THE ANSWER'S OWN SIZE: the tithe met the ask's hunger this face (the drought is not the size)")
+  const exact = titheAnswerSizeRow(titheAnswerSize(9, 9))
+  assert.equal(exact, "9u banked against 9u asked (100.0%) - THE ANSWER'S OWN SIZE: the tithe met the ask's hunger this face (the drought is not the size)", 'the share exactly 1.0 rides the met branch (>= law)')
+  const zero = titheAnswerSizeRow(titheAnswerSize(78, 0))
+  assert.equal(zero, "0u banked against 78u asked (0.0%) - THE ANSWER'S OWN SIZE: the firing answered nothing the asks rode (the answer's own zero)")
+})
+
+test('titheAnswerSize: the honest silences and the junk battery', () => {
+  assert.equal(titheAnswerSize(0, 9), null, 'a hungerless face has no size to price')
+  assert.equal(titheAnswerSize(-5, 9), null)
+  assert.equal(titheAnswerSize(78, -1), null)
+  assert.equal(titheAnswerSize(NaN, 9), null)
+  assert.equal(titheAnswerSize(78, NaN), null)
+  assert.equal(titheAnswerSize('78', 9).asked, 78, 'the numeric string reads (the Number() coercion)')
+  assert.equal(titheAnswerSizeRow(null), null)
+  assert.equal(titheAnswerSizeRow(undefined), null)
+  assert.equal(titheAnswerSizeRow(42), null)
+  assert.equal(titheAnswerSizeRow([]), null, 'the array reads junk')
+  assert.equal(titheAnswerSizeRow({ asked: 0, banked: 9, share: 9 }), null)
+  assert.equal(titheAnswerSizeRow({ asked: 78, banked: -1, share: 0 }), null)
+  assert.equal(titheAnswerSizeRow({ asked: 78, banked: 9, share: NaN }), null)
+})
+
+test('titheAnswerSize: the timeline\'s own cells feed the read through the real droughtTimeline', () => {
+  // the lib's own join: the timeline's units cell prices against the
+  // asks' hunger cell - the FACE53_MINI's own banks (21 + 3 = 24u)
+  // against its own ask (2 coal)
+  const t = droughtTimeline(FACE53_MINI)
+  assert.equal(t.units, 24)
+  const r = titheAnswerSize(2, t.units)
+  assert.deepEqual(r, { asked: 2, banked: 24, share: 12 })
+  const row = titheAnswerSizeRow(r)
+  assert.ok(row.includes('(1200.0%) - THE ANSWER\'S OWN SIZE: the tithe met the ask\'s hunger this face'))
 })
