@@ -243,3 +243,110 @@ export function titheAnswerSizeRow (read) {
   if (share <= 0) return `${head} - THE ANSWER'S OWN SIZE: the firing answered nothing the asks rode (the answer's own zero)`
   return `${head} - THE ANSWER'S OWN SIZE: the tithe's answer is a fraction of the ask's hunger - the inflow's own size is the drought's own arithmetic`
 }
+
+//
+// (v0.827.0) THE TITHE FAMILY'S OWN VOICE - WHICH lane owns the
+// deposit family's own firings. The pump's own book priced the fuel
+// tithe's clock (the v0.738.0 timeline), its side (the v0.816.0
+// owner) and its answer's size against the hunger (the v0.824.0
+// share) - but the fuel tithe is ONE LANE of the deposit family the
+// SEAL_BANKED_RE already parses (the fuel tithe / the cobble tithe /
+// the smelt tithe / the seal reserve - one RE, one lane column,
+// zero new parsing), and the family's own voice never rode a seat.
+// Face 102 (run 37756117031, the v0.825.0 runtime's debut) named the
+// hole: the cobble tithe fired 9 time(s) and the smelt tithe 5 while
+// the fuel tithe held 0 - the deposit system's own lanes banked
+// everything else while the yard's fuel inflow starved (the
+// fleet-status banked counter moved 1366u through the family). The
+// three-face census: 34 family firing(s) across faces 96/100/102,
+// the fuel tithe spoke ONE (face 100's 9u answer, 5.9%) - the
+// drought's inflow gap is the fuel lane's own trigger, not the
+// banking's own. titheFamilyCensus counts the RE's own lane column
+// (firings = the trigger's own voice - dimensionless across the
+// lanes' materials; units ride per lane for the next lens); the seat
+// rides the strict-majority law on the firings (the event-seating
+// precedent - the v0.800.0 sweep book's own law), a tie owns
+// nothing, junk never invents a lane, an empty family reads the
+// honest silence (null). The row's fuel rider prices the fuel lane's
+// own share beside the family's voice: the zero firing(s) word (the
+// drought's inflow gap is the fuel lane's own trigger) or the count.
+//
+
+/**
+ * titheFamilyCensus(lines) - the deposit family's own firings per lane.
+ * @param {string[]} lines one fleet-log, all lines
+ * @returns {null|{lanes: Object<string, {firings: number, units: number}>, total: number}}
+ *   the census (null on an empty family)
+ */
+export function titheFamilyCensus (lines) {
+  if (!Array.isArray(lines)) return null
+  const lanes = {}
+  let total = 0
+  lines.forEach((line) => {
+    if (typeof line !== 'string') return
+    const m = SEAL_BANKED_RE.exec(line)
+    if (!m) return
+    const lane = m[2]
+    const l = lanes[lane] || (lanes[lane] = { firings: 0, units: 0 })
+    l.firings++
+    l.units += Number(m[3])
+    total++
+  })
+  if (!total) return null
+  return { lanes, total }
+}
+
+/**
+ * titheFamilySeat(census) - the family voice's own seat (the
+ * strict-majority law on the firings, a tie owns nothing).
+ * @param {null|{lanes: Object<string, {firings: number, units: number}>, total: number}} [census] titheFamilyCensus's own read
+ * @returns {null|{total: number, owner: null|string, firings: number, share: number, fuelFirings: number}}
+ *   the seat (null on an empty book)
+ */
+export function titheFamilySeat (census) {
+  if (!census || typeof census !== 'object' || Array.isArray(census)) return null
+  const lanes = (census.lanes && typeof census.lanes === 'object' && !Array.isArray(census.lanes)) ? census.lanes : {}
+  const picked = []
+  for (const lane of Object.keys(lanes)) {
+    const l = lanes[lane]
+    if (!l || typeof l !== 'object') continue
+    const f = l.firings
+    if (!Number.isFinite(f) || f <= 0) continue
+    picked.push([lane, f])
+  }
+  if (!picked.length) return null
+  picked.sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0))
+  const total = picked.reduce((s, [, v]) => s + v, 0)
+  const [topLane, topFirings] = picked[0]
+  // the strict-majority law: the top lane's voice must hold more than the rest together
+  const owns = topFirings * 2 > total
+  const fuel = lanes['fuel tithe'] && lanes['fuel tithe'].firings
+  const fuelFirings = (Number.isFinite(fuel) && fuel > 0) ? fuel : 0
+  return { total, owner: owns ? topLane : null, firings: owns ? topFirings : 0, share: total ? +((owns ? topFirings : 0) / total).toFixed(3) : 0, fuelFirings }
+}
+
+/**
+ * titheFamilySeatRow(seat) - the family voice's own row (the prose
+ * lives only in the lib).
+ * @param {null|{total: number, owner: null|string, firings: number, share: number, fuelFirings: number}} [seat] titheFamilySeat's own read
+ * @returns {null|string} the row (null on junk)
+ */
+export function titheFamilySeatRow (seat) {
+  if (!seat || typeof seat !== 'object' || Array.isArray(seat)) return null
+  const { total, owner, firings, share, fuelFirings } = seat
+  if (!Number.isFinite(total) || total <= 0) return null
+  let head
+  if (owner === null) {
+    head = 'no solo lane owns the family\'s voice (the tie owns nothing)'
+  } else {
+    if (typeof owner !== 'string' || !owner) return null
+    if (!Number.isFinite(firings) || firings <= 0 || firings > total) return null
+    if (!Number.isFinite(share)) return null
+    head = `the ${owner} owns ${firings} of ${total} family firing(s) (${(share * 100).toFixed(1)}%) - THE TITHE FAMILY'S OWN VOICE: one lane's own voice owns the family's book`
+  }
+  const f = Number.isFinite(fuelFirings) ? fuelFirings : 0
+  const fuel = f === 0
+    ? 'the fuel tithe 0 firing(s) beside the family\'s own voice - the drought\'s inflow gap is the fuel lane\'s own trigger'
+    : `the fuel tithe ${f} of ${total} firing(s) (${(f * 100 / total).toFixed(1)}%) beside the family's own voice`
+  return `${head} - ${fuel}`
+}

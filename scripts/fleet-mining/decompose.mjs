@@ -71,7 +71,7 @@ import { assistLedger } from '../../src/lib/assistledger.mjs' // (v0.499.0) the 
 import { torchBook } from '../../src/lib/torchbook.mjs' // (v0.500.0) the torch ledger - the light supply's floors, rungs, asks and yield
 import { veinLedger, tierGuardBill } from '../../src/lib/veinledger.mjs' // (v0.501.0) the vein ledger - the sweep's terminals, walk yield, gallery digs, refusals and the tier guard; (v0.768.0) the tier guard's own bill - the repeat rider's own seat
 import { commonsLedger, sweepBookSeat, sweepBookSeatRow, sweepBookRiders, sweepBookRidersRow, chestCloseSeat, chestCloseSeatRow } from '../../src/lib/commonsledger.mjs' // (v0.502.0) the commons ledger - the ask's answer: the sweeps, the walk anatomy, the deliveries; (v0.800.0) WHICH close class owns the sweep book; (v0.815.0) + the chest's own close - WHICH chest-side close owns the chest book
-import { droughtTimeline, droughtTimelineRow, drySideSeat, drySideSeatRow, titheAnswerSize, titheAnswerSizeRow } from '../../src/lib/droughttimeline.mjs' // (v0.738.0) the pump's own timeline - the tithe's banks vs the dry reads' positions; (v0.816.0) + the dry read's own side - WHICH side of the first bank owns the dry book; (v0.824.0) + the answer's own size - the tithe's banked units against the asks' own hunger
+import { droughtTimeline, droughtTimelineRow, drySideSeat, drySideSeatRow, titheAnswerSize, titheAnswerSizeRow, titheFamilyCensus, titheFamilySeat, titheFamilySeatRow } from '../../src/lib/droughttimeline.mjs' // (v0.738.0) the pump's own timeline - the tithe's banks vs the dry reads' positions; (v0.816.0) + the dry read's own side - WHICH side of the first bank owns the dry book; (v0.824.0) + the answer's own size - the tithe's banked units against the asks' own hunger; (v0.827.0) + the tithe family's own voice - WHICH lane owns the deposit family's own firings
 import { reachRadius, reachRadiusRow, reachClock, reachClockRow, reachRentSeat, reachRentSeatRow, reachPreflightGate, reachPreflightGateRow } from '../../src/lib/reachmap.mjs' // (v0.740.0) the reach's own radius - the last mile's refused distances; (v0.742.0) the last mile's own clock - the refused walks' elapsed ms (the raw walk's own rent); (v0.821.0) the last mile's own rent seat - the paired walks' rent by the d-band; (v0.823.0) the preflight's own distance gate - the seat's owner prices the early refuse
 import { bridgeBook, bridgePocketBill, bridgePocketBillRow, bridgePocketRiders, bridgePocketRidersRow } from '../../src/lib/bridgebook.mjs' // (v0.496.0) the bridge book - the vertical walk's fill lane (the refusals' why-flip, the cobble signature, the server's own veto; SLOT COLLISION #17: 0.495.0 taken by fire-0008's THE TABLE GATE mid-fire); (v0.786.0) WHICH bot owns the pocket tax
 import { bridgeRefusalCensus, bridgeRefusalRow } from '../../src/lib/climbbridge.mjs' // (v0.665.0) THE CLIMB BRIDGE'S FIELD READ - the refusal book's own grains wired to the mining surface: the gate, the pit donor, the plant clear, the shadow gate's defers
@@ -3969,6 +3969,18 @@ console.log('  plan lines:', count(/materials plan|plan progress/i))
     const dt = droughtTimeline(lines)
     const dtRow = droughtTimelineRow(dt)
     if (dtRow) console.log(`  ${dtRow}`)
+    // (v0.827.0) the tithe family's own voice - WHICH lane owns the
+    // deposit family's own firings (SEAL_BANKED_RE's own lane column,
+    // zero new parsing - the family the fuel tithe rides inside). The
+    // gate: the family spoke at all - a face with zero tithes reads
+    // the honest silence. The fuel rider prices the fuel lane's own
+    // share beside the family's voice (the zero word or the count).
+    // One additive row.
+    const fam = titheFamilyCensus(lines)
+    if (fam) {
+      const famRow = titheFamilySeatRow(titheFamilySeat(fam))
+      if (famRow) console.log(`  the tithe family's own voice (v0.827.0): ${famRow}`)
+    }
     // (v0.816.0) the dry read's own side - WHICH side of the first bank
     // owns the dry book (the timeline's own {prePrime, postPrime} cells,
     // zero re-parsing; the strict-majority law, a tie owns nothing; the

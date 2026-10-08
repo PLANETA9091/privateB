@@ -12,7 +12,7 @@
 //
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { droughtTimeline, droughtTimelineRow, titheAnswerSize, titheAnswerSizeRow } from '../../src/lib/droughttimeline.mjs'
+import { droughtTimeline, droughtTimelineRow, titheAnswerSize, titheAnswerSizeRow, titheFamilyCensus, titheFamilySeat, titheFamilySeatRow } from '../../src/lib/droughttimeline.mjs'
 
 // Face 53's own shape, verbatim lines and in the live order: the
 // early drought (the dry reads ride), F19's 21-coal bank mid-face,
@@ -163,4 +163,81 @@ test('titheAnswerSize: the timeline\'s own cells feed the read through the real 
   assert.deepEqual(r, { asked: 2, banked: 24, share: 12 })
   const row = titheAnswerSizeRow(r)
   assert.ok(row.includes('(1200.0%) - THE ANSWER\'S OWN SIZE: the tithe met the ask\'s hunger this face'))
+})
+
+// (v0.827.0) THE TITHE FAMILY'S OWN VOICE - WHICH lane owns the
+// deposit family's own firings. Face 102's own shape (run
+// 37756117031, the v0.825.0 runtime's debut): the cobble tithe fired
+// 9 time(s) and the smelt tithe 5 while the fuel tithe held 0 - the
+// deposit system's own lanes banked everything else while the yard's
+// fuel inflow starved.
+test('titheFamily: face 102 shape verbatim - the cobble owns the voice, the fuel lane silent', () => {
+  const lines = [
+    'F14 [F14] cobble tithe: banked 31 x cobblestone (pocket keeps 14)',
+    'F15 [F15] cobble tithe: banked 22 x cobblestone (pocket keeps 14)',
+    'F3 [F3] cobble tithe: banked 46 x cobblestone (pocket keeps 14)',
+    'F9 [F9] smelt tithe: banked 1 x sand (pocket keeps 8)',
+    'F8 [F8] smelt tithe: banked 12 x sand (pocket keeps 8)',
+    'F8 [F8] cobble tithe: more firings ride the banked total' // the emitter's summary - NOT a firing (the strict grammar drops it)
+  ]
+  const fam = titheFamilyCensus(lines)
+  assert.equal(fam.total, 5)
+  assert.equal(fam.lanes['cobble tithe'].firings, 3)
+  assert.equal(fam.lanes['cobble tithe'].units, 99)
+  assert.equal(fam.lanes['smelt tithe'].firings, 2)
+  assert.equal(fam.lanes['fuel tithe'], undefined)
+  const seat = titheFamilySeat(fam)
+  assert.deepEqual(seat, { total: 5, owner: 'cobble tithe', firings: 3, share: 0.6, fuelFirings: 0 })
+  const row = titheFamilySeatRow(seat)
+  assert.equal(row, "the cobble tithe owns 3 of 5 family firing(s) (60.0%) - THE TITHE FAMILY'S OWN VOICE: one lane's own voice owns the family's book - the fuel tithe 0 firing(s) beside the family's own voice - the drought's inflow gap is the fuel lane's own trigger")
+})
+
+test('titheFamily: face 100 shape - the fuel lane\'s own whisper rides the count rider', () => {
+  const lines = [
+    'F19 [F19] fuel tithe: banked 9 x coal (pocket keeps 6)',
+    'F5 [F5] cobble tithe: banked 18 x cobblestone (pocket keeps 14)',
+    'F3 [F3] cobble tithe: banked 46 x cobblestone (pocket keeps 14)',
+    'F8 [F8] cobble tithe: banked 64 x cobblestone (pocket keeps 14)',
+    'F9 [F9] smelt tithe: banked 1 x sand (pocket keeps 8)'
+  ]
+  const fam = titheFamilyCensus(lines)
+  assert.equal(fam.total, 5)
+  const seat = titheFamilySeat(fam)
+  assert.equal(seat.owner, 'cobble tithe')
+  assert.equal(seat.fuelFirings, 1)
+  const row = titheFamilySeatRow(seat)
+  assert.equal(row, "the cobble tithe owns 3 of 5 family firing(s) (60.0%) - THE TITHE FAMILY'S OWN VOICE: one lane's own voice owns the family's book - the fuel tithe 1 of 5 firing(s) (20.0%) beside the family's own voice")
+})
+
+test('titheFamily: the tie owns nothing and the solo fuel face owns its own voice', () => {
+  const tie = titheFamilySeatRow(titheFamilySeat(titheFamilyCensus([
+    'F5 [F5] cobble tithe: banked 18 x cobblestone (pocket keeps 14)',
+    'F19 [F19] fuel tithe: banked 9 x coal (pocket keeps 6)'
+  ])))
+  assert.equal(tie, "no solo lane owns the family's voice (the tie owns nothing) - the fuel tithe 1 of 2 firing(s) (50.0%) beside the family's own voice")
+  const solo = titheFamilySeatRow(titheFamilySeat(titheFamilyCensus([
+    'F19 [F19] fuel tithe: banked 9 x coal (pocket keeps 6)'
+  ])))
+  assert.equal(solo, "the fuel tithe owns 1 of 1 family firing(s) (100.0%) - THE TITHE FAMILY'S OWN VOICE: one lane's own voice owns the family's book - the fuel tithe 1 of 1 firing(s) (100.0%) beside the family's own voice")
+})
+
+test('titheFamily: the honest silences and the junk battery', () => {
+  assert.equal(titheFamilyCensus(null), null)
+  assert.equal(titheFamilyCensus(undefined), null)
+  assert.equal(titheFamilyCensus(42), null)
+  assert.equal(titheFamilyCensus([]), null, 'no tithes - the honest silence')
+  assert.equal(titheFamilyCensus([42, null, '', 'F9 fuel commons: chest holds no fuel at [-117,71,415]']), null)
+  assert.equal(titheFamilyCensus([
+    'F14 [F14] cobble tithe: banked 31 x cobblestone (pocket keeps 14 seal units) - the suffix the strict grammar drops'
+  ]), null, 'the suffixed line is not a firing')
+  assert.equal(titheFamilySeat(null), null)
+  assert.equal(titheFamilySeat({}), null)
+  assert.equal(titheFamilySeat({ lanes: { 'cobble tithe': { firings: 0, units: 0 } }, total: 0 }), null, 'the zero-firing lane picks nothing')
+  assert.equal(titheFamilySeat({ lanes: [], total: 3 }), null, 'the array lanes read junk')
+  assert.equal(titheFamilySeatRow(null), null)
+  assert.equal(titheFamilySeatRow(42), null)
+  assert.equal(titheFamilySeatRow([]), null)
+  assert.equal(titheFamilySeatRow({ total: 0, owner: 'cobble tithe', firings: 0, share: 0, fuelFirings: 0 }), null)
+  assert.equal(titheFamilySeatRow({ total: 5, owner: '', firings: 3, share: 0.6, fuelFirings: 0 }), null, 'the empty owner reads junk')
+  assert.equal(titheFamilySeatRow({ total: 5, owner: 'cobble tithe', firings: 0, share: 0, fuelFirings: 0 }), null)
 })
