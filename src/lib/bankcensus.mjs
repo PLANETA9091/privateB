@@ -111,6 +111,173 @@ export function parsePrePositionCensus(s) {
   return e
 }
 
+// (v0.809.0) THE PRE-POSITION'S OWN WHY - WHICH why owns the walk-home book.
+// The census row (v0.645.0) prints armed/landed/failed raw and the emitter
+// names the argmax top why (v0.648.0 rode the climb-out split inside the
+// parens), but no row ever said whether that top class OWNS the failed
+// walk-homes - the why's own seat rode unnamed while the surface gate's
+// tax stayed a per-face number.
+//
+// The census's own cells only, zero re-parsing (the v0.802.0 orphan seat's
+// own law, the v0.807.0 zero-why seat's own shape). The strict-majority
+// law: the top why owns only when it holds MORE than the rest of the book
+// together - a tie owns nothing (the v0.784.0 kind-seat's own law). The
+// line's own grain carries the argmax only (the emitter prints the top
+// class, never the full split), so the no-owner face reads the riders as
+// the argmax's honest measure - the spread's shape rides unpriced beyond
+// the grain (measure-not-owner, the v0.803.0 law). Junk never invents a
+// why: a non-object entry, a non-finite or non-positive count, or a
+// zero-failed book reads the honest silence (null).
+function prePositionWhyCells (e) {
+  if (!e || typeof e !== 'object') return null
+  const failed = e.failed
+  if (!Number.isFinite(failed) || failed <= 0) return null
+  const why = e.topWhy
+  const owns = e.topWhyCount
+  if (typeof why !== 'string' || why === '') return null
+  if (!Number.isFinite(owns) || owns <= 0) return null
+  if (owns > failed) return null
+  return { why, owns, failed }
+}
+
+// The why's own seat - the strict-majority owner of the failed walk-home
+// book, or null when the argmax rides under the half (v0.809.0).
+export function prePositionWhySeat (e) {
+  const c = prePositionWhyCells(e)
+  if (!c) return null
+  if (c.owns > c.failed - c.owns) {
+    return { why: c.why, owns: c.owns, ofFailed: c.failed, shareOfFailed: c.owns / c.failed * 100 }
+  }
+  return null
+}
+
+// The why's own riders - the argmax's honest measure when the seat law
+// refuses (the line's grain carries no second class to pair with,
+// v0.809.0).
+export function prePositionWhyRiders (e) {
+  const c = prePositionWhyCells(e)
+  if (!c) return null
+  if (c.owns > c.failed - c.owns) return null // the seat's own face - the riders stay silent (one row never both)
+  return { why: c.why, owns: c.owns, ofFailed: c.failed, shareOfFailed: c.owns / c.failed * 100 }
+}
+
+// The seat row - the byte-exact read the decompose prints beside the
+// pre-position census (the branch law: the owner case leaves the
+// companion unprinted). Guarded end to end; junk reads null (v0.809.0).
+export function prePositionWhySeatRow (seat) {
+  if (!seat || typeof seat !== 'object') return null
+  const { why, owns, ofFailed, shareOfFailed } = seat
+  if (typeof why !== 'string' || why === '') return null
+  if (!Number.isFinite(owns) || owns <= 0) return null
+  if (!Number.isFinite(ofFailed) || ofFailed <= 0) return null
+  if (owns > ofFailed) return null
+  if (!Number.isFinite(shareOfFailed)) return null
+  const s = ofFailed === 1 ? 'failed walk-home' : 'failed walk-homes'
+  return `the pre-position's own why (v0.809.0): ${why} owns ${owns} of ${ofFailed} ${s} (${shareOfFailed.toFixed(1)}%) - THE WALK-HOME'S OWN SEAT: one why's own failures own the pre-position book - the why's own front prices the walk home the raw split rode unnamed`
+}
+
+// The riders row - the byte-exact read for the no-owner faces (v0.809.0).
+export function prePositionWhyRidersRow (r) {
+  if (!r || typeof r !== 'object') return null
+  const { why, owns, ofFailed, shareOfFailed } = r
+  if (typeof why !== 'string' || why === '') return null
+  if (!Number.isFinite(owns) || owns <= 0) return null
+  if (!Number.isFinite(ofFailed) || ofFailed <= 0) return null
+  if (owns > ofFailed) return null
+  if (!Number.isFinite(shareOfFailed)) return null
+  const s = ofFailed === 1 ? 'failed walk-home' : 'failed walk-homes'
+  return `the pre-position's own riders (v0.809.0): no solo why owns the majority - the top ${why} x${owns} holds ${owns} of ${ofFailed} ${s} (${shareOfFailed.toFixed(1)}%) - THE WALK-HOME'S OWN SPREAD: the line's grain carries the argmax only - the seat's law refused the under-half claim`
+}
+
+// (v0.809.0) THE CLIMB-OUT'S OWN SEAT - the surface anatomy's own owner.
+// The climb-out split (v0.648.0) rode the parens raw; the split's own
+// majority rode unnamed. The cells' own tally (the sum IS the climb book -
+// a junk entry poisons the whole line at the parse, the parser's own law),
+// the strict-majority seat, a tie owns nothing, the byte order decides the
+// ranked ties - 'low-o2' < 'rescue owns the bot' < 'stalled' < 'stopped' <
+// 'timeout' < 'wet wall' < 'wet-sentinel' (the byte trap: the space 0x20
+// sorts before the hyphen 0x2d, the hyphen before any letter). The riders
+// are measure-not-owner: the top-two pair prices the spread, and only
+// >= 2 kinds form a crowd (the v0.807.0 law).
+function prePositionClimbCells (e) {
+  if (!e || typeof e !== 'object' || !Array.isArray(e.climbOuts)) return null
+  const cells = []
+  for (const c of e.climbOuts) {
+    if (!c || typeof c !== 'object') continue // the honest-skip law: a junk cell never counts
+    const kind = c.kind
+    const n = c.count
+    if (typeof kind !== 'string' || kind === '') continue
+    if (!Number.isFinite(n) || n <= 0) continue
+    cells.push([kind, n])
+  }
+  if (cells.length === 0) return null
+  const total = cells.reduce((s, [, n]) => s + n, 0)
+  if (!(total > 0)) return null
+  cells.sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1))
+  return { cells, total }
+}
+
+// The climb's own seat - the strict-majority owner of the climb-out book,
+// or null when no kind holds more than the rest together (v0.809.0).
+export function prePositionClimbSeat (e) {
+  const t = prePositionClimbCells(e)
+  if (!t) return null
+  const [kind, topN] = t.cells[0]
+  if (topN > t.total - topN) {
+    return { kind, owns: topN, ofClimbs: t.total, shareOfClimbs: topN / t.total * 100 }
+  }
+  return null
+}
+
+// The climb's own riders - the top-two concentration when the solo law
+// refuses to seat (measure-not-owner; a single kind is no crowd and reads
+// null, v0.809.0).
+export function prePositionClimbRiders (e) {
+  const t = prePositionClimbCells(e)
+  if (!t || t.cells.length < 2) return null
+  const [leader, leaderOwns] = t.cells[0]
+  const [runner, runnerOwns] = t.cells[1]
+  const pairOwns = leaderOwns + runnerOwns
+  return {
+    leader, leaderOwns, runner, runnerOwns,
+    ofClimbs: t.total, pairOwns,
+    shareOfClimbs: pairOwns / t.total * 100,
+    duet: `${leader} x${leaderOwns} + ${runner} x${runnerOwns}`,
+  }
+}
+
+// The climb seat row - the byte-exact read (the branch law: one row never
+// both). Guarded end to end; junk reads null (v0.809.0).
+export function prePositionClimbSeatRow (seat) {
+  if (!seat || typeof seat !== 'object') return null
+  const { kind, owns, ofClimbs, shareOfClimbs } = seat
+  if (typeof kind !== 'string' || kind === '') return null
+  if (!Number.isFinite(owns) || owns <= 0) return null
+  if (!Number.isFinite(ofClimbs) || ofClimbs <= 0) return null
+  if (owns > ofClimbs) return null
+  if (!Number.isFinite(shareOfClimbs)) return null
+  const s = ofClimbs === 1 ? 'climb-out' : 'climb-outs'
+  return `the pre-position climb's own seat (v0.809.0): ${kind} owns ${owns} of ${ofClimbs} ${s} (${shareOfClimbs.toFixed(1)}%) - THE CLIMB'S OWN SEAT: one kind's own climb-outs own the surface anatomy - the kind's own front prices the walk the raw split rode unnamed`
+}
+
+// The climb riders row - the byte-exact read for the no-owner faces
+// (v0.809.0).
+export function prePositionClimbRidersRow (r) {
+  if (!r || typeof r !== 'object') return null
+  const { leader, leaderOwns, runner, runnerOwns, ofClimbs, pairOwns, shareOfClimbs, duet } = r
+  if (typeof leader !== 'string' || leader === '') return null
+  if (typeof runner !== 'string' || runner === '') return null
+  if (!Number.isFinite(leaderOwns) || leaderOwns <= 0) return null
+  if (!Number.isFinite(runnerOwns) || runnerOwns <= 0) return null
+  if (!Number.isFinite(ofClimbs) || ofClimbs <= 0) return null
+  if (!Number.isFinite(pairOwns) || pairOwns <= 0) return null
+  if (pairOwns > ofClimbs) return null
+  if (typeof duet !== 'string' || duet === '') return null
+  if (!Number.isFinite(shareOfClimbs)) return null
+  const s = ofClimbs === 1 ? 'climb-out' : 'climb-outs'
+  return `the pre-position climb's own riders (v0.809.0): no solo kind owns the majority - ${duet} own ${pairOwns} of ${ofClimbs} ${s} (${shareOfClimbs.toFixed(1)}%) - THE CLIMB'S OWN MIX: the seat's tie law held, the spread is the shape - the climb's own crowd prices the anatomy the solo law refused to name`
+}
+
 const LOOT_RE = /^loot ledger: mined=(\d+) banked=(\d+) smelted=(\d+) pocket=(\d+)u\/(\d+)s accounted=(\d+) unaccounted=(\d+) surplus=(\d+)u conversion=([\d.]+)%$/
 const POCKET_ANATOMY_RE = /^pocket anatomy: spread across (\d+) holders, top (F\d+) (\d+)u = ([\d.]+)% of (\d+)u - (.+)$/
 const SURPLUS_FACE_RE = /^surplus face: crafted-class (\d+)u of (\d+)u pocket \(([\d.]+)%\), top (.+?) - the mined counter never saw these units \(surplus (\d+)u\)$/
