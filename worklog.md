@@ -20663,3 +20663,24 @@ Stage Summary:
 - OPEN FRONTS: (1) face 108's mine (the ghost row's true debut + the water cure's 3rd face); (2) v0.835.0 THE VISIT'S OWN OPEN (the lens); (3) the tear-down courtesy emitters (the runtime half); (4) the two-mouths runtime cure (the deposit target); (5) the fuel tithe's trigger (the voice's own 4-face anatomy went quiet on face 106); (6) face 93's mine still queued (37727396042).
 - Next fire: (1) face 108 = 37779457427 verdict BY RUN ID; SUCCESS -> mine -> /home/z/my-project/run37779457427/. (2) v0.835.0 THE VISIT'S OWN OPEN (build + unit locally + byte-exact 103/104/106, THEN push). (3) dispatch law on clear (x133, face 109).
 - NO force-push, NO history rewrite. Identity: PLANETA9091.
+
+---
+Task ID: cron30-20261008-2100
+Agent: Super Z (fire 2100 lane, Job 414125)
+Task: fire cron30-20261008-2100 - one atomic improvement, zero-conflict protocol; the deeppocket front (deferred by fire-2030, built this fire).
+
+Work Log:
+- Sync clean at open (origin 918f68e = the v0.834.0 healed tree). VERDICTS BY RUN ID: push-CI 37779046097 (1588e0c) SUCCESS - the v0.834.0 gate CLOSED; face 108 = 37779457427 IN_PROGRESS at open.
+- FACE 106 RE-MINED (run*/ wiped by the fire-2030 environment reset; artifacts by ID curl): THE HONEST RETAG of the fire-2030 research note - the '4 water ceilings' CONFLATED TWO SIBLING EMITTERS: the deep-pocket ascend line CANNOT print water (the emitter's own isWaterName guard, miner.mjs one writer) - the real face-106 corpus is 6 ascends (granite x4 + stone x1 + crafting_table x1); the 4 water digs ride the sibling family 'climb wet ascend: dug the ceiling water at ...' (miner.mjs:5451). The ascend's hostility signal is the ceiling NAME spread + the spot REPEATS.
+- ONE ATOMIC IMPROVEMENT: v0.835.0 THE DEEP-POCKET ASCEND'S OWN SHAPE - src/lib/deeppocket.mjs parseDeepPocketAscent/deepPocketCensus/deepPocketCensusRow (zero imports, pure, mining-surface; the v0.707 toll owns the reset(-1) count, the v0.708 ascendstall owns the live/dead mass - the SHAPE was unowned): the ceiling name spread, the spot census + the repeat whale (byte order on ties), the o2 floor over NUMERIC reads only (the sentinel never invents a number, '?' the junk-label fence), the lid/why lane (both clauses ride plan.offset > 0; the only reachable why is lidScanPlan's own string). ONE PARSER ONE TRUTH: the regex rides the emitter's own un-spaced template - the ghost lesson held; the sibling climb family fenced out by the start anchor. decompose +1 additive row beside the aquifer's seat.
+- LIVE-VERIFIED byte-exact on the real face-106 corpus through the real decompose: diff EXACTLY the one new row - "the deep-pocket ascend's own book (v0.835.0): 6 ascend(s) dug the ceiling (crafting_table x1, granite x4, stone x1), 3 spot(s) - [-141,53,417] owned 4 dig(s), o2 floor 6 over 6 numeric reading(s), 0 lid dig(s) (deepest 0), 0 dead read(s)" - F8 bought out of the same pocket FOUR times; every neighbor row byte-untouched.
+- Tests +4: deeppocket 4/4, unit 312/312 files, syntax 553 0-broken. No new fleet log lines -> no fleet19.mjs filter-key (mining-surface only, the v0.379/.../v0.832.0 precedent).
+- RACE #50 (honest record): the lane's fire-2040 pushed their worklog 7bf53d0 mid-fire announcing 'v0.835.0 THE VISIT'S OWN OPEN' as their NEXT fire's plan (worklog-only, NO code) - THIS lane pushed 0.835.0 FIRST; the rebase walked clean, push attempt-1 CLEAN (7bf53d0..9a7a7c9); zero scope collision; the retag precedent (RACE #28/#29/#48) hands their fire-2100 the 0.836.0 slot.
+- CI: my push-CI 37783283153 (9a7a7c9) in flight; the 480s ci-poll window expired honestly - verdict BY RUN ID next fire, NOT claimed green (unit green locally 312/312).
+- DISPATCH: face 108 completed SUCCESS mid-fire -> the list CLEAR -> face 109 DISPATCHED on 9a7a7c9 = the v0.835.0 tree (HTTP 204, materialized 37783367117 IN_PROGRESS - the deeppocket lens's field debut).
+- NO force-push, NO history rewrite. Identity: PLANETA9091.
+
+Stage Summary:
+- Master tip 9a7a7c9 = v0.835.0 (THE DEEP-POCKET ASCEND'S OWN SHAPE); next free 0.836.0 (re-verify on origin before the bump - the lane's announced THE VISIT'S OWN OPEN may take it).
+- Face 108 = 37779457427 SUCCESS UNMINED (the healed tree's first face: the ghost audit's true debut + the aquifer's second point + the cure's third face) - the mine rides the next fire (artifacts by artifact-ID curl -> /home/z/my-project/run37779457427/).
+- Next fire: (1) CI verdicts BY RUN ID: push-CI 37783283153 + face 109 = 37783367117 (the deeppocket row's first fresh face). (2) mine face 108 with the v0.835.0 stack. (3) face 109 SUCCESS -> mine -> the deeppocket trend (face 106: F8's same-pocket x4 whale, o2 floor 6). (4) zero-collision check at droughttimeline/deposit before building (the lane's front).
