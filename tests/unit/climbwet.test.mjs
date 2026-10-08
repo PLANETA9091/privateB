@@ -1,6 +1,6 @@
 //
 // climbwet.test.mjs - the water column's own dig lens' proofs (v0.836.0)
-// and the kept promise's own proofs (v0.839.0). The verbatim corpora are
+// and the kept promise's own proofs (v0.840.0). The verbatim corpora are
 // the field's REAL lines: face 106's four (run 37770102755, fleet19.log
 // lines 1208/1251/1272/1297) + face 108's one (run 37779457427, line
 // 1162). The non-water ceiling shape rides the emitter's own no-guard
@@ -133,7 +133,7 @@ test('the row: byte-exact on the face-106/108 corpora, the honest silence on zer
   assert.ok(src.includes('v0.836.0'), 'the version tag rides')
 })
 
-test("the wet column's kept promise (v0.839.0): the real corpora's whole-spend law, the kept cell, the row byte-exact + the guards + the wiring", () => {
+test("the wet column's kept promise (v0.840.0): the real corpora's whole-spend law, the kept cell, the row byte-exact + the guards + the wiring", () => {
   // the real faces so far: the budget always outran the climb
   const f106 = wetColumnCompletion(F106_ALL)
   assert.deepEqual(f106, { ascends: 4, kept: 0, abandoned: 4, maxDig: 2, budget: 4 })
@@ -153,16 +153,16 @@ test("the wet column's kept promise (v0.839.0): the real corpora's whole-spend l
   // the row: byte-exact on the real face-106 corpus
   assert.equal(
     wetColumnCompletionRow(wetColumnCompletion(F106_ALL)),
-    "the wet column's kept promise (v0.839.0): 0 of 4 ascend(s) kept the budget (the column's whole spend), 4 abandoned it early, max dig 2 of 4"
+    "the wet column's kept promise (v0.840.0): 0 of 4 ascend(s) kept the budget (the column's whole spend), 4 abandoned it early, max dig 2 of 4"
   )
   // the kept row + the '?' budget cell (read never invented)
   assert.equal(
     wetColumnCompletionRow(wetColumnCompletion([KEPT])),
-    "the wet column's kept promise (v0.839.0): 1 of 1 ascend(s) kept the budget (the column's whole spend), 0 abandoned it early, max dig 4 of 4"
+    "the wet column's kept promise (v0.840.0): 1 of 1 ascend(s) kept the budget (the column's whole spend), 0 abandoned it early, max dig 4 of 4"
   )
   assert.equal(
     wetColumnCompletionRow({ ascends: 1, kept: 0, abandoned: 1, maxDig: 1, budget: null }),
-    "the wet column's kept promise (v0.839.0): 0 of 1 ascend(s) kept the budget (the column's whole spend), 1 abandoned it early, max dig 1 of ?"
+    "the wet column's kept promise (v0.840.0): 0 of 1 ascend(s) kept the budget (the column's whole spend), 1 abandoned it early, max dig 1 of ?"
   )
   // the honest silence + the guards: junk cells never render
   assert.equal(wetColumnCompletionRow(wetColumnCompletion([])), null)

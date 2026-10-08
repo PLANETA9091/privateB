@@ -35,7 +35,7 @@
 // mutates. Zero fleet wiring (mining-surface only, the
 // v0.379/.../v0.835.0 precedent).
 //
-// (v0.839.0) THE WET COLUMN'S KEPT PROMISE - the family's own completion
+// (v0.840.0) THE WET COLUMN'S KEPT PROMISE - the family's own completion
 // read, on the SAME parser (one parser one truth, no new regex): of the
 // face's own ascends, how many spent the WHOLE budget in the column
 // (dig >= budget, the promise kept) and how many abandoned it early
@@ -152,7 +152,7 @@ export function wetCeilingCensusRow (c) {
 }
 
 /**
- * wetColumnCompletion(lines) - the wet column's kept promise (v0.839.0).
+ * wetColumnCompletion(lines) - the wet column's kept promise (v0.840.0).
  *
  * The family's own completion read on the SAME parser (one parser one
  * truth, no new regex): an ascend KEPT the budget when its own dig
@@ -193,5 +193,5 @@ export function wetColumnCompletionRow (w) {
   if (!Number.isFinite(w.ascends) || w.ascends <= 0) return null
   if (!Number.isFinite(w.kept) || !Number.isFinite(w.abandoned) || !Number.isFinite(w.maxDig)) return null
   const budget = w.budget == null ? '?' : String(w.budget)
-  return `the wet column's kept promise (v0.839.0): ${w.kept} of ${w.ascends} ascend(s) kept the budget (the column's whole spend), ${w.abandoned} abandoned it early, max dig ${w.maxDig} of ${budget}`
+  return `the wet column's kept promise (v0.840.0): ${w.kept} of ${w.ascends} ascend(s) kept the budget (the column's whole spend), ${w.abandoned} abandoned it early, max dig ${w.maxDig} of ${budget}`
 }
