@@ -14,7 +14,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
-import { parseSealDeathDrop, sealDeathCensus, strandedPiles, SEAL_DEATH_LOSS_RE, SEAL_DEATH_EMPTY_RE, DEATH_END_PHASE_WINDOW_S, DEATH_BURST_WINDOW_S, DEATH_BURST_MIN } from '../../src/lib/sealdeath.mjs'
+import { parseSealDeathDrop, sealDeathCensus, strandedPiles, relootRecovery, relootRecoveryRow, SEAL_DEATH_LOSS_RE, SEAL_DEATH_EMPTY_RE, DEATH_END_PHASE_WINDOW_S, DEATH_BURST_WINDOW_S, DEATH_BURST_MIN } from '../../src/lib/sealdeath.mjs'
 import { SEAL_PRIORITY } from '../../src/lib/shelter.mjs'
 
 const CLOCK_ZERO = { timed: 0, untimed: 0, clockEnd: null, firstTs: null, lastTs: null, endPhase: 0, endPhaseWindowS: 60, maxBurst: 0, burstWindowS: 30, burstMin: 3, burstDeaths: 0, burstClusters: 0, burstEndPhase: 0, pace: null, spanS: 0, thirds: null } // (v0.733.0) the siege's own thirds ride the zero shape as null (the calm paradox owns the zero-death face)
@@ -754,4 +754,115 @@ test('WIRING: the decompose rides the lib\'s one truth (v0.755.0)', () => {
   assert.match(src, /thirdsVerdict\(t, c\.timed\)/, 'the inline classification is gone - the lib classifies')
   assert.match(src, /THE MIDDLE'S OWN STORM/, 'the mid seat keeps its name')
   assert.match(src, /THE OPENING'S OWN STORM/, 'the early seat keeps its name')
+})
+
+// (v0.843.0) THE RELOOT'S OWN PRICE - the walk's own mass read. The join
+// prices the recovery from the lane's own words: the arm's death spot
+// cell-matches the bot's own pile (parseSealDeathDrop's own estimate), the
+// arrival credits it. No invention: the number rides the drop line's own
+// '~Nu'; the arrival line carries stack counts only. The verbatim trio is
+// face 112's own words (the first arrival face, 37803061727).
+const f112Drop = 'F10 [F10] death drop: ~163u lost at [-114,61,367] (cobblestone 64, torch 24, raw_copper 20, andesite 15, coal 13, +12 more)'
+const f112Arm = 'F10 reloot: walking to the own death spot [-114,61,367] (34b, budget 14s, window 186s, the unarmed escalation, the pile arm)'
+const f112Arrival = 'F10 reloot: arrived in 9s - 1 item stack(s) in reach'
+
+test('relootRecovery prices the face-112 first arrival verbatim (the walk\u0027s own mass read)', () => {
+  const r = relootRecovery([f112Drop, f112Arm, f112Arrival])
+  assert.equal(r.arms, 1)
+  assert.equal(r.armsNamed, 1)
+  assert.equal(r.armsUnnamed, 0)
+  assert.equal(r.arrivals, 1)
+  assert.equal(r.arrivalsNamed, 1)
+  assert.equal(r.arrivalsUnnamed, 0)
+  assert.equal(r.recovered, 163)
+  assert.equal(r.armedEstimate, 163)
+  assert.deepEqual(r.walks, [{ bot: 'F10', units: 163, walkS: 9 }])
+  // The mutual fence: the join's own lane counts agree with strandedPiles'
+  // (the two lenses read the same REs - one truth, two seats).
+  const sp = strandedPiles([f112Drop, f112Arm, f112Arrival])
+  assert.equal(r.arms, sp.arms)
+  assert.equal(r.arrivals, sp.arrivals)
+  assert.equal(relootRecoveryRow(r), 'the reloot recovery\'s own price (v0.843.0): 1 arrival(s) walked, the recovered estimate ~163u (1 of 1 named, the armed pile(s)\' own drop estimate)')
+})
+
+test('relootRecovery keeps the line-order law (the LATEST own same-cell pile owns the arm)', () => {
+  const first = 'F2 [F2] death drop: ~50u lost at [-5,60,-5] (cobblestone 50)'
+  const later = 'F2 [F2] death drop: ~70u lost at [-5,60,-5] (dirt 70)'
+  const arm = 'F2 reloot: walking to the own death spot [-5,60,-5] (10b, budget 14s, window 186s, the pile arm)'
+  const arrival = 'F2 reloot: arrived in 4s - 1 item stack(s) in reach'
+  const r = relootRecovery([first, later, arm, arrival])
+  assert.equal(r.recovered, 70, 'the later same-cell pile owns the arm (the house clock)')
+  // The future pile can never own: a drop AFTER the arm stays out of the join.
+  const future = 'F2 [F2] death drop: ~90u lost at [-5,60,-5] (stone 90)'
+  const r2 = relootRecovery([first, arm, arrival, future])
+  assert.equal(r2.recovered, 50, 'the arm reads only the piles at-or-before its own line')
+})
+
+test('relootRecovery is bot-scoped (the arm says the OWN death spot - no neighbor credit)', () => {
+  const neighbor = 'F16 [F16] death drop: ~249u lost at [-114,61,367] (cobblestone 249)'
+  const arm = 'F10 reloot: walking to the own death spot [-114,61,367] (34b, budget 14s, window 186s, the pile arm)'
+  const arrival = 'F10 reloot: arrived in 9s - 1 item stack(s) in reach'
+  const r = relootRecovery([neighbor, arm, arrival])
+  assert.equal(r.armsNamed, 0, 'F16\'s pile never rides F10\'s arm')
+  assert.equal(r.arrivalsNamed, 0)
+  assert.equal(r.recovered, 0)
+  assert.equal(r.walks[0].units, null)
+  assert.equal(relootRecoveryRow(r), 'the reloot recovery\'s own price (v0.843.0): 1 arrival(s) walked, the recovered estimate ~0u (0 of 1 named, the armed pile(s)\' own drop estimate), 1 unnamed (the arm\'s own spot matched no own pile)')
+})
+
+test('relootRecovery pairs one arm to one arrival (the pointer\u0027s own consumption)', () => {
+  const drop = 'F2 [F2] death drop: ~50u lost at [-5,60,-5] (cobblestone 50)'
+  const arm = 'F2 reloot: walking to the own death spot [-5,60,-5] (10b, budget 14s, window 186s, the pile arm)'
+  const arrival = 'F2 reloot: arrived in 4s - 1 item stack(s) in reach'
+  const second = 'F2 reloot: arrived in 6s - 2 item stack(s) in reach'
+  const r = relootRecovery([drop, arm, arrival, second])
+  assert.equal(r.arrivals, 2)
+  assert.equal(r.arrivalsNamed, 1, 'the first arrival consumed the arm')
+  assert.equal(r.arrivalsUnnamed, 1, 'a second arrival without a new arm reads honestly unnamed')
+  assert.equal(r.recovered, 50)
+})
+
+test('relootRecoveryRow: the honest silence - zero arrivals and junk read null', () => {
+  const drop = 'F2 [F2] death drop: ~50u lost at [-5,60,-5] (cobblestone 50)'
+  const arm = 'F2 reloot: walking to the own death spot [-5,60,-5] (10b, budget 14s, window 186s, the pile arm)'
+  assert.equal(relootRecoveryRow(relootRecovery([drop, arm])), null, 'an arm with no arrival prints nothing (the v0.476.0 never-walked price owns the row)')
+  assert.equal(relootRecoveryRow(null), null)
+  assert.equal(relootRecoveryRow(undefined), null)
+  assert.equal(relootRecoveryRow('a string'), null)
+  assert.equal(relootRecoveryRow(42), null)
+  assert.equal(relootRecoveryRow({}), null)
+  assert.equal(relootRecoveryRow({ arrivals: 0 }), null)
+})
+
+test('relootRecovery: junk battery - the join never invents (v0.843.0)', () => {
+  // The zero shape on junk inputs (the census's own convention).
+  for (const junk of [null, undefined, 42, {}, { lines: true }]) {
+    const r = relootRecovery(junk)
+    assert.equal(r.arms, 0)
+    assert.equal(r.arrivals, 0)
+    assert.equal(r.recovered, 0)
+    assert.deepEqual(r.walks, [])
+  }
+  // Non-string rows judge nothing; the empty pocket (no pos) never joins.
+  const empty = 'F9 [F9] death drop: pocket read empty at death (0u)'
+  const arm = 'F9 reloot: walking to the own death spot [-117,65,412] (5b, budget 14s, window 186s, the pile arm)'
+  const arrival = 'F9 reloot: arrived in 3s - 1 item stack(s) in reach'
+  const r = relootRecovery([empty, null, 42, arm, arrival])
+  assert.equal(r.arms, 1)
+  assert.equal(r.armsUnnamed, 1, 'the empty pocket names no pile')
+  assert.equal(r.arrivalsUnnamed, 1)
+  assert.equal(r.recovered, 0)
+  // A drift-format arm (no spot bracket) stays honest: counted, unnamed.
+  const drift = 'F3 reloot: walking to the own death spot (the spot line drifted)'
+  const r2 = relootRecovery([drift])
+  assert.equal(r2.arms, 1)
+  assert.equal(r2.armsUnnamed, 1)
+})
+
+test('WIRING: the decompose rides the reloot price beside the stranded seat (v0.843.0)', () => {
+  const src = fs.readFileSync(new URL('../../scripts/fleet-mining/decompose.mjs', import.meta.url), 'utf8')
+  assert.ok(src.includes("import { sealDeathCensus, strandedPiles, relootRecovery, relootRecoveryRow, BIG_PILE_U, thirdsVerdict } from '../../src/lib/sealdeath.mjs'"), 'the price joins the sealdeath import band')
+  const strandedAt = src.indexOf('stranded piles (v0.476.0)')
+  const priceAt = src.indexOf('relootRecoveryRow(rr)')
+  assert.ok(strandedAt > 0 && priceAt > strandedAt && priceAt - strandedAt < 900, 'the price row prints beside the stranded seat (the family\'s books adjacent)')
 })

@@ -360,6 +360,89 @@ export function strandedPiles (lines) {
   }
 }
 
+// (v0.843.0) THE RELOOT'S OWN PRICE - the first arrival's own mass read (the
+// v0.476.0 honest bound's follow-up: face 112's 'arrivals 1' walked a pile
+// home and the units rode uncounted, because the ARRIVAL line carries no
+// mass - true, and still true). The join prices the walk from the lane's
+// OWN words, never an invention: the arm line names the death spot ('F10
+// reloot: walking to the own death spot [-114,61,367] ...'), the death
+// ledger's own parser (parseSealDeathDrop - the SAME parser, one truth)
+// holds the pile's own drop estimate at that cell ('~163u lost at
+// [-114,61,367]'), so the arm's spot cell-matches the bot's own pile and
+// the arrival credits the pile's OWN estimate. The laws: the join is
+// bot-scoped (the arm says 'the OWN death spot' - a neighbor's pile at the
+// same cell is never credited), the line order is the house clock (among
+// the bot's own same-cell piles the LATEST at-or-before the arm owns), one
+// arm pairs one arrival (the pointer clears on arrival - a second arrival
+// without a new arm reads honestly unnamed), and an arm whose spot matches
+// no own pile stays unnamed (the honest '?' - no pile, no price). The
+// recovered number is an ESTIMATE and the row says so: it rides the death
+// drop line's own '~Nu' (the loss read's own convention), not the arrival
+// line (which carries stack counts only). Junk-safe: non-string rows judge
+// nothing, non-array/string -> the zero shape (the census's own
+// convention). Pure: reads, never mutates.
+export const RELOOT_ARM_SPOT_RE = /^F\d+ reloot: walking to the own death spot \[([^\]]*)\]/ // the arm's own WHERE - the no-space bracket cell (the emitter's own format, the HOP_CLOSE_RE lesson)
+export const RELOOT_ARRIVAL_TIME_RE = /^F\d+ reloot: arrived in (\d+)s/ // the walk's own seconds - additive on the same prefix RELOOT_ARRIVAL_RE tests
+
+export function relootRecovery (lines) {
+  const rows = Array.isArray(lines)
+    ? lines
+    : (typeof lines === 'string' ? lines.split('\n') : [])
+  const pilesByBot = {} // bot -> [{ idx, pos, lost }] in line order (the empty pockets never join - no pos, no price)
+  const armedByBot = {} // bot -> { pos, lost } | null - the latest named arm's pile pointer (cleared on arrival)
+  let arms = 0
+  let armsNamed = 0
+  let armsUnnamed = 0
+  let arrivals = 0
+  let arrivalsNamed = 0
+  let arrivalsUnnamed = 0
+  let recovered = 0
+  let armedEstimate = 0
+  const walks = []
+  rows.forEach((l, idx) => {
+    if (typeof l !== 'string') return
+    if (RELOOT_ARM_RE.test(l)) {
+      arms++
+      const bot = (l.match(/^F\d+/) || [''])[0]
+      const sm = l.match(RELOOT_ARM_SPOT_RE)
+      const own = (bot && pilesByBot[bot]) || []
+      let pile = null
+      if (sm) {
+        for (const p of own) { // the LATEST own same-cell pile at-or-before the arm (the line-order law)
+          if (p.idx < idx && p.pos === sm[1]) pile = p
+        }
+      }
+      if (bot) armedByBot[bot] = pile ? { pos: pile.pos, lost: pile.lost } : null
+      if (sm && pile) { armsNamed++; armedEstimate += pile.lost } else armsUnnamed++
+      return
+    }
+    if (RELOOT_ARRIVAL_RE.test(l)) {
+      arrivals++
+      const bot = (l.match(/^F\d+/) || [''])[0]
+      const tm = l.match(RELOOT_ARRIVAL_TIME_RE)
+      const pile = (bot && armedByBot[bot]) || null
+      const walk = { bot: bot || null, units: pile ? pile.lost : null, walkS: tm ? Number(tm[1]) : null }
+      walks.push(walk)
+      if (pile) { arrivalsNamed++; recovered += pile.lost } else arrivalsUnnamed++
+      if (bot) armedByBot[bot] = null // one arm pairs one arrival - the pointer's own consumption
+      return
+    }
+    const p = parseSealDeathDrop(l)
+    if (!p || p.empty || !p.pos) return // the piles' own seat - empty pockets name nothing
+    const bot = p.bot
+    if (!pilesByBot[bot]) pilesByBot[bot] = []
+    pilesByBot[bot].push({ idx, pos: p.pos, lost: p.lost })
+  })
+  return { arms, armsNamed, armsUnnamed, arrivals, arrivalsNamed, arrivalsUnnamed, recovered, armedEstimate, walks }
+}
+
+export function relootRecoveryRow (r) {
+  if (!r || typeof r !== 'object' || !Number.isFinite(r.arrivals) || r.arrivals <= 0) return null
+  const named = `${r.arrivalsNamed} of ${r.arrivals} named`
+  const unnamedNote = r.arrivalsUnnamed > 0 ? `, ${r.arrivalsUnnamed} unnamed (the arm's own spot matched no own pile)` : ''
+  return `the reloot recovery's own price (v0.843.0): ${r.arrivals} arrival(s) walked, the recovered estimate ~${r.recovered}u (${named}, the armed pile(s)' own drop estimate)${unnamedNote}`
+}
+
 // (v0.755.0) THE THIRDS' OWN VERDICT - the classification leaves the mining
 // script and becomes the lib's own one truth. The v0.733.0 thirds lens
 // (clock.thirds: early/mid/late over the face's full clock) priced the
