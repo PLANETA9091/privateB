@@ -208,3 +208,98 @@ export function hazardWalkBackRow (w) {
   if (w.walkBacks <= 0) return null
   return `the hazard board's own walk-back (v0.828.0): ${w.walkBacks} of ${w.eligible} death(s) landed within ${WALKBACK_RADIUS} of water an earlier death had already named - the spot-exact board named the water one death at a time and the body kept the toll`
 }
+
+// (v0.830.0) THE REFUSALS' OWN READ - the water veto's own field instrument.
+// The digShaft gate's refusal line ('digShaft: water hazard N.Nb away (live
+// N) - refusing this column, the caller rotates') is the veto's own voice in
+// the face log, and its distance cell prices the veto's reach. THE TIER LAW
+// (the face 104 negative control taught it LIVE: 10 of 33 refusals rode past
+// 4b on the PRE-cure v0.828.0 tree, the farthest at 10.1b): the line alone
+// cannot name WHICH tier fired - the point tier (any live record, d <= 4
+// euclidean), the zone tier's envelopes (v0.84.0, r = member spread +
+// margin, well past 4 on every tree), and on a v0.829.0+ tree the death
+// body's square (WATER_DEATH_RADIUS 12, up to ~17b at the corner) all speak
+// the SAME line shape. So the lens claims NO impossibility: it prices the
+// veto book per face - the refusals, the farthest reach, the WIDE share
+// (past the 4b spot ceiling) and the board's loudest live count - and the
+// v0.829.0 cure's own verdict rides the TREND beside the walk-back lens
+// (wide grows, the walk-back share drops, the water toll thins). The
+// emitter is ONE (miner.mjs digShaft's in-place guard) - one parser one
+// truth, start-anchored per the deathsweep family law (a suffix never
+// breaks the anatomy, a foreign head does).
+export const HAZARD_REFUSAL_RE = /^F\d+ \[F\d+\] digShaft: water hazard (\d+(?:\.\d+)?)b away \(live (\d+)\) - refusing this column, the caller rotates/
+
+/**
+ * One refusal line's own read. Junk in, null out (the v0.818.0 lesson): a
+ * non-string, a foreign line, a negative distance or count cell all read
+ * null. The d is the log's own printed resolution (toFixed(1)) - the lens
+ * judges the printed number, never a reconstruction.
+ * @param {string} [line] one face-log line
+ * @returns {null|{bot: string|null, d: number, live: number}}
+ */
+export function parseHazardRefusal (line) {
+  if (typeof line !== 'string') return null
+  const m = line.match(HAZARD_REFUSAL_RE)
+  if (!m) return null
+  const d = Number(m[1])
+  const live = Number(m[2])
+  if (!Number.isFinite(d) || d < 0) return null
+  if (!Number.isFinite(live) || live < 0) return null
+  const bot = (line.match(/^(F\d+)\b/) || [])[1] || null
+  return { bot, d, live }
+}
+
+/**
+ * The refusals' own census over a face log (pure; the decompose field read).
+ * Accepts an array of lines or a raw text blob (split on newline); anything
+ * else reads null. A face with zero refusal lines reads null - the honest
+ * silence (a face the gate never spoke on has no veto story to price).
+ * maxD is the farthest printed veto; overFour counts the WIDE vetoes past
+ * the 4b spot ceiling (the zone tier rides there on every tree and the
+ * v0.829.0 body veto on its own tree - the line cannot name the tier, the
+ * tier law); peakLive is the board's size at the loudest veto.
+ * @param {string[]|string} [lines] the face log
+ * @returns {null|{refusals: number, maxD: number, overFour: number, peakLive: number}}
+ */
+export function hazardRefusalCensus (lines) {
+  const src = Array.isArray(lines)
+    ? lines
+    : (typeof lines === 'string' ? lines.split('\n') : null)
+  if (!src) return null
+  const rows = []
+  for (const l of src) {
+    const p = parseHazardRefusal(l)
+    if (p) rows.push(p)
+  }
+  if (rows.length === 0) return null
+  let maxD = rows[0].d
+  let peakLive = rows[0].live
+  let overFour = 0
+  for (const r of rows) {
+    if (r.d > maxD) maxD = r.d
+    if (r.live > peakLive) peakLive = r.live
+    if (r.d > 4) overFour++
+  }
+  return { refusals: rows.length, maxD, overFour, peakLive }
+}
+
+/**
+ * The refusals' own row (the byte-exact verdict line). Guards: a null
+ * census, a non-object, a zero-refusal book or any non-finite cell read
+ * the honest silence null (the row never invents). The wide clause is the
+ * honest one both ways: vetoes past 4b name the WIDE share WITHOUT naming
+ * the tier (the tier law - the zone tier rides there on every tree, the
+ * body veto on its own); a face with none past 4b says so plainly.
+ * @param {null|object} [c] hazardRefusalCensus's own read
+ * @returns {null|string}
+ */
+export function hazardRefusalCensusRow (c) {
+  if (!c || typeof c !== 'object' || Array.isArray(c)) return null
+  const cells = [c.refusals, c.maxD, c.overFour, c.peakLive]
+  if (!cells.every((n) => Number.isFinite(n))) return null
+  if (c.refusals <= 0) return null
+  const widePart = c.overFour > 0
+    ? `${c.overFour} wide veto(s) past the 4b spot ceiling - the zone tier (v0.84.0) rides there too and so does the v0.829.0 body veto: the line alone cannot name the tier`
+    : 'none past the 4b spot ceiling this face'
+  return `the water hazard refusals' own read (v0.830.0): ${c.refusals} refusal(s), the farthest at ${Number(c.maxD).toFixed(1)}b, ${widePart}; the board held ${c.peakLive} live at the loudest veto`
+}

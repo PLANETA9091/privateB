@@ -259,3 +259,58 @@ test('waterhazard walk-back: the junk battery + the row guards', () => {
   assert.equal(hazardWalkBackRow({ memorizes: 2, eligible: 0, walkBacks: 0, clean: 0 }), null)
   assert.equal(hazardWalkBackRow({ memorizes: 2, eligible: 1, walkBacks: 0, clean: 1 }), null)
 })
+
+// ---- (v0.830.0) THE REFUSALS' OWN READ - the v0.829.0 cure's field instrument ----
+// The digShaft gate's refusal line is the veto's own voice; its printed d is
+// the pre/post read: PRE-cure every record vetoed at 4 euclidean, so d > 4
+// could never print - any such line is the body veto's OWN FOOTPRINT. The
+// hand rows below ride the emitter's exact template byte for byte.
+
+import { HAZARD_REFUSAL_RE, parseHazardRefusal, hazardRefusalCensus, hazardRefusalCensusRow } from '../../src/lib/waterhazard.mjs'
+
+test('hazardRefusalCensus: the hand-counted veto book + the footprint clause byte-exact', () => {
+  const lines = [
+    'F9 [F9] digShaft: water hazard 3.2b away (live 5) - refusing this column, the caller rotates',
+    'F3 [F3] digShaft: water hazard 12.0b away (live 9) - refusing this column, the caller rotates',
+    'F17 [F17] digShaft: water hazard 17.0b away (live 9) - refusing this column, the caller rotates'
+  ]
+  const c = hazardRefusalCensus(lines)
+  assert.deepEqual(c, { refusals: 3, maxD: 17, overFour: 2, peakLive: 9 })
+  const row = hazardRefusalCensusRow(c)
+  assert.equal(row, "the water hazard refusals' own read (v0.830.0): 3 refusal(s), the farthest at 17.0b, 2 wide veto(s) past the 4b spot ceiling - the zone tier (v0.84.0) rides there too and so does the v0.829.0 body veto: the line alone cannot name the tier; the board held 9 live at the loudest veto")
+  const p = parseHazardRefusal(lines[0])
+  assert.deepEqual(p, { bot: 'F9', d: 3.2, live: 5 })
+})
+
+test('hazardRefusalCensus: the tier law - a pre-cure face CAN read wide vetoes (the zone tier rides past 4b on every tree)', () => {
+  // the face 104 negative control that taught the law LIVE: 10 of 33
+  // refusals past 4b on the PRE-cure v0.828.0 tree, the farthest at 10.1b
+  // (the zone tier's envelopes, v0.84.0) - so the lens claims NO
+  // impossibility, it prices the wide share and the tier stays unnamed
+  const lines = [
+    'F9 [F9] digShaft: water hazard 10.1b away (live 19) - refusing this column, the caller rotates',
+    'F12 [F12] digShaft: water hazard 4.0b away (live 8) - refusing this column, the caller rotates'
+  ]
+  const c = hazardRefusalCensus(lines)
+  assert.deepEqual(c, { refusals: 2, maxD: 10.1, overFour: 1, peakLive: 19 })
+  assert.equal(hazardRefusalCensusRow(c), "the water hazard refusals' own read (v0.830.0): 2 refusal(s), the farthest at 10.1b, 1 wide veto(s) past the 4b spot ceiling - the zone tier (v0.84.0) rides there too and so does the v0.829.0 body veto: the line alone cannot name the tier; the board held 19 live at the loudest veto")
+  const clean = hazardRefusalCensus(['F9 [F9] digShaft: water hazard 4.0b away (live 8) - refusing this column, the caller rotates'])
+  assert.deepEqual(clean, { refusals: 1, maxD: 4, overFour: 0, peakLive: 8 })
+  assert.equal(hazardRefusalCensusRow(clean), "the water hazard refusals' own read (v0.830.0): 1 refusal(s), the farthest at 4.0b, none past the 4b spot ceiling this face; the board held 8 live at the loudest veto")
+  assert.match(HAZARD_REFUSAL_RE.source, /\^\^?F\\d\+/)
+})
+
+test('hazardRefusalCensus: the junk battery + the row guards', () => {
+  // the v0.389.0 pollution lesson: junk never invents a record
+  for (const junk of [null, undefined, 42, {}, [], 'F9 [F9] water: hazard memorized at [-126,62,390] (5 live, fleet-wide)', 'F9 [F9] digShaft: water hazard -1.0b away (live 5) - refusing this column, the caller rotates', 'F9 [F9] digShaft: water hazard 3.2b away (live -2) - refusing this column, the caller rotates', 'x F9 [F9] digShaft: water hazard 3.2b away (live 5) - refusing this column, the caller rotates']) {
+    assert.equal(parseHazardRefusal(junk), null, `junk reads null: ${JSON.stringify(junk)}`)
+  }
+  // the deathsweep family law: a SUFFIX never breaks the anatomy (the head
+  // anchor is the law) - the emitter's own tail rides, foreign tails parse
+  assert.ok(parseHazardRefusal('F9 [F9] digShaft: water hazard 3.2b away (live 5) - refusing this column, the caller rotates and more'), 'a suffixed line still parses (the start-anchored law)')
+  assert.equal(hazardRefusalCensus(['not a refusal']), null, 'zero valid lines: the honest silence')
+  assert.equal(hazardRefusalCensus('nope'), null, 'a blob of nothing: null')
+  assert.equal(hazardRefusalCensusRow(null), null, 'a null census never prints')
+  assert.equal(hazardRefusalCensusRow({ refusals: 0, maxD: 0, overFour: 0, peakLive: 0 }), null, 'a zero-refusal book never prints (the gate never spoke)')
+  assert.equal(hazardRefusalCensusRow({ refusals: 2, maxD: NaN, overFour: 0, peakLive: 3 }), null, 'a junk cell never prints')
+})
