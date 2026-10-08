@@ -53,6 +53,7 @@ import {
   oxygenInDomain, RESCUE_MAX_MS, RESCUE_COOLDOWN_MS, OXYGEN_CRITICAL_LEVEL, AIR_GLITCH_LOG_MS,
   OXYGEN_RESCUE_LEVEL, rescueDone, fleePlan, verifyShoreCell, HazardLedger,
   shoreCandidates, firstVerifiedShore, AQUATIC_SHORE_CANDIDATES,
+  RE_FLEE_ROTATE_AFTER, RE_FLEE_MEMORY_MS,
   vettedFleeTargetAbs, AIR_GLITCH_STREAK_CAP, dryLandProof, DRY_PROOF_BACKOFF_MS, glitchStreakCap,
   glitchAbandoned, GLITCH_ABANDON_PAGES,
   drowningCorroborated, DROWN_CORROBORATION_HP, WITNESS_COMBAT_BAND, airGlitchLogLine,
@@ -796,18 +797,44 @@ export function createMiner ({
             // hop re-scans). The away-vector below never serves a wet-aquatic
             // flee while a shore exists; it keeps the deep-water no-shore case
             // (fleePlan 'away') and every dry/land-threat byte for byte.
-            const pick = firstVerifiedShore({ candidates: shoreCandidates(sample, here, { count: AQUATIC_SHORE_CANDIDATES }), sample, here })
+            // (v0.848.0) THE RE-FLEE ROTATION: the shore law's own stall guard.
+            // Face 367844310847's whale (F14, 299 combat lines) walked the SAME
+            // verified nearest-shore bearing (1,1) x37 into the Drowned's own
+            // water - the flee never gained ground and the faster swimmer ate
+            // it (killed @0.7). Three consecutive picks of one bearing and the
+            // next pick must differ: the run's bearing loses its seat (verified
+            // walk AND raw fallback) while another shore exists. The memory is
+            // factory-scope (runAway hops at most 3x per call) and decays after
+            // RE_FLEE_MEMORY_MS; a hop that leaves the shore plan (no
+            // candidates, the kite/away vectors) resets the run below.
+            const rotated = shoreFleeRun >= RE_FLEE_ROTATE_AFTER && shoreFleeKey !== null &&
+              Date.now() - shoreFleeAt <= RE_FLEE_MEMORY_MS
+            if (Date.now() - shoreFleeAt > RE_FLEE_MEMORY_MS) { shoreFleeRun = 0; shoreFleeKey = null }
+            const pick = firstVerifiedShore({ candidates: shoreCandidates(sample, here, { count: AQUATIC_SHORE_CANDIDATES }), sample, here, repeats: shoreFleeRun, skipKey: shoreFleeKey })
             if (pick) {
               goal = new goals.GoalBlock(pick.x, pick.y, pick.z)
+              const pickKey = `${pick.dx},${pick.dz}`
+              if (rotated && pickKey !== shoreFleeKey) {
+                log(`${tag} combat: flee shore rotation: the (${shoreFleeKey}) bearing ran ${shoreFleeRun} hops without landing - the next shore bears (${pick.dx},${pick.dz}) vs ${threat.name} (${reason})`)
+              }
               if (pick.verified) {
                 log(`${tag} combat: flee toward shore (${pick.dx},${pick.dz} step ${pick.step}) vs ${threat.name} (${reason})`)
+              } else if (rotated && pickKey !== shoreFleeKey) {
+                log(`${tag} combat: aquatic flee: no verified shore cell - the rotation bears (${pick.dx},${pick.dz}) vs ${threat.name} (${reason})`)
               } else {
                 log(`${tag} combat: aquatic flee: no verified shore cell - bearing the nearest shore (${pick.dx},${pick.dz}) vs ${threat.name} (${reason})`)
               }
+              if (pickKey === shoreFleeKey) shoreFleeRun++
+              else { shoreFleeRun = 1; shoreFleeKey = pickKey }
+              shoreFleeAt = Date.now()
             }
           }
         }
       } catch { /* unreadable world -> the away-vector below */ }
+      // (v0.848.0) the rotation's memory is shore-only: a hop that left the
+      // shore plan (no candidates, unreadable world, the kite/away vectors)
+      // resets the run - the guard counts CONSECUTIVE same-bearing shore hops.
+      if (!goal) { shoreFleeRun = 0; shoreFleeKey = null }
       if (!goal && kite) {
         // (v0.77.0) THE KITE HOP: same hop machinery, different bearing - toward
         // the yard (the spawn-origin fleet hub) instead of radially away. A
@@ -1400,6 +1427,14 @@ export function createMiner ({
   // sheltered (the legacy verdicts), only an actual open-field scan result
   // lifts the yield line, and every new scan re-derives it.
   let openFieldNight = false
+  // (v0.848.0) THE RE-FLEE ROTATION's memory (factory scope - the flee calls
+  // hop at most 3x per runAway, and face 367844310847's whale repeated the
+  // (1,1) bearing x37 ACROSS calls): shoreFleeRun counts consecutive picks of
+  // one shore bearing, shoreFleeKey names it, shoreFleeAt decays the memory
+  // (RE_FLEE_MEMORY_MS) so a stale chase never taxes a fresh flee.
+  let shoreFleeRun = 0
+  let shoreFleeKey = null
+  let shoreFleeAt = 0
   // (v0.140.0) THE RANGED-FIGHT COOLDOWN ledger: mob entity id -> the
   // wall-clock until-timestamp the mob's fight lane stays closed. Armed ONLY
   // by a chase-ceiling break vs a non-witch ranged threat (the skeleton

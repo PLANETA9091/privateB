@@ -37,7 +37,8 @@ import {
   glitchAbandoned, GLITCH_ABANDON_PAGES,
   drowningCorroborated, DROWN_CORROBORATION_HP, airGlitchLogLine,
   frozenReturnGate, frozenReturnBypass, FROZEN_RETURN_GATE_BASE_MS, FROZEN_RETURN_GATE_MAX_MS,
-  ascendStalled, ceilingCell, ASCEND_STALL_PASSES, ASCEND_STALL_EPS, ASCEND_DIG_BUDGET
+  ascendStalled, ceilingCell, ASCEND_STALL_PASSES, ASCEND_STALL_EPS, ASCEND_DIG_BUDGET,
+  RE_FLEE_ROTATE_AFTER, RE_FLEE_MEMORY_MS
 } from '../../src/lib/drowning.mjs'
 
 test('waterVerdict: the dry and the merely wet never page the rescue', () => {
@@ -2035,7 +2036,14 @@ test('the shore law wiring: the aquatic flee is shore-bound in runAway', async (
   const fs = await import('node:fs')
   const src = fs.readFileSync(new URL('../../src/bots/miner.mjs', import.meta.url), 'utf8')
   assert.ok(src.includes('shoreCandidates, firstVerifiedShore, AQUATIC_SHORE_CANDIDATES,'), 'the law rides the drowning import')
-  assert.ok(src.includes('firstVerifiedShore({ candidates: shoreCandidates(sample, here, { count: AQUATIC_SHORE_CANDIDATES }), sample, here })'), 'the pick walks the candidate list')
+  // (v0.848.0) the pick carries the re-flee rotation's state - the dusk-wire
+  // class is catchable only at the source: a call missing repeats/skipKey
+  // would silently re-walk the whale's (1,1) x37 arc
+  assert.ok(src.includes('firstVerifiedShore({ candidates: shoreCandidates(sample, here, { count: AQUATIC_SHORE_CANDIDATES }), sample, here, repeats: shoreFleeRun, skipKey: shoreFleeKey })'), 'the pick walks the candidate list AND carries the rotation state')
+  assert.ok(src.includes('let shoreFleeRun = 0'), 'the rotation run lives at factory scope (runAway hops at most 3x per call - the whale repeated ACROSS calls)')
+  assert.ok(src.includes('if (pickKey === shoreFleeKey) shoreFleeRun++'), 'the run counts consecutive same-bearing picks')
+  assert.ok(src.includes('if (!goal) { shoreFleeRun = 0; shoreFleeKey = null }'), 'a hop that left the shore plan resets the run (the guard counts consecutive shore hops)')
+  assert.ok(src.includes('combat: flee shore rotation: the (${shoreFleeKey}) bearing ran ${shoreFleeRun} hops without landing'), 'the rotation names itself for the decode (the lens must see the re-seat)')
   assert.ok(src.includes('combat: aquatic flee: no verified shore cell - bearing the nearest shore'), 'the raw-bearing fallback names its class for the decode')
   assert.ok(src.includes('combat: flee toward shore (${pick.dx},${pick.dz} step ${pick.step})'), 'the verified line keeps the legacy shape (the decode greps survive)')
 })
@@ -2142,4 +2150,58 @@ test('HazardLedger: the death handler exact write walks the veto wide - the walk
   const plain = new HazardLedger({ now: () => t })
   plain.record({ x: 300, y: 40, z: -220 }) // a rescue record keeps the transient law
   assert.equal(plain.near({ x: 309, y: 40, z: -220 }), null, 'the same cell as a rescue record: 9 blocks stays clean')
+})
+
+// (v0.848.0) THE RE-FLEE ROTATION - the shore law's own stall guard. Face
+// 367844310847's whale (F14, 299 combat lines) walked the SAME verified
+// nearest-shore bearing (1,1) x37 into the Drowned's own water - the flee
+// never gained ground and the faster swimmer ate it (killed @0.7). The pure
+// cure rides firstVerifiedShore's repeats/skipKey: after RE_FLEE_ROTATE_AFTER
+// consecutive picks of one bearing, that bearing loses its seat while ANY
+// other shore exists; the shore-bound law itself never dies for lack of an
+// alternative.
+const refleeWorld = (x, y, z) => {
+  if (y === 2) return x >= 1 && z === 0 ? 'sand' : 'water'
+  if (y === 3) return x >= 1 && z === 0 ? 'air' : 'water'
+  return 'air'
+}
+const REFLEE_HERE = { x: 0, y: 3, z: 0 }
+const REFLEE_CANDS = [{ dx: 1, dz: 0, step: 0 }, { dx: 2, dz: 0, step: 0 }, { dx: 3, dz: 0, step: 0 }]
+
+test('firstVerifiedShore: THE RE-FLEE ROTATION - the run bearing loses its seat at the threshold', () => {
+  const legacy = firstVerifiedShore({ candidates: REFLEE_CANDS, sample: refleeWorld, here: REFLEE_HERE })
+  assert.equal(legacy.verified, true, 'the legacy walk verifies the nearest shore')
+  assert.equal(legacy.dx, 1, 'the nearest seat serves while no run is named')
+  const atThreshold = firstVerifiedShore({ candidates: REFLEE_CANDS, sample: refleeWorld, here: REFLEE_HERE, repeats: RE_FLEE_ROTATE_AFTER, skipKey: '1,0' })
+  assert.equal(atThreshold.verified, true, 'another shore verifies')
+  assert.equal(atThreshold.dx, 2, 'the run bearing (1,0) is skipped - the next shore serves')
+  assert.equal(atThreshold.dz, 0)
+  const rawFallback = firstVerifiedShore({ candidates: REFLEE_CANDS, sample: () => 'water', here: REFLEE_HERE, repeats: RE_FLEE_ROTATE_AFTER, skipKey: '1,0' })
+  assert.equal(rawFallback.verified, false, 'the raw fallback keeps its mark')
+  assert.equal(rawFallback.dx, 2, 'the fallback skips the run bearing too - the whale arc never re-serves raw')
+})
+
+test('firstVerifiedShore: the rotation never fires under the threshold or on junk state', () => {
+  for (const repeats of [0, 1, 2, -1, NaN, Infinity, '3', null, undefined]) {
+    const pick = firstVerifiedShore({ candidates: REFLEE_CANDS, sample: refleeWorld, here: REFLEE_HERE, repeats, skipKey: '1,0' })
+    assert.equal(pick.dx, 1, `repeats ${repeats}: the legacy byte (the nearest serves)`)
+  }
+  const noKey = firstVerifiedShore({ candidates: REFLEE_CANDS, sample: refleeWorld, here: REFLEE_HERE, repeats: RE_FLEE_ROTATE_AFTER, skipKey: null })
+  assert.equal(noKey.dx, 1, 'no skipKey named: the legacy byte')
+  const junkKey = firstVerifiedShore({ candidates: REFLEE_CANDS, sample: refleeWorld, here: REFLEE_HERE, repeats: RE_FLEE_ROTATE_AFTER, skipKey: 42 })
+  assert.equal(junkKey.dx, 1, 'a junk skipKey never judges a bearing')
+})
+
+test('firstVerifiedShore: the shore-bound law never dies for lack of an alternative', () => {
+  const one = firstVerifiedShore({ candidates: [REFLEE_CANDS[0]], sample: refleeWorld, here: REFLEE_HERE, repeats: 99, skipKey: '1,0' })
+  assert.equal(one.dx, 1, 'a single-candidate list keeps the bearing (the rotation needs a seat to move to)')
+  const same = firstVerifiedShore({ candidates: [{ dx: 1, dz: 0, step: 0 }, { dx: 1, dz: 0, step: 1 }], sample: refleeWorld, here: REFLEE_HERE, repeats: 99, skipKey: '1,0' })
+  assert.equal(same.dx, 1, 'every candidate carrying the run bearing keeps the legacy byte (a shore beats no shore)')
+  const dupJunk = firstVerifiedShore({ candidates: [{ dx: 1, dz: 0, step: 0 }, null, { dx: NaN, dz: 0 }], sample: refleeWorld, here: REFLEE_HERE, repeats: RE_FLEE_ROTATE_AFTER, skipKey: '1,0' })
+  assert.equal(dupJunk.dx, 1, 'the filtered list falling empty restores the full list (junk candidates never served anyway)')
+})
+
+test('the re-flee rotation constants stay sane', () => {
+  assert.equal(RE_FLEE_ROTATE_AFTER, 3, 'three consecutive picks of one bearing and the next pick must differ (the whale ran 37)')
+  assert.equal(RE_FLEE_MEMORY_MS, 30000, 'the memory decays at 30s - a stale chase never taxes a fresh flee')
 })

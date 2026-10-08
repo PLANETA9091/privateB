@@ -504,23 +504,41 @@ export function shoreCandidates (sample, center, { maxRadius = SHORE_MAX_RADIUS,
  *   shoreCandidates output (nearest-first)
  * @param {Function|null} [p.sample] the live-world reader (verifyShoreCell's)
  * @param {{x:number,y:number,z:number}|null} [p.here] the bot's floored feet
+ * @param {number} [p.repeats] (v0.848.0) the consecutive same-bearing shore-pick
+ *   run the wiring counts across hops (junk reads 0 - the legacy byte)
+ * @param {string|null} [p.skipKey] (v0.848.0) the run's bearing key 'dx,dz' -
+ *   when repeats >= RE_FLEE_ROTATE_AFTER and a DIFFERENT candidate exists, the
+ *   skipKey candidates lose their seat (the verified walk AND the raw
+ *   fallback); all-one-bearing lists keep the legacy byte (the shore-bound
+ *   law never dies for lack of an alternative)
  * @returns {{x:number,y:number,z:number,dx:number,dz:number,step:number,verified:boolean}|null}
  */
-export function firstVerifiedShore ({ candidates = null, sample = null, here = null } = {}) {
+export function firstVerifiedShore ({ candidates = null, sample = null, here = null, repeats = 0, skipKey = null } = {}) {
   if (!Array.isArray(candidates) || candidates.length === 0) return null
   if (typeof sample !== 'function' || !here ||
     !Number.isFinite(here.x) || !Number.isFinite(here.y) || !Number.isFinite(here.z)) return null
+  // (v0.848.0) THE RE-FLEE ROTATION's walk list: the stall signature is the
+  // wiring's count (repeats) naming the bearing that owns the run (skipKey);
+  // the rotation only re-seats the pick when ANOTHER shore exists - the
+  // filtered list falling empty (every candidate carries the run's bearing,
+  // or the list is junk-shaped) keeps the legacy candidates byte for byte.
+  const run = Number.isFinite(repeats) && repeats > 0 ? Math.floor(repeats) : 0
+  const rotate = run >= RE_FLEE_ROTATE_AFTER && typeof skipKey === 'string' && skipKey.length > 0 && candidates.length > 1
+  const walk = rotate
+    ? candidates.filter(c => c && Number.isFinite(c.dx) && Number.isFinite(c.dz) && `${c.dx},${c.dz}` !== skipKey)
+    : candidates
+  const seats = walk.length ? walk : candidates
   const cellOf = c => {
     if (!c || !Number.isFinite(c.dx) || !Number.isFinite(c.dz)) return null
     const step = c.step === 1 ? 1 : 0
     return { x: Math.floor(here.x) + c.dx, y: Math.floor(here.y) + step, z: Math.floor(here.z) + c.dz, dx: c.dx, dz: c.dz, step }
   }
-  for (const c of candidates) {
+  for (const c of seats) {
     const cell = cellOf(c)
     if (!cell) continue
     if (verifyShoreCell(sample, cell)) return { ...cell, verified: true }
   }
-  const near = cellOf(candidates[0])
+  const near = cellOf(seats[0])
   return near ? { ...near, verified: false } : null
 }
 
@@ -752,6 +770,20 @@ export const AQUATIC_HOSTILES = new Set(['drowned', 'guardian', 'elder_guardian'
 // farther verifies) without turning every hop into a ring sweep - the scan
 // stays the same bounded walk, the LIST just collects while it passes.
 export const AQUATIC_SHORE_CANDIDATES = 3
+
+// (v0.848.0) THE RE-FLEE ROTATION - the stall threshold and the memory
+// window. Face 367844310847's whale (F14, 299 combat lines) read the tell:
+// the flee-toward-shore bearings repeated (1,1) x37 - the SAME verified
+// nearest shore walked hop after hop into the Drowned's own water, and the
+// faster swimmer ate every hop (killed @0.7, the flee never gained ground).
+// The nearest shore is the right answer ONCE; a bearing that keeps being
+// picked without the bot ever landing is the Drowned's own arc. The law:
+// after RE_FLEE_ROTATE_AFTER consecutive picks of one bearing, the next
+// pick must differ - the skipKey candidates lose their seat (verified walk
+// AND raw fallback) while ANY other candidate exists, and the memory decays
+// after RE_FLEE_MEMORY_MS so a stale chase never taxes a fresh flee.
+export const RE_FLEE_ROTATE_AFTER = 3
+export const RE_FLEE_MEMORY_MS = 30000
 
 /**
  * Which way should a fleeing bot run when the fight reaches water?
