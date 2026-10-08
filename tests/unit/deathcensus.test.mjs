@@ -108,7 +108,7 @@ test('deathCensus: THE WIRING PIN - the observe rides the log filter, the row ri
   const observe = src.indexOf('const drec = deathCensusRecord(`${name} ${m}`)')
   assert.ok(observe > 0, 'the observe parses the composed line at the filter pass')
   const filter = src.indexOf('console.log(`${name} ${m}`)')
-  assert.ok(filter > 0 && observe < filter && filter - observe < 1200, 'the observe rides its own filter site (the window search - the census comment rides between)')
+  assert.ok(filter > 0 && observe < filter && filter - observe < 1800, 'the observe rides its own filter site (the window search - the census comment rides between, and the receipt-key comment block joined the window at v0.839.0 - the filter\'s own annotation)')
   // the report row sits after the unaccounted decode it completes, before the drop census
   const row = src.indexOf('try { console.log(deathCensusRow(deathCensusRecords)) }')
   assert.ok(row > 0, 'the report row prints the census')
