@@ -352,7 +352,7 @@ export function titheFamilySeatRow (seat) {
 }
 
 //
-// (v0.830.0) THE YARD'S OWN TWO MOUTHS - the receipt's own seat. The
+// (v0.831.0) THE YARD'S OWN TWO MOUTHS - the receipt's own seat. The
 // family's voice (v0.827.0) priced WHICH lane speaks and the answer's
 // size (v0.824.0) priced HOW MUCH the counter moved - but both ride
 // the tithe's own COUNTER, and the counter's mass has a geography the

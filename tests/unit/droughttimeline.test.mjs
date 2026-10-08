@@ -242,7 +242,7 @@ test('titheFamily: the honest silences and the junk battery', () => {
   assert.equal(titheFamilySeatRow({ total: 5, owner: 'cobble tithe', firings: 0, share: 0, fuelFirings: 0 }), null)
 })
 
-// (v0.830.0) THE YARD'S OWN TWO MOUTHS - the receipt's own seat. The
+// (v0.831.0) THE YARD'S OWN TWO MOUTHS - the receipt's own seat. The
 // lines are byte-verbatim from the stored faces (face 103 = run
 // 37759188855: F8's 14u fuel firing carried a trip receipt at
 // (-123, 82, 414) while the ask's own chest sat at [-113,82,414] -

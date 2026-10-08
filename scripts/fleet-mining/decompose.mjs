@@ -37,7 +37,7 @@ import { fuelDiet, coalEquivalent } from '../../src/lib/fueldiet.mjs' // (v0.666
 import { fuelYieldOf } from '../../src/lib/smelting.mjs' // (v0.666.0) the vanilla yield table's own voice - the diet row's coal divisor, never a made constant
 import { tierDeferCensus } from '../../src/lib/tierdefer.mjs' // (v0.463.0) the tool ladder's own voice - the steer's deferred names counted
 import { deathGrounds, DEATH_GROUND_RADIUS, deathGroundSeat, deathGroundSeatRow, deathGroundRiders, deathGroundRidersRow } from '../../src/lib/deathground.mjs' // (v0.464.0) the combat deaths' spatial join - the mob-cure's WHERE input; (v0.793.0) WHICH ground owns the combat book
-import { hazardBoardCensus, hazardBoardCensusRow, hazardWalkBack, hazardWalkBackRow, hazardRefusalCensus, hazardRefusalCensusRow } from '../../src/lib/waterhazard.mjs' // (v0.826.0) the water hazard board's own read - the memorize line's own census (the repeats, the 240s TTL's own work, the foreign records); (v0.828.0) + the board's own walk-back - the deaths that landed on water an earlier death had already named; (v0.830.0) + the refusals' own read - the veto's own voice priced per face (the wide share past the 4b spot ceiling; the tier law: the line alone cannot name the tier - the zone tier rides past 4b on every tree, the v0.829.0 body veto on its own)
+import { hazardBoardCensus, hazardBoardCensusRow, hazardWalkBack, hazardWalkBackRow, hazardRefusalCensus, hazardRefusalCensusRow } from '../../src/lib/waterhazard.mjs' // (v0.826.0) the water hazard board's own read - the memorize line's own census (the repeats, the 240s TTL's own work, the foreign records); (v0.828.0) + the board's own walk-back - the deaths that landed on water an earlier death had already named; (v0.831.0) + the refusals' own read - the veto's own voice priced per face (the wide share past the 4b spot ceiling; the tier law: the line alone cannot name the tier - the zone tier rides past 4b on every tree, the v0.829.0 body veto on its own)
 import { deathDropCensus } from '../../src/lib/deathdropcensus.mjs' // (v0.647.0) the death-drop stakes' own census - the silent-arm join; (v0.663.0) the stakes' own clock rides the same shape
 import { RELOOT_DESPAWN_MS } from '../../src/lib/reloot.mjs' // (v0.663.0) the despawn one-truth - the arm-lag row's own inversion base
 import { upgradeCensus, deferPromise, upgradeVerdicts, verdictSpread, promisePersistence } from '../../src/lib/upgradecensus.mjs' // (v0.465.0) the tool ladder's own harvest - the rung's delivered tools counted; (v0.467.0) the defer promise's order-aware join; (v0.468.0) the verdict census - the counter-vs-words window named; (v0.470.0) the verdict spread - the worn class's per-bot spread; (v0.471.0) the promise persistence - the kept bots' cross-face fate
@@ -71,7 +71,7 @@ import { assistLedger } from '../../src/lib/assistledger.mjs' // (v0.499.0) the 
 import { torchBook } from '../../src/lib/torchbook.mjs' // (v0.500.0) the torch ledger - the light supply's floors, rungs, asks and yield
 import { veinLedger, tierGuardBill } from '../../src/lib/veinledger.mjs' // (v0.501.0) the vein ledger - the sweep's terminals, walk yield, gallery digs, refusals and the tier guard; (v0.768.0) the tier guard's own bill - the repeat rider's own seat
 import { commonsLedger, sweepBookSeat, sweepBookSeatRow, sweepBookRiders, sweepBookRidersRow, chestCloseSeat, chestCloseSeatRow } from '../../src/lib/commonsledger.mjs' // (v0.502.0) the commons ledger - the ask's answer: the sweeps, the walk anatomy, the deliveries; (v0.800.0) WHICH close class owns the sweep book; (v0.815.0) + the chest's own close - WHICH chest-side close owns the chest book
-import { droughtTimeline, droughtTimelineRow, drySideSeat, drySideSeatRow, titheAnswerSize, titheAnswerSizeRow, titheFamilyCensus, titheFamilySeat, titheFamilySeatRow, titheReceipts, titheReceiptSeat, titheReceiptSeatRow } from '../../src/lib/droughttimeline.mjs' // (v0.738.0) the pump's own timeline - the tithe's banks vs the dry reads' positions; (v0.816.0) + the dry read's own side - WHICH side of the first bank owns the dry book; (v0.824.0) + the answer's own size - the tithe's banked units against the asks' own hunger; (v0.827.0) + the tithe family's own voice - WHICH lane owns the deposit family's own firings; (v0.830.0) + the receipt's own seat - the fuel tithe's trip receipts vs the ask's own dry chest (the yard's own two mouths)
+import { droughtTimeline, droughtTimelineRow, drySideSeat, drySideSeatRow, titheAnswerSize, titheAnswerSizeRow, titheFamilyCensus, titheFamilySeat, titheFamilySeatRow, titheReceipts, titheReceiptSeat, titheReceiptSeatRow } from '../../src/lib/droughttimeline.mjs' // (v0.738.0) the pump's own timeline - the tithe's banks vs the dry reads' positions; (v0.816.0) + the dry read's own side - WHICH side of the first bank owns the dry book; (v0.824.0) + the answer's own size - the tithe's banked units against the asks' own hunger; (v0.827.0) + the tithe family's own voice - WHICH lane owns the deposit family's own firings; (v0.831.0) + the receipt's own seat - the fuel tithe's trip receipts vs the ask's own dry chest (the yard's own two mouths)
 import { reachRadius, reachRadiusRow, reachClock, reachClockRow, reachRentSeat, reachRentSeatRow, reachPreflightGate, reachPreflightGateRow } from '../../src/lib/reachmap.mjs' // (v0.740.0) the reach's own radius - the last mile's refused distances; (v0.742.0) the last mile's own clock - the refused walks' elapsed ms (the raw walk's own rent); (v0.821.0) the last mile's own rent seat - the paired walks' rent by the d-band; (v0.823.0) the preflight's own distance gate - the seat's owner prices the early refuse
 import { bridgeBook, bridgePocketBill, bridgePocketBillRow, bridgePocketRiders, bridgePocketRidersRow } from '../../src/lib/bridgebook.mjs' // (v0.496.0) the bridge book - the vertical walk's fill lane (the refusals' why-flip, the cobble signature, the server's own veto; SLOT COLLISION #17: 0.495.0 taken by fire-0008's THE TABLE GATE mid-fire); (v0.786.0) WHICH bot owns the pocket tax
 import { bridgeRefusalCensus, bridgeRefusalRow } from '../../src/lib/climbbridge.mjs' // (v0.665.0) THE CLIMB BRIDGE'S FIELD READ - the refusal book's own grains wired to the mining surface: the gate, the pit donor, the plant clear, the shadow gate's defers
@@ -1430,7 +1430,7 @@ if (shooter.total > 0) {
   // census (a walk-back share of zero rides no row - the gate's own law).
   const wbRow = hazardWalkBackRow(hazardWalkBack(lines))
   if (wbRow) console.log(`  ${wbRow}`)
-  // (v0.830.0) THE REFUSALS' OWN READ - the water veto's own voice beside
+  // (v0.831.0) THE REFUSALS' OWN READ - the water veto's own voice beside
   // the board's rows: the digShaft gate's refusal line priced per face (the
   // farthest reach, the wide share past the 4b spot ceiling - the tier law:
   // the line alone cannot name the tier, the cure's verdict rides the TREND
@@ -4018,7 +4018,7 @@ console.log('  plan lines:', count(/materials plan|plan progress/i))
       const asRead = titheAnswerSize(t.askCoal, dt.units)
       if (asRead) console.log(`  the tithe's own answer (v0.824.0): ${titheAnswerSizeRow(asRead)}`)
     }
-    // (v0.830.0) the receipt's own seat - the fuel tithe's trip
+    // (v0.831.0) the receipt's own seat - the fuel tithe's trip
     // receipts (deposit.mjs's own 'banked N items at (x,y,z)' emitter,
     // the chest the mass PHYSICALLY landed in) vs the ask's located
     // dry reads (the chest the walk actually reads). The counters
@@ -4032,7 +4032,7 @@ console.log('  plan lines:', count(/materials plan|plan progress/i))
     const tr = titheReceipts(lines)
     if (tr && tr.firings > 0 && tr.dryLocs > 0) {
       const trSeat = titheReceiptSeat(tr)
-      if (trSeat) console.log(`  the receipt's own seat (v0.830.0): ${titheReceiptSeatRow(trSeat)}`)
+      if (trSeat) console.log(`  the receipt's own seat (v0.831.0): ${titheReceiptSeatRow(trSeat)}`)
     }
     const rows = Object.entries(cl.bots).sort((a, b) => b[1].sweeps - a[1].sweeps).slice(0, 6)
     if (rows.length) console.log(`  bots heaviest-first: ${rows.map(([b, r]) => `${b} ${r.sweeps}sw/${r.asks}ask`).join(' ')}`)
