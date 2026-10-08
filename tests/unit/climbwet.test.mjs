@@ -270,3 +270,23 @@ test("the wet column's own waste (v0.845.0): the water class's own law, the calm
   assert.ok(src4.includes('wetColumnWasteRow(wetColumnWaste(lines))'), 'the waste row prints beside the shortfall seat')
   assert.ok(src4.includes('v0.845.0'), 'the version tag rides')
 })
+
+test('the waste cure (v0.846.0): the water ceiling is refused at the dig gate', () => {
+  const src = readFileSync(join(here, '../../src/bots/miner.mjs'), 'utf8')
+  // the cure's own condition: the deep-pocket lane's guard, ported to the
+  // wet-ascend dig site - a WATER ceiling never digs (the server cannot
+  // break water; the v0.845.0 row priced the class 14 of 15 across four
+  // faces), the refuse falls through to the surface handoff byte for byte
+  assert.ok(src.includes('if (aceil && aceil.diggable === true && isWaterName(aceil.name) !== true) {'),
+    'the guard rides the wet-ascend dig gate (the deep-pocket precedent ported)')
+  // the budget increments only PAST the guard - a refused water ceiling
+  // consumes no room (the budget bounds REAL digs)
+  const gateIdx = src.indexOf('if (aceil && aceil.diggable === true && isWaterName(aceil.name) !== true) {')
+  const incIdx = src.indexOf('wetAscendDigs++')
+  assert.ok(gateIdx !== -1 && incIdx > gateIdx, 'the budget increments past the guard, never before it')
+  assert.ok(gateIdx < src.indexOf('withTimeout(bot.dig(aceil)'), 'the dig rides past the guard too')
+  // the sibling's own fence still stands (the port removed nothing)
+  assert.ok(src.includes('isWaterName(ceil.name) !== true'), 'the deep-pocket guard keeps its own seat')
+  // the cure names itself in the source (the version tag rides)
+  assert.ok(src.includes('(v0.846.0) THE WASTE CURE'), 'the cure names itself in the source')
+})

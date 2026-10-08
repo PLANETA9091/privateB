@@ -5444,7 +5444,21 @@ export function createMiner ({
             const aceil = acell
               ? (() => { try { return bot.blockAt(new Vec3(acell.x, acell.y, acell.z)) } catch { return null } })()
               : null
-            if (aceil && aceil.diggable === true) {
+            // (v0.846.0) THE WASTE CURE: the deep-pocket lane's own guard,
+            // ported (the v0.343.0 lid-scan precedent's `isWaterName(ceil.name)
+            // !== true`): a WATER ceiling is refused before the dig. The lens
+            // priced the class on four faces (the v0.845.0 row's own book: 14
+            // of 15 climbwet digs rode water across faces 112/113/114/115) -
+            // the server cannot break water, the dig resolves into nothing,
+            // the bot sinks back and the budget tick burns (the wasted dig's
+            // own shape). The refuse falls through to the surface handoff and
+            // the rotate ladder byte for byte (a refused dig owns a failed
+            // dig's honest shape); the budget increments only past the guard -
+            // a refused water ceiling consumes no room (the budget bounds REAL
+            // digs). No refuse line: the deep-pocket precedent's own law (the
+            // refuse whys never dig, so they never log) - the v0.845.0 row's
+            // calm verdict (0 water) is the cure's own success signature.
+            if (aceil && aceil.diggable === true && isWaterName(aceil.name) !== true) {
               wetAscendDigs++
               try {
                 await withTimeout(bot.dig(aceil), 6000, 'wet ceiling ascend dig')
