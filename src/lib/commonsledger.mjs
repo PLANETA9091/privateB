@@ -607,3 +607,79 @@ export function sweepBookRidersRow (r) {
       !Number.isFinite(shareOfSweeps)) return null
   return `the sweep book's own riders (v0.800.0): no solo class owns the majority - ${leader} x${leaderOwns} + ${runner} x${runnerOwns} own ${pairOwns} of ${ofSweeps} sweep(s) (${(shareOfSweeps * 100).toFixed(1)}%) - THE SWEEP'S OWN MIX: the seat's tie law held, the mix is the shape - the classes' own spread prices the drought the solo law refused to seat`
 }
+
+//
+// (v0.815.0) THE CHEST'S OWN CLOSE - WHICH chest-side close owns the
+// sweep's chest book. The chest anatomy row (the tally's own five
+// cells - emptyChest / openFail / verticalDoom / blockVanished /
+// coverStandDown) printed the split raw since v0.502.0 while the
+// drought's own chest-side front rode unnamed: face 91's sweep reached
+// chests that sat beyond the climb (vertical doom owned), face 92's and
+// face 94's sweeps reached chests whose stock wasn't there (empty
+// owned) - the yard's own drought arrived first, the reach's geometry
+// had already lost its seat. chestCloseSeat(cells) prices the seat on
+// the tally's own five cells only (zero re-parsing - the v0.802.0 seat
+// law): the book is the cells' own sum; the strict-majority law
+// (topUnits * 2 > total - the v0.814.0 famine seat's own law), no solo
+// majority reads the honest mix row; junk never invents a close - a
+// non-finite or negative cell is skipped and counted (the bad cell
+// rides the seat's own alarm, the real cells still tally), an empty
+// book reads the honest silence (null).
+//
+
+// the five cells' own row vocabulary (the chest anatomy's own labels)
+const CHEST_CLOSE_CLASSES = [
+  ['emptyChest', 'empty', 'the yard\'s own drought arrived first - the sweep reached the chest and the stock wasn\'t there (the inflow is the front)'],
+  ['openFail', 'open-fail', 'the hand\'s own front - the chest refused the open (the lid\'s own price)'],
+  ['verticalDoom', 'vertical doom', 'the reach\'s own geometry - the chest sat beyond the climb (the vertical\'s own front)'],
+  ['blockVanished', 'vanished', 'the world\'s own shift - the chest\'s own block left (the ground\'s own churn)'],
+  ['coverStandDown', 'cover stand-down', 'the cover\'s own price - the standdown kept the sweep from the chest (the guard\'s own front)'],
+]
+
+/**
+ * chestCloseSeat(cells) - the chest book's own close seat.
+ * @param {Object<string, number>|null} [cells] the tally's own five cells
+ * @returns {null|{total: number, owner: null|string, units: number,
+ *   share: number, word: null|string, bad: number}}
+ *   the seat (null on an empty book)
+ */
+export function chestCloseSeat (cells) {
+  const c = (cells && typeof cells === 'object' && !Array.isArray(cells)) ? cells : {}
+  const picked = []
+  let bad = 0
+  for (const [key, label] of CHEST_CLOSE_CLASSES) {
+    const v = c[key]
+    if (v === undefined) continue
+    if (!Number.isFinite(v) || v < 0) { bad++; continue }
+    if (v === 0) continue
+    picked.push([label, v])
+  }
+  if (!picked.length) return null
+  picked.sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0))
+  const total = picked.reduce((s, [, v]) => s + v, 0)
+  const [topLabel, topUnits] = picked[0]
+  // the strict-majority law: the top must hold more than the rest together
+  const owns = topUnits * 2 > total
+  const owner = owns ? topLabel : null
+  const units = owns ? topUnits : 0
+  const word = owns ? CHEST_CLOSE_CLASSES.find(([, l]) => l === topLabel)[2] : null
+  return { total, owner, units, share: total ? +(units / total).toFixed(3) : 0, word, bad }
+}
+
+/**
+ * chestCloseSeatRow(seat) - the seat's row (the prose lives only in the lib).
+ * @param {null|{total: number, owner: null|string, units: number,
+ *   share: number, word: null|string, bad: number}} [seat] chestCloseSeat's own read
+ * @returns {null|string} the row (null on an empty book)
+ */
+export function chestCloseSeatRow (seat) {
+  if (!seat || typeof seat !== 'object') return null
+  const { total, owner, units, share, word } = seat
+  if (!Number.isFinite(total) || total <= 0) return null
+  if (!Number.isFinite(share)) return null
+  if (!owner) return 'no solo class owns the chest book (the mix owns nothing)'
+  if (typeof owner !== 'string' || !CHEST_CLOSE_CLASSES.some(([, l]) => l === owner)) return null
+  if (!Number.isFinite(units) || units <= 0 || units > total) return null
+  if (typeof word !== 'string' || !word) return null
+  return `${owner} owns ${units} of ${total} chest close(s) (${(share * 100).toFixed(1)}%) - THE CHEST'S OWN CLOSE: ${word}`
+}

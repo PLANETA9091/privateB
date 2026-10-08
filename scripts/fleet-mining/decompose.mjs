@@ -67,7 +67,7 @@ import { pounceBook } from '../../src/lib/pouncebook.mjs' // (v0.498.0) the poun
 import { assistLedger } from '../../src/lib/assistledger.mjs' // (v0.499.0) the assist ledger - the pounce handoff's aftermath (the ownership claim priced: rose vs died at the climb boundary)
 import { torchBook } from '../../src/lib/torchbook.mjs' // (v0.500.0) the torch ledger - the light supply's floors, rungs, asks and yield
 import { veinLedger, tierGuardBill } from '../../src/lib/veinledger.mjs' // (v0.501.0) the vein ledger - the sweep's terminals, walk yield, gallery digs, refusals and the tier guard; (v0.768.0) the tier guard's own bill - the repeat rider's own seat
-import { commonsLedger, sweepBookSeat, sweepBookSeatRow, sweepBookRiders, sweepBookRidersRow } from '../../src/lib/commonsledger.mjs' // (v0.502.0) the commons ledger - the ask's answer: the sweeps, the walk anatomy, the deliveries; (v0.800.0) WHICH close class owns the sweep book
+import { commonsLedger, sweepBookSeat, sweepBookSeatRow, sweepBookRiders, sweepBookRidersRow, chestCloseSeat, chestCloseSeatRow } from '../../src/lib/commonsledger.mjs' // (v0.502.0) the commons ledger - the ask's answer: the sweeps, the walk anatomy, the deliveries; (v0.800.0) WHICH close class owns the sweep book; (v0.815.0) + the chest's own close - WHICH chest-side close owns the chest book
 import { droughtTimeline, droughtTimelineRow } from '../../src/lib/droughttimeline.mjs' // (v0.738.0) the pump's own timeline - the tithe's banks vs the dry reads' positions
 import { reachRadius, reachRadiusRow, reachClock, reachClockRow } from '../../src/lib/reachmap.mjs' // (v0.740.0) the reach's own radius - the last mile's refused distances; (v0.742.0) the last mile's own clock - the refused walks' elapsed ms (the raw walk's own rent)
 import { bridgeBook, bridgePocketBill, bridgePocketBillRow, bridgePocketRiders, bridgePocketRidersRow } from '../../src/lib/bridgebook.mjs' // (v0.496.0) the bridge book - the vertical walk's fill lane (the refusals' why-flip, the cobble signature, the server's own veto; SLOT COLLISION #17: 0.495.0 taken by fire-0008's THE TABLE GATE mid-fire); (v0.786.0) WHICH bot owns the pocket tax
@@ -3855,6 +3855,13 @@ console.log('  plan lines:', count(/materials plan|plan progress/i))
     }
     console.log(`  walk anatomy: nudges ${t.nudges} / re-segments ${t.resegments} / spent slices ${t.spentSlice} / walk fails ${t.walkFail} (${Object.entries(t.walkFailWhys).map(([w, n]) => `${w} ${n}`).join(', ')})${t.lastMile ? ` / last-mile refused ${t.lastMile} (${Object.entries(t.lastMileWhys).map(([w, n]) => `${w} ${n}`).join(', ')})` : ''}`)
     console.log(`  chest anatomy: empty ${t.emptyChest} / open-fail ${t.openFail} / vertical doom ${t.verticalDoom} (${t.doomShapes.join(', ')}) / vanished ${t.blockVanished} / cover stand-downs ${t.coverStandDown}`)
+    // (v0.815.0) the chest's own close - WHICH chest-side close owns the
+    // sweep's chest book (the tally's own five cells, zero re-parsing;
+    // the strict-majority law, no solo majority reads the honest mix
+    // row; an empty book reads the honest silence). One additive row
+    // beside the raw split - the v0.802.0 seat law's own shape.
+    const ccSeat = chestCloseSeat(t)
+    if (ccSeat) console.log(`  the chest's own close (v0.815.0): ${chestCloseSeatRow(ccSeat)}`)
     // (v0.737.0) the dry yard's own side - the located dry reads the
     // old grammar never saw (154 across 48 chests on the 52nd)
     if (t.dryReads > 0) {
