@@ -244,3 +244,51 @@ test('heartbeat source: the freeze-storm FATAL carries the blackbox story (v0.31
   const killIdx = HEARTBEAT_WORKER_SRC.indexOf("process.kill(process.pid, 'SIGTERM')", fatalIdx)
   assert.ok(fatalIdx !== -1 && killIdx !== -1 && killIdx > fatalIdx, 'the emergency SIGTERM follows the FATAL lines')
 })
+
+// (v0.818.0) THE BEAT RAIL'S OWN GUARANTEE. MEASURED (fleet 37736268597, face
+// 96, the v0.816.0 tree, exit 143 at ts~377s): the beats stopped at n=16
+// ts=321s while the stormguard's sgInterval - the SAME worker thread, the
+// SAME stopped gate - lived on to fire the RSS JUMP (ts~372s) and the
+// freeze-storm FATAL (ts~377s). The self-rescheduling setTimeout chain is one
+// missed reschedule from a PERMANENT silent rail death, and 46s of the
+// forming storm (the starvation story's own window) rode the death clock's
+// gap UNREAD. The rail is now the shape that provably survived the same
+// window: one setInterval (libuv re-arms from fire time), the tick body
+// fully wrapped, and the one unwrapped line (the rss read) guarded with a
+// last-good-sample fallback.
+test('heartbeat source: the beat rail is a setInterval, never a self-rescheduling chain (v0.818.0 face 96)', () => {
+  assert.match(HEARTBEAT_WORKER_SRC, /timer = setInterval\(tick, intervalMs\)/, 'the beat schedules as an interval - the libuv re-arm survived what the chain lost (face 96)')
+  assert.doesNotMatch(HEARTBEAT_WORKER_SRC, /timer = setTimeout\(tick, intervalMs\)/, 'the self-rescheduling chain is retired - one missed reschedule was a permanent silent rail death')
+  assert.doesNotMatch(HEARTBEAT_WORKER_SRC, /clearTimeout\(timer\)/, 'timer is an interval handle everywhere now - the kill paths and the stop handler clear it as one')
+  const stops = HEARTBEAT_WORKER_SRC.match(/clearInterval\(timer\)/g) || []
+  assert.ok(stops.length >= 4, `expected the interval cleared at the 3 kill paths + the stop handler, found ${stops.length}`)
+})
+
+test('heartbeat source: the tick body never breaks its own chain (v0.818.0 face 96)', () => {
+  const tickIdx = HEARTBEAT_WORKER_SRC.indexOf('function tick ()')
+  assert.ok(tickIdx !== -1, 'the tick function exists')
+  const body = HEARTBEAT_WORKER_SRC.slice(tickIdx, HEARTBEAT_WORKER_SRC.indexOf('timer = setInterval', tickIdx))
+  // the stopped gate stays FIRST (a stopped clock prints nothing - the kill
+  // paths' own semantics), then the whole body lives inside one try
+  assert.match(body, /if \(stopped\) return\n  \/\/ \(v0\.818\.0\)/, 'the gate stays first, the wrap follows')
+  assert.match(body, /try \{\n    n\+\+/, 'the body is wrapped - a throw degrades the line, never the rail')
+  assert.match(body, /\} catch \{ \/\* the beat never breaks its own chain/, 'the wrap has its own named catch')
+  assert.doesNotMatch(body, /timer = setTimeout\(tick/, 'no in-tick reschedule - the interval re-arms itself')
+})
+
+test('heartbeat source: the rss read degrades to the last good sample, never the rail (v0.818.0 face 96)', () => {
+  // the module's ONE unwrapped line was process.memoryUsage() inside the beat
+  // - under a memory spiral it was the only throw-capable code between the
+  // gate and the reschedule. Now: guarded, with the last good read carrying
+  // the line (a diagnostics failure must not cost the death clock its beat).
+  assert.match(HEARTBEAT_WORKER_SRC, /var lastRssM = 0/, 'the fallback holder is declared once')
+  assert.match(HEARTBEAT_WORKER_SRC, /var rssM = lastRssM/, 'the line defaults to the last good sample')
+  assert.match(HEARTBEAT_WORKER_SRC, /try \{ rssM = Math\.round\(process\.memoryUsage\(\)\.rss \/ 1048576\); lastRssM = rssM \} catch/, 'the read is guarded and the fallback advances only on success')
+})
+
+test('heartbeat source: the beat line wire format survives the re-indent (v0.818.0)', () => {
+  // the stormcensus' HB_RE and the mem-hb lens read the tail shape
+  // (n / ts / rss / late / mainLate) off this exact concat chain - the
+  // v0.818.0 re-indent must not have moved a single byte of it.
+  assert.match(HEARTBEAT_WORKER_SRC, /fs\.writeSync\(writeFd, 'b\] n=' \+ n \+ ' ts=' \+ Math\.round\(process\.uptime\(\)\) \+ 's rss=' \+ rssM \+ 'M late=' \+ late \+ 'ms mainLate=' \+ mainLate \+ 'ms/, 'the wire tail is byte-identical: n, ts, rss, late, mainLate in order')
+})

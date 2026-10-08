@@ -41,6 +41,7 @@ let n = 0
 let stopped = false
 let timer = null
 let mainLate = 0
+var lastRssM = 0 // (v0.818.0) the last good rss read - the beat line's degradation fallback (face 96)
 const t0 = Date.now()
 // (v0.55.0) THE STORM GUARD - off-thread teeth. run53 (35647216505): the main
 // thread froze mid-drowning-rescue and allocated +3.1GB of RETAINED heap in 20s
@@ -193,7 +194,7 @@ function sgTick () {
     var fsPrev = sgWin.length >= 2 ? sgWin[sgWin.length - 2].rss : 0
     if (pvFrozen !== null && pvFrozen >= sgPulseVoidMs && r >= sgFloor && fsPrev > 0 && r > fsPrev) {
       stopped = true // no further lines race the emergency report
-      try { clearTimeout(timer); clearInterval(sgTimer) } catch { /* dying anyway */ }
+      try { clearInterval(timer); clearInterval(sgTimer) } catch { /* dying anyway */ }
       // (v0.310.0) THE FREEZE POST-MORTEM - the activity story rides the FATAL
       // line. MEASURED (fleet 36560130936, the double-0.309.0 face, exit 143 at
       // ts=446): the freeze kill fired at rss 984M -> 2006M while the mainLate
@@ -235,7 +236,7 @@ function sgTick () {
       var fbRate = fbStep > 0 ? fbGain / (fbStep / 1000) : 0
       if (fbStep > 0 && fbStep <= sgJumpMaxStepMs && fbRate >= sgRate) {
         stopped = true // no further lines race the emergency report
-        try { clearTimeout(timer); clearInterval(sgTimer) } catch { /* dying anyway */ }
+        try { clearInterval(timer); clearInterval(sgTimer) } catch { /* dying anyway */ }
         try { fs.writeSync(writeFd, '[stormguard] FATAL (frozen burst: main pulse frozen ' + Math.round(pvFrozen / 1000) + 's, rss ' + fbPrev.rss + 'M -> ' + r + 'M (+' + Math.round(fbGain) + 'M in ' + Math.round(fbStep / 1000) + 's = ' + (Math.round(fbRate * 10) / 10) + 'MB/s >= ' + sgRate + 'MB/s, below the ' + sgFloor + 'M floor - the burst does not wait for it) - the closure cannot land; face 88 (37712326964) burst 380 -> 1004M at 124.7MB/s and the floor kill waited for 2144M, one sample ahead of the V8 cliff' + sgStory(8) + ')\\n') } catch { /* stdout closed - kill anyway */ }
         try { fs.writeSync(writeFd, '[stormguard] the MAIN thread is locked while allocating (run53/35647216505 OOM class; mainLate read ' + mainLate + 'ms but the pulse has been frozen ' + Math.round(pvFrozen / 1000) + 's - the reading was stale) - every closure applier lives on the locked main; emergency SIGTERM keeps the story readable (exit 143)\\n') } catch { /* stdout closed - kill anyway */ }
         try { process.kill(process.pid, 'SIGTERM') } catch { /* already dying */ }
@@ -270,7 +271,7 @@ function sgTick () {
         stormPublish(v.rate, v.rss, process.uptime()) // (v0.104.0) the verdict rides the storm cell to the main valve
       } else if (act === 'kill') {
         stopped = true // no further lines race the emergency report
-        try { clearTimeout(timer); clearInterval(sgTimer) } catch { /* dying anyway */ }
+        try { clearInterval(timer); clearInterval(sgTimer) } catch { /* dying anyway */ }
         // (v0.143.0) the one-time VOID line - the mine must read WHY the
         // grace gave up before the FATAL numbers (the GRACE HOLD precedent)
         if (why.indexOf('grace void') === 0 && !sgVoidWritten) {
@@ -377,20 +378,37 @@ function bbDump (lateNow) {
 }
 function tick () {
   if (stopped) return
-  n++
-  const now = Date.now()
-  const late = Math.max(0, (now - t0) - n * intervalMs)
-  const rssM = Math.round(process.memoryUsage().rss / 1048576)
-  if (writeFd >= 0) {
-    try { fs.writeSync(writeFd, '[hb] n=' + n + ' ts=' + Math.round(process.uptime()) + 's rss=' + rssM + 'M late=' + late + 'ms mainLate=' + mainLate + 'ms\\n') } catch { /* stdout closed - nothing to diagnose with */ }
-  }
-  try { bbDump(mainLate) } catch { /* forensics never throws */ }
-  try { parentPort.postMessage({ n: n, ts: now, late: late, rssMb: rssM }) } catch { /* parent gone */ }
-  timer = setTimeout(tick, intervalMs)
+  // (v0.818.0) the whole body wrapped - the beat never breaks its own
+  // rail. Face 96 (37736268597, the v0.816.0 tree, exit 143 at ts~377s):
+  // the beats stopped at n=16 ts=321s while the sgInterval (the SAME
+  // worker, the SAME stopped gate) lived to fire the RSS JUMP at ts~372s
+  // and the freeze-storm FATAL at ts~377s - the chain's one missed
+  // reschedule is a permanent silent rail death, and this body carried
+  // the module's ONE unwrapped line (the rss read). A diagnostics
+  // failure now degrades the line, never the rail.
+  try {
+    n++
+    const now = Date.now()
+    const late = Math.max(0, (now - t0) - n * intervalMs)
+    var rssM = lastRssM
+    try { rssM = Math.round(process.memoryUsage().rss / 1048576); lastRssM = rssM } catch { /* the read degrades, the rail does not - face 96 */ }
+    if (writeFd >= 0) {
+      try { fs.writeSync(writeFd, 'b] n=' + n + ' ts=' + Math.round(process.uptime()) + 's rss=' + rssM + 'M late=' + late + 'ms mainLate=' + mainLate + 'ms\\n') } catch { /* stdout closed - nothing to diagnose with */ }
+    }
+    try { bbDump(mainLate) } catch { /* forensics never throws */ }
+    try { parentPort.postMessage({ n: n, ts: now, late: late, rssMb: rssM }) } catch { /* parent gone */ }
+  } catch { /* the beat never breaks its own chain - the 46s gap face 96 rode stays a one-generation lesson */ }
 }
-timer = setTimeout(tick, intervalMs)
+// (v0.818.0) THE BEAT RAIL'S OWN GUARANTEE - the self-rescheduling
+// setTimeout chain is retired. MEASURED (face 96): the beats n=17/n=18
+// (due ts~341s/ts~361s) never landed while the guard's own interval
+// proved the libuv re-arm-from-fire-time shape survives the very window
+// the chain lost - the death clock must be as unkillable as the guard
+// it arms (the stormcensus' starvation story rides these beats; face
+// 96's forming storm rode 46s of it unread).
+timer = setInterval(tick, intervalMs)
 parentPort.on('message', m => {
-  if (m === 'stop') { stopped = true; clearTimeout(timer); try { clearInterval(sgTimer) } catch { /* teardown */ }; try { process.exit(0) } catch { /* already exiting */ } }
+  if (m === 'stop') { stopped = true; clearInterval(timer); try { clearInterval(sgTimer) } catch { /* teardown */ }; try { process.exit(0) } catch { /* already exiting */ } }
   // (v0.48.0) the parent's main-thread lag report arrives one beat late (the
   // line is written before this message lands) - evidence, not an alarm.
   if (m && typeof m === 'object' && Number.isFinite(m.mainLateMs)) { try { mainLate = Math.max(0, Math.round(m.mainLateMs)) } catch { /* junk stays harmless */ } }
