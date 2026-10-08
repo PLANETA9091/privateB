@@ -1,5 +1,5 @@
 //
-// columntoll.test.mjs - the column's own toll lens' proofs (v0.837.0).
+// columntoll.test.mjs - the column's own toll lens' proofs (v0.838.0).
 // The verbatim corpus is face 109's REAL line order (run 37783367117,
 // fleet19.log lines 1339/1510/1686/1943/1946/1961/2014/2093/2269/2388/
 // 2418/2479/2491/2576): F13 dug the column [-135,410] three times
@@ -97,14 +97,14 @@ test('the row: byte-exact on the face-109 corpus, the cure-held form, the honest
   const row = columnTollRow(columnToll(F109_ALL))
   assert.equal(
     row,
-    "the column's own toll (v0.837.0): 1 of 6 death(s) rode a dug column (drown x1), the heaviest [-135,410] owned 3 dig(s) then 1 death(s)"
+    "the column's own toll (v0.838.0): 1 of 6 death(s) rode a dug column (drown x1), the heaviest [-135,410] owned 3 dig(s) then 1 death(s)"
   )
   // the cure-held form: deaths rode no dug column (face 108's own shape:
   // 1 wet dig, 2 deaths, no join)
   const held = columnTollRow(columnToll([D[0], KILL[1], KILL[2]]))
   assert.equal(
     held,
-    "the column's own toll (v0.837.0): 0 of 2 death(s) rode a dug column (1 wet dig(s) across the face) - the wet lane's cure held"
+    "the column's own toll (v0.838.0): 0 of 2 death(s) rode a dug column (1 wet dig(s) across the face) - the wet lane's cure held"
   )
   // the honest silence: no deaths, no toll question
   assert.equal(columnTollRow(columnToll(D)), null)
@@ -119,5 +119,5 @@ test('the row: byte-exact on the face-109 corpus, the cure-held form, the honest
   const src = readFileSync(join(here, '../../scripts/fleet-mining/decompose.mjs'), 'utf8')
   assert.ok(src.includes("from '../../src/lib/columntoll.mjs'"), 'the import rides')
   assert.ok(src.includes('columnTollRow(columnToll(lines))'), 'the additive row rides')
-  assert.ok(src.includes('v0.837.0'), 'the version tag rides')
+  assert.ok(src.includes('v0.838.0'), 'the version tag rides')
 })

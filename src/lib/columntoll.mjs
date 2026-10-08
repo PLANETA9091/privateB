@@ -1,5 +1,5 @@
 //
-// columntoll.mjs - THE COLUMN'S OWN TOLL (v0.837.0)
+// columntoll.mjs - THE COLUMN'S OWN TOLL (v0.838.0)
 //
 // The wet-ceiling ascend's cure priced against the death book. The
 // v0.836.0 lens owns the climb lane's wet digs' shape; the v0.835.0 lens
@@ -154,8 +154,8 @@ export function columnTollRow (c) {
   if (c.deaths <= 0) return null // the honest silence: no deaths, no toll question
   const kinds = Object.keys(c.kinds).sort().map((k) => `${k} x${c.kinds[k]}`).join(', ')
   if (c.joined <= 0) {
-    return `the column's own toll (v0.837.0): 0 of ${c.deaths} death(s) rode a dug column (${c.totalDigs} wet dig(s) across the face) - the wet lane's cure held`
+    return `the column's own toll (v0.838.0): 0 of ${c.deaths} death(s) rode a dug column (${c.totalDigs} wet dig(s) across the face) - the wet lane's cure held`
   }
   if (c.heaviest == null || !Number.isFinite(c.heaviest.digs) || !Number.isFinite(c.heaviest.deaths)) return null
-  return `the column's own toll (v0.837.0): ${c.joined} of ${c.deaths} death(s) rode a dug column (${kinds}), the heaviest [${c.heaviest.column}] owned ${c.heaviest.digs} dig(s) then ${c.heaviest.deaths} death(s)`
+  return `the column's own toll (v0.838.0): ${c.joined} of ${c.deaths} death(s) rode a dug column (${kinds}), the heaviest [${c.heaviest.column}] owned ${c.heaviest.digs} dig(s) then ${c.heaviest.deaths} death(s)`
 }
