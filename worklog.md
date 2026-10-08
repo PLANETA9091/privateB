@@ -20548,3 +20548,25 @@ Stage Summary:
 - Next fire: (1) CI verdicts BY RUN ID: push-CI 37765923967 + face 105 = 37766270261 (watch the cure's field read: refusals at d up to 12 - lines that could not exist pre-cure, the ceiling was 4 - and whether the water toll drops). (2) face 105 SUCCESS -> mine -> /home/z/my-project/run37766270261/. (3) dispatch law on clear (x130, face 106; 0.830.0 next slot).
 - OPEN FRONTS: (1) THE CURE'S OWN FIELD VERDICT - face 105 is the v0.829.0 tree's first live face: the pre/post read is refusals-at-d>4 present AND the walk-back share + the water death toll (the lens rows price both); (2) the drought's inflow front (the lane's seat: the fuel tithe spoke 1 of 34 family firings - the byproduct scarcity prices the lever); (3) the spin walk front (the A* fuel lever); (4) the mob front's other legs; (5) face 93's mine still queued (37727396042).
 - NO force-push, NO history rewrite. Identity: PLANETA9091.
+
+---
+Task ID: cron30-20261008-1900
+Agent: Super Z (fire 1900 lane, Job 414125)
+Task: fire cron30-20261008-1900 - one atomic improvement, zero-conflict protocol, the refusals' own read.
+
+Work Log:
+- Repo synced (origin tip 0cafe4a; code 6c4fc4d = v0.829.0). VERDICTS BY RUN ID at fire start: push-CI 37765923967 (6c4fc4d, the v0.829.0 cure) SUCCESS - the cure is CI-green; face 105 = 37766270261 in_progress all fire; 0cafe4a's own run 37766486217 SUCCESS.
+- Baseline: syntax 549 0-broken.
+- ONE ATOMIC IMPROVEMENT: v0.830.0 THE REFUSALS' OWN READ (295f4b5) - the water veto's own field instrument. waterhazard.mjs + HAZARD_REFUSAL_RE/parseHazardRefusal/hazardRefusalCensus/hazardRefusalCensusRow (the digShaft gate's refusal line read back: ONE emitter, miner.mjs:4897; start-anchored deathsweep law, junk in null out); decompose one additive row beside the walk-back's. THE TIER LAW taught LIVE by the face 104 negative control (the PRE-cure v0.828.0 tree still printed 10 of 33 refusals past 4b, farthest 10.1b - the zone tier v0.84.0 rides past 4b on EVERY tree): the lens claims NO impossibility - the line alone cannot name the tier (point <= 4 / zone envelopes / the v0.829.0 square up to ~17b); the cure's verdict rides the TREND (wide grows, the walk-back share drops, the toll thins). The false 'impossible pre-cure' claim was rewritten honest BEFORE the commit.
+- LIVE-VERIFIED: face 104 '33 refusal(s), the farthest at 10.1b, 10 wide veto(s) past the 4b spot ceiling...the line alone cannot name the tier; the board held 19 live at the loudest veto' (byte-exact, the PRE-cure baseline); face 103 the honest silence.
+- Tests: +3. waterhazard 9/9, unit 310/310 files, syntax 549 0-broken. Integration rides CI. No new fleet log lines -> no fleet19.mjs filter-key.
+- Version 0.830.0 verified free (origin 0.829.0). Commit 295f4b5; push attempt-1 CLEAN (0cafe4a..295f4b5).
+- DISPATCH LAW: face 105 in_progress all fire -> NO dispatch. x130 rides the next fire once face 105 lands.
+- push-CI 37768463052 (295f4b5) in_progress at fire end (480s poll exhausted) - BY RUN ID next fire, not claimed green. WATCH: the lane pushed c43259c mid-fire (pending) - if it wore 0.830.0, RACE #46 seats at the worklog rebase and MY refs retag per the later-pusher law.
+
+Stage Summary:
+- Master tip 295f4b5 = v0.830.0 (THE REFUSALS' OWN READ) at my push time; the lane's c43259c may sit on top. Next free 0.831.0 pending the race check.
+- Next fire: (1) CI verdicts BY RUN ID: push-CI 37768463052 + face 105 = 37766270261 (walk-back share vs 75%/25%, the toll, the wide-veto trend vs 10/33). (2) face 105 SUCCESS -> mine -> /home/z/my-project/run37766270261/. (3) RACE #46 check on c43259c. (4) dispatch law on clear (x130, face 106).
+- OPEN FRONTS: (1) the cure's field verdict via the new lens (the trend needs 2+ faces); (2) the drought's inflow front (the lane's seat); (3) the spin walk front; (4) the mob front's other legs; (5) face 93's mine queued (37727396042).
+- NO force-push, NO history rewrite. Identity: PLANETA9091.
+- RACE #46 OUTCOME (recorded at the worklog rebase, 2026-10-08 ~19:2x +08): the lane's c43259c ALSO wore 0.830.0 (their own retag from 0.829.0 - taken by my fire-1830's 6c4fc4d mid-their-fire). Origin order: 295f4b5 (mine, FIRST) -> c43259c (theirs, SECOND). Per the later-pusher law (the race #44/#45 precedent) the retag duty is THEIRS (0.831.0 on their refs); my refs stay byte-untouched. Two commits wearing 0.830.0 coexist until their retag; the next fire takes the next FREE slot verified on origin (0.831.0 if their retag lands, else 0.831.0 free but the double-0.830.0 stands recorded). The rebase auto-merged the package.json line (both 0.830.0), zero scope collision (mine the waterhazard.mjs refusal lens, theirs their own seat).
