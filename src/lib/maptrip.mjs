@@ -103,6 +103,105 @@ export function mapTripCensus (lines) {
   return c
 }
 
+// (v0.801.0) THE TRIP ASK'S OWN SEAT - WHICH why owns the trip lane's ask
+// book. The launch-rate row prices the split's edges ('launch rate: 3/14 =
+// 21% of the plan's walk asks' - face 86, 37703890774) and the skips row
+// names the whys ('shaft-locked=8 unreachable=3'), but no row ever said
+// WHICH why's own asks own the book - the raw split rode unnamed. THE SEAT
+// LAW (the census's own cells only, zero re-parsing - the v0.784.0
+// kind-seat precedent, the v0.800.0 sweep seat's own shape): the book is
+// the asks' own sum, launches + the skips.byWhy cells; the
+// strict-majority law - a solo why owns the book only above half (a tie
+// owns nothing); the names are the census's own vocabulary bytes ('launch'
+// < 'other' < 'shaft-locked' < 'unreachable'); junk never invents a why
+// (a missing or non-object census/skips, a cell without a finite positive
+// count, or a zero book reads the honest silence - null, the decompose's
+// own guard skips the row; a junk cell skips, the real cells still tally -
+// the v0.795.0 shelter seat's own honest-skip law).
+function tripAskTally (mt) {
+  if (!mt || typeof mt !== 'object' || Array.isArray(mt)) return null
+  if (!mt.skips || typeof mt.skips !== 'object' || Array.isArray(mt.skips)) return null
+  const tallies = {}
+  let total = 0
+  if (Number.isFinite(mt.launches) && mt.launches > 0) {
+    const n = Math.floor(mt.launches)
+    tallies.launch = n
+    total += n
+  }
+  const byWhy = (mt.skips.byWhy && typeof mt.skips.byWhy === 'object' && !Array.isArray(mt.skips.byWhy)) ? mt.skips.byWhy : {}
+  for (const [why, n] of Object.entries(byWhy)) {
+    if (!Number.isFinite(n) || n <= 0) continue
+    const k = Math.floor(n)
+    tallies[why] = (tallies[why] || 0) + k
+    total += k
+  }
+  return total > 0 ? { tallies, total } : null
+}
+
+export function tripAskSeat (mt) {
+  const t = tripAskTally(mt)
+  if (!t) return null
+  let topOwns = 0
+  let topWhy = null
+  for (const [why, n] of Object.entries(t.tallies)) {
+    if (n > topOwns) { topOwns = n; topWhy = why }
+  }
+  if (topWhy === null || topOwns <= t.total - topOwns) return null
+  return { why: topWhy, owns: topOwns, ofAsks: t.total, shareOfAsks: +(topOwns / t.total).toFixed(3) }
+}
+
+// (v0.801.0) the trip ask seat's own row - THE ASK'S OWN SEAT: the seat
+// names WHICH why's own asks own the trip book; the why's own front prices
+// the plan's walks (a solo shaft-locked seat is the underground economy's
+// own tax receipt - the v0.450.0 voice roster's own companion). Junk never
+// prints a seat (the honest silence's own row law).
+export function tripAskSeatRow (bill) {
+  if (!bill || typeof bill !== 'object') return null
+  const { why, owns, ofAsks, shareOfAsks } = bill
+  if (typeof why !== 'string' || !why ||
+      !Number.isFinite(owns) || owns <= 0 ||
+      !Number.isFinite(ofAsks) || ofAsks <= 0 || owns > ofAsks ||
+      !Number.isFinite(shareOfAsks)) return null
+  return `the trip ask's own seat (v0.801.0): ${why} owns ${owns} of ${ofAsks} trip ask(s) (${(shareOfAsks * 100).toFixed(1)}%) - THE ASK'S OWN SEAT: one why's own asks own the trip book - the why's own front prices the plan's walks the launch rate rode unnamed`
+}
+
+// (v0.801.0) THE TRIP ASK'S OWN RIDERS - the seat's own silence's
+// companion. The seat names the solo why under the strict-majority law; a
+// no-majority why mix rode raw with no row naming the shape. THE RIDER LAW
+// (the census's own cells only, zero re-parsing - the seat's own
+// precedent): a MEASURE, never a verdict-owner - the top two whys'
+// concentration prices the shape the solo law refused to name (the seat's
+// owner case leaves the companion unprinted - the decompose's own branch
+// law). Junk never invents a shape: a missing or non-object census, a cell
+// without a finite positive count, or fewer than two counted whys reads
+// the honest silence (null). The order is deterministic (count desc, then
+// the why's own byte: the name's own lexicographic law - 'launch' <
+// 'other' < 'shaft-locked' < 'unreachable').
+export function tripAskRiders (mt) {
+  const t = tripAskTally(mt)
+  if (!t) return null
+  const ranked = Object.entries(t.tallies).sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1))
+  if (ranked.length < 2) return null
+  const [leader, leaderOwns] = ranked[0]
+  const [runner, runnerOwns] = ranked[1]
+  const pairOwns = leaderOwns + runnerOwns
+  return { leader, leaderOwns, runner, runnerOwns, ofAsks: t.total, pairOwns, shareOfAsks: +(pairOwns / t.total).toFixed(3), duet: leaderOwns === runnerOwns }
+}
+
+// (v0.801.0) the trip ask riders' own row - THE ASK'S OWN MIX: a measure
+// of the shape, never a named owner (the seat's tie law holds); the pair
+// prices the concentration the solo law refused to seat. Junk never prints
+// a shape (the honest silence's own row law).
+export function tripAskRidersRow (r) {
+  if (!r || typeof r !== 'object') return null
+  const { leader, leaderOwns, runner, runnerOwns, ofAsks, pairOwns, shareOfAsks } = r
+  if (typeof leader !== 'string' || !leader || typeof runner !== 'string' || !runner ||
+      !Number.isFinite(leaderOwns) || leaderOwns <= 0 || !Number.isFinite(runnerOwns) || runnerOwns <= 0 ||
+      !Number.isFinite(ofAsks) || ofAsks <= 0 || !Number.isFinite(pairOwns) || pairOwns > ofAsks ||
+      !Number.isFinite(shareOfAsks)) return null
+  return `the trip ask's own riders (v0.801.0): no solo why owns the majority - ${leader} x${leaderOwns} + ${runner} x${runnerOwns} own ${pairOwns} of ${ofAsks} trip ask(s) (${(shareOfAsks * 100).toFixed(1)}%) - THE ASK'S OWN MIX: the seat's tie law held, the mix is the shape - the asks' own crowd prices the plan's walks the solo law refused to name`
+}
+
 // (v0.445.0) THE MAP TRIP GAP - the KNOWLEDGE side arrives. The v0.415.0
 // lens priced the launch economics (what launched, what was refused, which
 // resources the skips starve) but never read what the map KNOWS: the

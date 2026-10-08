@@ -7,7 +7,8 @@
 // one parser per emitter, the v0.409.0 split law.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { MAP_TRIP_RE, MAP_TRIP_SKIP_RE, classifyTripSkip, parseMapTrip, mapTripCensus, parseWorldmapTail, mapTripGap, parseResSample, tripReceipt, tripVoice, parsePulseHeader, pocketDrain, pocketDrainAttr, materialBalance, balanceReconcile, leakClock } from '../../src/lib/maptrip.mjs'
+import fs from 'node:fs'
+import { MAP_TRIP_RE, MAP_TRIP_SKIP_RE, classifyTripSkip, parseMapTrip, mapTripCensus, parseWorldmapTail, mapTripGap, parseResSample, tripReceipt, tripVoice, parsePulseHeader, pocketDrain, pocketDrainAttr, materialBalance, balanceReconcile, leakClock, tripAskSeat, tripAskSeatRow, tripAskRiders, tripAskRidersRow } from '../../src/lib/maptrip.mjs'
 
 test('map-trip: the launch verbatims parse bot and target list', () => {
   const a = parseMapTrip('F8 map trip: gravel')
@@ -1067,4 +1068,137 @@ test('pocket-peak-clock: the junk battery (the zero law)', () => {
   assert.equal(pocketPeakClock([null, 42, 'garbage']), null)
   assert.equal(pocketPeakClockRow(null), '')
   assert.equal(pocketPeakClockRow(undefined), '')
+})
+
+// (v0.801.0) THE TRIP ASK'S OWN SEAT - the seat family's own test block.
+// The ask book is the census's own cells (launches + skips.byWhy), zero
+// re-parsing; the strict-majority law, a tie owns nothing; junk never
+// invents a why. The five-face matrix (faces 82/83/84/85/86) is the field's
+// own shape - two seat cases, three riders cases, the shaft gate the
+// trip lane's own constant.
+const launches = n => Array.from({ length: n }, (_, i) => `F${i + 1} map trip: sand`)
+const shafts = n => Array.from({ length: n }, (_, i) => `F${i + 1} map trip skipped: cannot leave the shaft`)
+const unreach = n => Array.from({ length: n }, (_, i) => `F${i + 1} map trip skipped: sand,gravel unreachable`)
+
+test('tripAskSeat v0.801.0: the seat cases through the real parser - faces 83 + 86 byte-exact, the owner case leaves the companion unprinted', () => {
+  // face 86 (37703890774): launches 3 + shaft-locked 8 + unreachable 3 -
+  // the book 14, the shaft gate owns the bare majority
+  const f86 = mapTripCensus([...launches(3), ...shafts(8), ...unreach(3)])
+  const s86 = tripAskSeat(f86)
+  assert.deepEqual(s86, { why: 'shaft-locked', owns: 8, ofAsks: 14, shareOfAsks: 0.571 })
+  assert.equal(tripAskSeatRow(s86), "the trip ask's own seat (v0.801.0): shaft-locked owns 8 of 14 trip ask(s) (57.1%) - THE ASK'S OWN SEAT: one why's own asks own the trip book - the why's own front prices the plan's walks the launch rate rode unnamed")
+  // the branch law lives in the decompose's own else (one row never both);
+  // the riders stay the pure measure - the owner case's honest top two
+  const r86 = tripAskRiders(f86)
+  assert.equal(r86.leader, 'shaft-locked')
+  assert.equal(r86.runner, 'launch')
+  assert.equal(r86.pairOwns, 11)
+
+  // face 83 (37689818269): launches 3 + shaft-locked 12 + unreachable 6 -
+  // the wet whale's own gate, the book 21
+  const f83 = mapTripCensus([...launches(3), ...shafts(12), ...unreach(6)])
+  assert.deepEqual(tripAskSeat(f83), { why: 'shaft-locked', owns: 12, ofAsks: 21, shareOfAsks: 0.571 })
+  assert.equal(tripAskSeatRow(tripAskSeat(f83)), "the trip ask's own seat (v0.801.0): shaft-locked owns 12 of 21 trip ask(s) (57.1%) - THE ASK'S OWN SEAT: one why's own asks own the trip book - the why's own front prices the plan's walks the launch rate rode unnamed")
+})
+
+test('tripAskRiders v0.801.0: the riders cases - faces 82 + 84 + 85 byte-exact, the face-84 tie breaks on the byte', () => {
+  // face 82 (37685069081): launches 6 + unreachable 9 + shaft-locked 7 -
+  // no solo why (top 9 of 22 = 40.9%), the mix is the shape
+  const f82 = mapTripCensus([...launches(6), ...unreach(9), ...shafts(7)])
+  assert.equal(tripAskSeat(f82), null)
+  const r82 = tripAskRiders(f82)
+  assert.deepEqual(r82, { leader: 'unreachable', leaderOwns: 9, runner: 'shaft-locked', runnerOwns: 7, ofAsks: 22, pairOwns: 16, shareOfAsks: 0.727, duet: false })
+  assert.equal(tripAskRidersRow(r82), "the trip ask's own riders (v0.801.0): no solo why owns the majority - unreachable x9 + shaft-locked x7 own 16 of 22 trip ask(s) (72.7%) - THE ASK'S OWN MIX: the seat's tie law held, the mix is the shape - the asks' own crowd prices the plan's walks the solo law refused to name")
+
+  // face 84 (37694318753): shaft x7 + unreachable x7 - the x7 tie breaks
+  // on the byte 'shaft-locked' < 'unreachable' (the name's own law)
+  const f84 = mapTripCensus([...launches(5), ...shafts(7), ...unreach(7)])
+  assert.equal(tripAskSeat(f84), null)
+  const r84 = tripAskRiders(f84)
+  assert.equal(r84.leader, 'shaft-locked')
+  assert.equal(r84.runner, 'unreachable')
+  assert.equal(r84.duet, true)
+  assert.equal(r84.pairOwns, 14)
+  assert.equal(r84.ofAsks, 19)
+  assert.equal(tripAskRidersRow(r84), "the trip ask's own riders (v0.801.0): no solo why owns the majority - shaft-locked x7 + unreachable x7 own 14 of 19 trip ask(s) (73.7%) - THE ASK'S OWN MIX: the seat's tie law held, the mix is the shape - the asks' own crowd prices the plan's walks the solo law refused to name")
+
+  // face 85 (37698485347): shaft x7 + unreachable x5 own 12 of 15 (80.0%)
+  const f85 = mapTripCensus([...launches(3), ...shafts(7), ...unreach(5)])
+  assert.equal(tripAskSeat(f85), null)
+  assert.equal(tripAskRidersRow(tripAskRiders(f85)), "the trip ask's own riders (v0.801.0): no solo why owns the majority - shaft-locked x7 + unreachable x5 own 12 of 15 trip ask(s) (80.0%) - THE ASK'S OWN MIX: the seat's tie law held, the mix is the shape - the asks' own crowd prices the plan's walks the solo law refused to name")
+
+  // the byte order pin: the census's own vocabulary bytes
+  assert.ok('launch' < 'other' && 'other' < 'shaft-locked' && 'shaft-locked' < 'unreachable')
+})
+
+test('tripAskSeat v0.801.0: the laws - the exact-half fence, the below-half plurality, the launch class own owner case, the single-class fence, the zero-book silence', () => {
+  // the exact-half fence: 1 + 1 - a tie owns nothing (1 > 1 false), the
+  // riders measure the duet
+  const half = mapTripCensus([...launches(1), ...shafts(1)])
+  assert.equal(tripAskSeat(half), null)
+  const rh = tripAskRiders(half)
+  assert.equal(rh.duet, true)
+  assert.equal(rh.pairOwns, 2)
+  assert.equal(rh.ofAsks, 2)
+  assert.equal(tripAskRidersRow(rh), "the trip ask's own riders (v0.801.0): no solo why owns the majority - launch x1 + shaft-locked x1 own 2 of 2 trip ask(s) (100.0%) - THE ASK'S OWN MIX: the seat's tie law held, the mix is the shape - the asks' own crowd prices the plan's walks the solo law refused to name")
+
+  // the below-half plurality fence: 4 of 7 = 57.1% - wait, that IS the
+  // seat; the fence is 3 of 7 (42.9%): no solo, the riders price the mix
+  const below = mapTripCensus([...launches(3), ...unreach(2), ...shafts(2)])
+  assert.equal(tripAskSeat(below), null)
+  assert.equal(tripAskRiders(below).pairOwns, 5)
+
+  // the launch class's own owner case: launches 4 + unreachable 3 - the
+  // all-clear face's own shape, the launch why owns the book
+  const clear = mapTripCensus([...launches(4), ...unreach(3)])
+  assert.deepEqual(tripAskSeat(clear), { why: 'launch', owns: 4, ofAsks: 7, shareOfAsks: 0.571 })
+  assert.equal(tripAskSeatRow(tripAskSeat(clear)), "the trip ask's own seat (v0.801.0): launch owns 4 of 7 trip ask(s) (57.1%) - THE ASK'S OWN SEAT: one why's own asks own the trip book - the why's own front prices the plan's walks the launch rate rode unnamed")
+
+  // the single-class fence: the launch-only book seats at 100%, the riders
+  // read the silence (fewer than two counted whys)
+  const solo = mapTripCensus(launches(3))
+  assert.deepEqual(tripAskSeat(solo), { why: 'launch', owns: 3, ofAsks: 3, shareOfAsks: 1 })
+  assert.equal(tripAskRiders(solo), null)
+
+  // the zero-book silence: no asks, no rows
+  const zero = mapTripCensus([])
+  assert.equal(tripAskSeat(zero), null)
+  assert.equal(tripAskRiders(zero), null)
+})
+
+test('tripAskSeat v0.801.0: the junk battery + the honest skip law + the row guards + the WIRING assert - the prose lives only in the lib', () => {
+  // the junk battery: junk never invents a why (the honest silence)
+  for (const junk of [null, undefined, 42, 'x', [], {}, { launches: 'nope' }, { launches: 3, skips: null }, { launches: 3, skips: 'nope' }, { launches: -1, skips: { byWhy: {} } }]) {
+    assert.equal(tripAskSeat(junk), null, `the seat reads the silence on ${JSON.stringify(junk)}`)
+    assert.equal(tripAskRiders(junk), null, `the riders read the silence on ${JSON.stringify(junk)}`)
+  }
+  // the honest skip law: a junk cell is skipped, the real cells still
+  // tally (the v0.795.0 shelter seat's own law)
+  const mixed = { launches: 3, skips: { n: 2, byWhy: { 'shaft-locked': 2, junk: 'x', gone: null, neg: -1 } } }
+  assert.equal(tripAskSeat(mixed).why, 'launch', 'the junk cells skip honest, the real cells own')
+  assert.equal(tripAskSeat(mixed).ofAsks, 5, 'the book is the real cells\' own sum')
+  // the same law on the launches side: a junk launch skips, the real cell
+  // owns the book alone (the single-class seat)
+  const nanLaunch = { launches: NaN, skips: { byWhy: { 'shaft-locked': 2 } } }
+  assert.deepEqual(tripAskSeat(nanLaunch), { why: 'shaft-locked', owns: 2, ofAsks: 2, shareOfAsks: 1 })
+  assert.equal(tripAskRiders(nanLaunch), null)
+  const launchOnly = { launches: 3, skips: {} }
+  assert.deepEqual(tripAskSeat(launchOnly), { why: 'launch', owns: 3, ofAsks: 3, shareOfAsks: 1 })
+  // the row guards: junk never prints a row
+  assert.equal(tripAskSeatRow(null), null)
+  assert.equal(tripAskSeatRow({ why: '', owns: 1, ofAsks: 1, shareOfAsks: 1 }), null)
+  assert.equal(tripAskSeatRow({ why: 'launch', owns: 0, ofAsks: 1, shareOfAsks: 0 }), null)
+  assert.equal(tripAskSeatRow({ why: 'launch', owns: 2, ofAsks: 1, shareOfAsks: 2 }), null)
+  assert.equal(tripAskSeatRow({ why: 'launch', owns: 1, ofAsks: 1, shareOfAsks: NaN }), null)
+  assert.equal(tripAskRidersRow(null), null)
+  assert.equal(tripAskRidersRow({ leader: 'launch', leaderOwns: 0, runner: 'unreachable', runnerOwns: 1, ofAsks: 2, pairOwns: 1, shareOfAsks: 0.5 }), null)
+  assert.equal(tripAskRidersRow({ leader: 'launch', leaderOwns: 1, runner: 'unreachable', runnerOwns: 1, ofAsks: 2, pairOwns: 3, shareOfAsks: 1.5 }), null)
+  // the WIRING assert - the decompose branch rides the launch-rate row's
+  // own gate, the prose lives only in the lib
+  const src = fs.readFileSync(new URL('../../scripts/fleet-mining/decompose.mjs', import.meta.url), 'utf8')
+  assert.ok(src.includes('const tas = tripAskSeat(mt)'), 'the seat rides the map-trip census')
+  assert.ok(src.includes('if (tas) console.log(`  ${tripAskSeatRow(tas)}`)'), 'the owner row rides the branch')
+  assert.ok(src.includes('const tar = tripAskRiders(mt)'), 'the riders ride the same branch law')
+  assert.ok(!src.includes("THE ASK'S OWN SEAT"), 'the prose stays in the lib')
+  assert.ok(!src.includes("THE ASK'S OWN MIX"), 'the mix prose stays in the lib')
 })
