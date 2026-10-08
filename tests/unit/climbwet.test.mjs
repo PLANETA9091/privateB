@@ -14,7 +14,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
-import { parseWetCeilingAscent, wetCeilingCensus, wetCeilingCensusRow, wetColumnCompletion, wetColumnCompletionRow, wetColumnShortfall, wetColumnShortfallRow } from '../../src/lib/climbwet.mjs'
+import { parseWetCeilingAscent, wetCeilingCensus, wetCeilingCensusRow, wetColumnCompletion, wetColumnCompletionRow, wetColumnShortfall, wetColumnShortfallRow, wetColumnWaste, wetColumnWasteRow } from '../../src/lib/climbwet.mjs'
 
 const here = dirname(fileURLToPath(import.meta.url))
 
@@ -210,7 +210,63 @@ test("the wet column's shortfall (v0.842.0): the deficit histogram's own law, th
   assert.equal(wetColumnShortfallRow({ ascends: 0, priced: 0 }), null, 'the zero shape stays silent')
   // the wiring: the shortfall row rides beside the completion seat
   const src3 = readFileSync(join(here, '../../scripts/fleet-mining/decompose.mjs'), 'utf8')
-  assert.ok(src3.includes("wetColumnShortfall, wetColumnShortfallRow } from '../../src/lib/climbwet.mjs'"), 'the shortfall rides the family import')
+  assert.ok(src3.includes("wetColumnShortfall, wetColumnShortfallRow, wetColumnWaste, wetColumnWasteRow } from '../../src/lib/climbwet.mjs'"), 'the shortfall rides the family import')
   assert.ok(src3.includes('wetColumnShortfallRow(wetColumnShortfall(lines))'), 'the shortfall row prints beside the completion seat')
   assert.ok(src3.includes('v0.842.0'), 'the version tag rides')
+})
+
+test("the wet column's own waste (v0.845.0): the water class's own law, the calm verdict, the row byte-exact + the consistency fence + the wiring", () => {
+  // face 114's real corpus (run 37812213897, fleet19.log lines
+  // 1382/1540/1622/2509): three water digs + one solid - the family's
+  // own why leg priced on the field's own words
+  const F114_F16 = 'F16 [F16] climb wet ascend: dug the ceiling dirt at [-138,53,385] (the water column owns every bearing - the vertical digs instead, 1/4)'
+  const F114_F7 = 'F7 [F7] climb wet ascend: dug the ceiling water at [-141,50,412] (the water column owns every bearing - the vertical digs instead, 1/4)'
+  const F114_F10 = 'F10 [F10] climb wet ascend: dug the ceiling water at [-177,62,413] (the water column owns every bearing - the vertical digs instead, 1/4)'
+  const F114_F9 = 'F9 [F9] climb wet ascend: dug the ceiling water at [-129,62,392] (the water column owns every bearing - the vertical digs instead, 1/4)'
+  const F114 = [F114_F16, F114_F7, F114_F10, F114_F9]
+  const w114 = wetColumnWaste(F114)
+  assert.deepEqual(w114, { digs: 4, water: 3, solid: 1 }, 'face 114: 3 of 4 digs rode water')
+  assert.equal(
+    wetColumnWasteRow(w114),
+    "the wet column's own waste (v0.845.0): 3 of 4 dig(s) spent on water (a water cell buys no headroom - the dig's own purpose defeated), 1 on solid"
+  )
+  // the field's own weight: face 106 rode ALL water (4 of 4) - the
+  // wasted class owns the whole book
+  const w106 = wetColumnWaste(F106_ALL)
+  assert.deepEqual(w106, { digs: 4, water: 4, solid: 0 }, 'face 106: every dig rode water')
+  assert.equal(
+    wetColumnWasteRow(w106),
+    "the wet column's own waste (v0.845.0): 4 of 4 dig(s) spent on water (a water cell buys no headroom - the dig's own purpose defeated), 0 on solid"
+  )
+  // the calm verdict renders (the v0.423.0 lesson): the all-solid face
+  // prints 0 wasted - the cure's success signature, not a silence
+  const calm = wetColumnWaste([STONE_F9])
+  assert.deepEqual(calm, { digs: 1, water: 0, solid: 1 })
+  assert.equal(
+    wetColumnWasteRow(calm),
+    "the wet column's own waste (v0.845.0): 0 of 1 dig(s) spent on water (a water cell buys no headroom - the dig's own purpose defeated), 1 on solid"
+  )
+  // the mutual fence: the waste's digs and the completion's ascends read
+  // the SAME line set (one parser one truth)
+  assert.equal(w114.digs, wetColumnCompletion(F114).ascends, 'the waste and the completion agree on the line set')
+  assert.equal(w106.digs, wetColumnCompletion(F106_ALL).ascends, 'the fence holds on face 106 too')
+  // the zero + junk shapes
+  assert.equal(wetColumnWaste(null), null, 'null in null out (the o2gap convention)')
+  assert.equal(wetColumnWaste('junk'), null, 'a string is not an array')
+  assert.deepEqual(wetColumnWaste([]), { digs: 0, water: 0, solid: 0 }, 'the zero shape')
+  assert.equal(wetColumnWaste([F106_ASCEND, 'garbage', null, 7]).digs, 0, 'the mirror family and junk judge nothing')
+  assert.equal(wetColumnWasteRow(wetColumnWaste([])), null, 'a face with no priced dig stays silent')
+  assert.equal(wetColumnWasteRow(null), null, 'null row in null out')
+  assert.equal(wetColumnWasteRow('junk'), null, 'a string is not a shape')
+  assert.equal(wetColumnWasteRow([]), null, 'an array is not a shape')
+  assert.equal(wetColumnWasteRow({ digs: 0, water: 0, solid: 0 }), null, 'the zero shape stays silent')
+  // the guards: non-finite and self-inconsistent shapes never render
+  assert.equal(wetColumnWasteRow({ digs: 4, water: NaN, solid: 1 }), null, 'a NaN cell invents nothing')
+  assert.equal(wetColumnWasteRow({ digs: 4, water: 2, solid: 1 }), null, 'the consistency fence: water + solid must equal digs')
+  assert.equal(wetColumnWasteRow({ digs: 4, water: 5, solid: -1 }), null, 'the fence holds for the negative escape too')
+  assert.equal(wetColumnWasteRow({ digs: -1, water: 0, solid: 0 }), null, 'a negative digs reads junk')
+  // the wiring: the waste row rides beside the shortfall's seat
+  const src4 = readFileSync(join(here, '../../scripts/fleet-mining/decompose.mjs'), 'utf8')
+  assert.ok(src4.includes('wetColumnWasteRow(wetColumnWaste(lines))'), 'the waste row prints beside the shortfall seat')
+  assert.ok(src4.includes('v0.845.0'), 'the version tag rides')
 })

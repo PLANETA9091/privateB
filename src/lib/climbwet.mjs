@@ -54,6 +54,29 @@
 // the nearest miss - one dig flips it (the reach's own evidence) - and
 // reads null when nothing is short (all kept).
 //
+// (v0.845.0) THE WASTED DIG - the shortfall's own WHY leg, priced from
+// the emitter's own words (the trend law: the lens prices the class and
+// names NO cause - WHY the ceiling is water rides the aquifer's own
+// book). The v0.836.0 header named the water ceiling "this lane's own
+// voice"; the census's names cell prints the mix raw. This lens prices
+// what the mix MEANS for the dig's own purpose: the writer's shape is
+// 'dig the ceiling (feet+2) and rise into the fresh cell' - a WATER cell
+// is never a fresh cell (the server cannot break water; the dig
+// resolves, the world is unchanged, the bot sinks back into the same
+// column - face 106's F10 stepped 62 -> 61 -> 60 on three water digs,
+// face 113's F13 62 -> 61 -> 60 on three more, zero rise bought). So
+// water = the WASTED class (no headroom bought, the budget tick burned,
+// the 6s dig window spent on nothing) and every other name = the buying
+// class. The field's own weight: faces 112/113/114 rode 2/2, 4/4, 3 of 4
+// water digs - the kept=0 streak's own shape. The consistency fence (the
+// v0.844.0 cell's own law): water + solid must equal digs when all three
+// speak - a self-inconsistent shape invents nothing. The calm verdict
+// renders (the v0.423.0 lesson): an all-solid face prints 0 wasted - the
+// cure's success signature, not a silence. Junk-safe: non-array reads
+// null (the o2gap convention); a face with no priced dig reads the zero
+// shape (the row stays silent). Pure: reads, never mutates. Zero fleet
+// wiring (mining-surface only, the v0.379/.../v0.842.0 precedent).
+//
 
 const WETASCEND_RE = /^(F\d+) \[F\d+\] climb wet ascend: dug the ceiling (\S+) at \[(-?\d+),(-?\d+),(-?\d+)\] \(the water column owns every bearing - the vertical digs instead, (\d+)\/(\d+)\)$/
 
@@ -258,4 +281,54 @@ export function wetColumnShortfallRow (s) {
   const hist = keys.map(k => `${k}x${s.hist[k]}`).join(' ')
   const near = s.minShort == null ? '' : `, the nearest ${s.minShort} short`
   return `the wet column's shortfall (v0.842.0): ${s.priced} of ${s.ascends} ascend(s) priced (the budget's own reach), the deficits ${hist} (max ${s.maxDeficit}${near})`
+}
+
+/**
+ * wetColumnWaste(lines) - the wasted dig's own class (v0.845.0).
+ *
+ * The shortfall's own WHY leg on the SAME parser (one parser one truth,
+ * no new regex): the dig's purpose is 'dig the ceiling (feet+2) and rise
+ * into the fresh cell' - a WATER cell is never a fresh cell (the server
+ * cannot break water; the dig resolves, the world is unchanged, the bot
+ * sinks back). So the digs split water (the WASTED class - no headroom
+ * bought, the budget tick burned) vs solid (the buying class). The lens
+ * prices the class and names NO cause - why the ceiling is water rides
+ * the aquifer's own book.
+ *
+ * @param {string[]} [lines] the face log (array of lines)
+ * @returns {null|{digs: number, water: number, solid: number}} the waste
+ *   read (null on non-array; zero priced digs = the zero shape, the row
+ *   stays silent; water + solid === digs holds by construction)
+ */
+export function wetColumnWaste (lines) {
+  if (!Array.isArray(lines)) return null
+  const w = { digs: 0, water: 0, solid: 0 }
+  for (const line of lines) {
+    const p = parseWetCeilingAscent(line)
+    if (!p) continue
+    w.digs++
+    if (p.name === 'water') w.water++
+    else w.solid++
+  }
+  return w
+}
+
+/**
+ * wetColumnWasteRow(w) - the wasted dig's own byte-exact row.
+ *
+ * The calm verdict renders (the v0.423.0 lesson): an all-solid face
+ * prints 0 wasted - the cure's success signature, not a silence. The
+ * consistency fence (the v0.844.0 cell's own law): water + solid must
+ * equal digs when all three speak.
+ *
+ * @param {Object|null} [w] a wetColumnWaste result
+ * @returns {string|null} the row (null on junk cells or the honest
+ *   silence - a face with no priced dig prints nothing)
+ */
+export function wetColumnWasteRow (w) {
+  if (w == null || typeof w !== 'object' || Array.isArray(w)) return null
+  if (!Number.isFinite(w.digs) || !Number.isFinite(w.water) || !Number.isFinite(w.solid)) return null
+  if (w.digs <= 0 || w.water < 0 || w.solid < 0) return null
+  if (w.water + w.solid !== w.digs) return null // the consistency fence
+  return `the wet column's own waste (v0.845.0): ${w.water} of ${w.digs} dig(s) spent on water (a water cell buys no headroom - the dig's own purpose defeated), ${w.solid} on solid`
 }
