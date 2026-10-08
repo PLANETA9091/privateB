@@ -6,12 +6,13 @@
 // verdict matrix and the shore scan so the rescue wiring cannot silently rot.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import { WALKBACK_RADIUS } from '../../src/lib/waterhazard.mjs'
 import {
   WATER_NAMES, AIR_NAMES, SHAFT_FLUID_NAMES,
   OXYGEN_RESCUE_LEVEL, OXYGEN_CRITICAL_LEVEL, HEAD_SUBMERGED_RESCUE_MS,
   RESCUE_MAX_MS, RESCUE_COOLDOWN_MS, SHORE_MAX_RADIUS, AIR_GLITCH_LOG_MS,
   AQUATIC_HOSTILES, WATER_HAZARD_TTL_MS, WATER_HAZARD_RADIUS, WATER_HAZARD_Y_BAND, WATER_HAZARD_CAP,
-  waterHazardAlive, WATER_DEATH_TTL_MS,
+  waterHazardAlive, WATER_DEATH_TTL_MS, WATER_DEATH_RADIUS,
   OXYGEN_RESET_SENTINEL, oxygenInDomain,
   historyAdmissible, O2_HISTORY_CAP,
   surfaceRearmHolds, SURFACE_REARM_MS,
@@ -2092,4 +2093,53 @@ test('vettedFleeTargetAbs: the lens pulls the wet-east pick back to the first-pa
   assert.equal(pick.turns, 1, 'the first-pass south cell serves')
   assert.equal(pick.x, 0); assert.equal(pick.z, 12)
   assert.equal(pick.overrode, undefined, 'the outcome is the first-pass candidate - no override flag')
+})
+
+// ---- (v0.829.0) THE DEATH SPOT VETOES THE BODY - the walk-back lens's own cure ----
+// The v0.828.0 lens measured the walk-back THREE faces deep: 75% of the water
+// toll landed within R12 (the deathground square, the edge rides) of water an
+// EARLIER death had already named, while the spot-exact board vetoed at 4
+// euclidean. The cure: a death-spot record (its own `ttl` tenure is the
+// v0.209.0 marker) vetoes on the lens's own square; rescue records keep the
+// transient R4 law untouched.
+
+test('nearWaterHazard: the death spot vetoes the BODY - the square the walk-back lens priced', () => {
+  const t = 1_000_000
+  const death = { x: -117, y: 42, z: 406, at: t, ttl: WATER_DEATH_TTL_MS } // the run55 spot, the tenure marker rides
+  const rescue = { x: -117, y: 42, z: 406, at: t } // the same cell, the transient law
+  const edge = { x: -105, y: 42, z: 406 } // |dx| = 12: the square's own edge
+  assert.ok(nearWaterHazard([death], edge, t), 'the death record fires at 12 - the edge rides the square')
+  assert.equal(nearWaterHazard([rescue], edge, t), null, 'the rescue record stays silent at 12 (the transient R4 law untouched)')
+  const hit = nearWaterHazard([death], edge, t)
+  assert.equal(hit.d, 12, 'the reported d stays euclidean (the refusal line prints it)')
+  assert.equal(nearWaterHazard([death], { x: -104, y: 42, z: 406 }, t), null, '13 blocks off: the body ends, the veto never invents')
+})
+
+test('nearWaterHazard: the deathground square join - a circle would miss the corner the lens priced', () => {
+  const t = 1_000_000
+  const death = { x: 0, y: 48, z: 0, at: t, ttl: WATER_DEATH_TTL_MS }
+  // |dx|=12, |dz|=5 -> euclid ~13 > 12: a circle join reads clean, the square
+  // (BOTH axis deltas <= R, the edge rides) names the water - the lens's own
+  // join, one distance law across the death lenses, never two
+  assert.ok(nearWaterHazard([death], { x: 12, y: 48, z: 5 }, t), 'the square fires where a circle would not')
+  assert.equal(nearWaterHazard([death], { x: 13, y: 48, z: 5 }, t), null, 'one past the dx edge: clean')
+  assert.ok(nearWaterHazard([death], { x: 0, y: 48, z: -12 }, t), 'the dz edge rides too')
+})
+
+test('nearWaterHazard: the death veto keeps the vertical law and the tenure law - one constant, one law', () => {
+  const t = 1_000_000
+  const death = { x: 0, y: 48, z: 0, at: t, ttl: WATER_DEATH_TTL_MS }
+  assert.equal(nearWaterHazard([death], { x: 0, y: 48 + WATER_HAZARD_Y_BAND + 1, z: 0 }, t), null, 'the yBand holds for the death record too (the runtime reads Y; the lens cannot)')
+  assert.equal(nearWaterHazard([death], { x: 0, y: 48, z: 0 }, t + WATER_DEATH_TTL_MS + 1), null, 'the death tenure expires on the record own clock')
+  assert.equal(WATER_DEATH_RADIUS, WALKBACK_RADIUS, 'one distance law: the runtime radius IS the lens radius')
+})
+
+test('HazardLedger: the death handler exact write walks the veto wide - the walk-back own cure', () => {
+  const t = 1_000_000
+  const led = new HazardLedger({ now: () => t })
+  led.record({ x: 300, y: 40, z: -220 }, { ttlMs: WATER_DEATH_TTL_MS }) // miner.mjs death-handler call, byte for byte
+  assert.equal(led.near({ x: 309, y: 40, z: -220 }).d, 9, '9 blocks off a death spot: the body vetoes (the pre-cure gate read clean)')
+  const plain = new HazardLedger({ now: () => t })
+  plain.record({ x: 300, y: 40, z: -220 }) // a rescue record keeps the transient law
+  assert.equal(plain.near({ x: 309, y: 40, z: -220 }), null, 'the same cell as a rescue record: 9 blocks stays clean')
 })

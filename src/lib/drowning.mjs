@@ -20,6 +20,12 @@
  * controls.
  */
 
+// (v0.829.0) ONE DISTANCE LAW, ONE CONSTANT: the death lenses' priced radius
+// lives in the waterhazard module (the v0.828.0 walk-back lens exported it);
+// the runtime's death-spot veto below reads the SAME number. waterhazard.mjs
+// is pure with zero imports (no bot dependencies, this file's own law holds).
+import { WALKBACK_RADIUS } from './waterhazard.mjs'
+
 /** Blocks that read as "this cell is water" on 26.2. Kelp/seagrass are
  * water-content blocks (boundingBox 'empty', name != water) and MUST count,
  * or a kelp forest reads as dry air. bubble_column is the soul-sand updraft. */
@@ -1174,6 +1180,22 @@ export const WATER_HAZARD_Y_BAND = 8
  * first (the fleet mines onward; the ancient lake is behind it). */
 export const WATER_HAZARD_CAP = 24
 
+/** (v0.829.0) THE DEATH SPOT VETOES THE BODY - the walk-back lens's own cure,
+ * the runtime half of the v0.828.0 seat. The lens measured the walk-back THREE
+ * faces deep: 75% of the water toll (face 101: 21 of 28, face 99: 12 of 16)
+ * landed within R12 (both planar axis deltas, the deathground square, the
+ * edge rides) of water an EARLIER death had already named - the spot-exact
+ * board (radius 4, euclidean) named the water one death at a time and the
+ * body kept the toll. The cure: a DEATH-spot record (its own `ttl` tenure is
+ * the v0.209.0 marker) vetoes on the deathground square at the lens's own
+ * radius; rescue records keep the transient R4 euclidean law untouched. The
+ * yBand holds for every record (the runtime's own vertical law - the lens is
+ * XZ-only because the log line is, the runtime can and must still read Y).
+ * The number is the lens's own WALKBACK_RADIUS - one distance law across the
+ * death lenses, never two (R4 is footfall scale and never clusters; R24
+ * merges distinct nests). */
+export const WATER_DEATH_RADIUS = WALKBACK_RADIUS
+
 /**
  * (v0.209.0) Is this record still live? A record that carries its own `ttl`
  * (a death-spot record) outlives the ledger's default; a plain rescue record
@@ -1242,21 +1264,34 @@ export function recordWaterHazard (hazards, pos = null, now = Date.now(), { ttlM
 
 /**
  * Is `pos` inside a live hazard? Returns the nearest live hit as
- * { hazard, d } (d = XZ distance in blocks) or null. A position outside the
- * XZ radius OR outside the y-band is clean; expired records never fire.
+ * { hazard, d } (d = XZ distance in blocks) or null. A rescue record fires
+ * inside the euclidean XZ radius; a death-spot record (v0.829.0) fires on
+ * the wider deathground square; outside the y-band is always clean; expired
+ * records never fire.
  * @param {Array} hazards current list
  * @param {{x:number,y:number,z:number}|null} [pos] the candidate dig/goal cell
  * @param {number} [now] caller's clock (ms)
- * @param {{ttlMs?:number,radius?:number,yBand?:number,zones?:Array|null,zoneYBand?:number}} [opts]
+ * @param {{ttlMs?:number,radius?:number,deathRadius?:number,yBand?:number,zones?:Array|null,zoneYBand?:number}} [opts]
  */
-export function nearWaterHazard (hazards, pos = null, now = Date.now(), { ttlMs = WATER_HAZARD_TTL_MS, radius = WATER_HAZARD_RADIUS, yBand = WATER_HAZARD_Y_BAND, zones = null, zoneYBand = HAZARD_ZONE_Y_BAND } = {}) {
+export function nearWaterHazard (hazards, pos = null, now = Date.now(), { ttlMs = WATER_HAZARD_TTL_MS, radius = WATER_HAZARD_RADIUS, deathRadius = WATER_DEATH_RADIUS, yBand = WATER_HAZARD_Y_BAND, zones = null, zoneYBand = HAZARD_ZONE_Y_BAND } = {}) {
   if (!pos || !Number.isFinite(pos.x) || !Number.isFinite(pos.y) || !Number.isFinite(pos.z)) return null
   let best = null
   for (const h of Array.isArray(hazards) ? hazards : []) {
     if (!waterHazardAlive(h, now, ttlMs)) continue
     if (Math.abs(pos.y - h.y) > yBand) continue
+    const dx = Math.abs(pos.x - h.x)
+    const dz = Math.abs(pos.z - h.z)
     const d = Math.hypot(pos.x - h.x, pos.z - h.z)
-    if (d <= radius && (!best || d < best.d)) best = { hazard: h, d }
+    // (v0.829.0) the tenure marker is the shape selector: a record carrying
+    // its own `ttl` (a death spot) vetoes the BODY on the deathground square
+    // (BOTH planar axis deltas <= deathRadius, the edge rides - the walk-back
+    // lens's own join, one distance law); a plain rescue record keeps the
+    // transient euclidean R4. The reported `d` stays euclidean for every
+    // caller (the refusal line prints it); only the FIRE condition differs.
+    const fires = Number.isFinite(h.ttl)
+      ? (dx <= deathRadius && dz <= deathRadius)
+      : d <= radius
+    if (fires && (!best || d < best.d)) best = { hazard: h, d }
   }
   // (v0.84.0) ZONE TIER: a cluster envelope fires where no single record does.
   // The run77 rim walk is the shape: records sit at the flooded bottom
