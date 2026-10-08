@@ -37,7 +37,8 @@ import { fuelDiet, coalEquivalent } from '../../src/lib/fueldiet.mjs' // (v0.666
 import { fuelYieldOf } from '../../src/lib/smelting.mjs' // (v0.666.0) the vanilla yield table's own voice - the diet row's coal divisor, never a made constant
 import { tierDeferCensus } from '../../src/lib/tierdefer.mjs' // (v0.463.0) the tool ladder's own voice - the steer's deferred names counted
 import { deathGrounds, DEATH_GROUND_RADIUS, deathGroundSeat, deathGroundSeatRow, deathGroundRiders, deathGroundRidersRow } from '../../src/lib/deathground.mjs' // (v0.464.0) the combat deaths' spatial join - the mob-cure's WHERE input; (v0.793.0) WHICH ground owns the combat book
-import { hazardBoardCensus, hazardBoardCensusRow, hazardWalkBack, hazardWalkBackRow, hazardRefusalCensus, hazardRefusalCensusRow } from '../../src/lib/waterhazard.mjs' // (v0.826.0) the water hazard board's own read - the memorize line's own census (the repeats, the 240s TTL's own work, the foreign records); (v0.828.0) + the board's own walk-back - the deaths that landed on water an earlier death had already named; (v0.831.0) + the refusals' own read - the veto's own voice priced per face (the wide share past the 4b spot ceiling; the tier law: the line alone cannot name the tier - the zone tier rides past 4b on every tree, the v0.829.0 body veto on its own)
+import { hazardBoardCensus, hazardBoardCensusRow, hazardWalkBack, hazardWalkBackRow, hazardRefusalCensus, hazardRefusalCensusRow } from '../../src/lib/waterhazard.mjs'
+import { aquiferCensus, aquiferCensusRow } from '../../src/lib/aquifer.mjs' // (v0.832.0) the aquifer's own book - the water table program's two voices (the strike writes + the lid readbacks) and the carousel's terminals priced per face // (v0.826.0) the water hazard board's own read - the memorize line's own census (the repeats, the 240s TTL's own work, the foreign records); (v0.828.0) + the board's own walk-back - the deaths that landed on water an earlier death had already named; (v0.831.0) + the refusals' own read - the veto's own voice priced per face (the wide share past the 4b spot ceiling; the tier law: the line alone cannot name the tier - the zone tier rides past 4b on every tree, the v0.829.0 body veto on its own)
 import { deathDropCensus } from '../../src/lib/deathdropcensus.mjs' // (v0.647.0) the death-drop stakes' own census - the silent-arm join; (v0.663.0) the stakes' own clock rides the same shape
 import { RELOOT_DESPAWN_MS } from '../../src/lib/reloot.mjs' // (v0.663.0) the despawn one-truth - the arm-lag row's own inversion base
 import { upgradeCensus, deferPromise, upgradeVerdicts, verdictSpread, promisePersistence } from '../../src/lib/upgradecensus.mjs' // (v0.465.0) the tool ladder's own harvest - the rung's delivered tools counted; (v0.467.0) the defer promise's order-aware join; (v0.468.0) the verdict census - the counter-vs-words window named; (v0.470.0) the verdict spread - the worn class's per-bot spread; (v0.471.0) the promise persistence - the kept bots' cross-face fate
@@ -1439,6 +1440,17 @@ if (shooter.total > 0) {
   // (the honest silence).
   const wrRow = hazardRefusalCensusRow(hazardRefusalCensus(lines))
   if (wrRow) console.log(`  ${wrRow}`)
+  // (v0.832.0) THE AQUIFER'S OWN BOOK - the water table program's own two
+  // voices beside the veto's: the strike (the board's WRITE side, the
+  // emitter's live regions readback priced) and the lid (the board's READ
+  // side, the regional ceiling's enforcement counted), plus the carousel's
+  // give-up terminals (fluid/drop vs undiggable floor). The trend law: the
+  // lens prices the book and names NO cause - the strike/lid arc reads
+  // across faces (104: 44/0 -> 105: 21/44, the lid took the carousel's
+  // work as the regions filled). Independent of the death book, silent on
+  // a face where none of the four voices spoke (the honest silence).
+  const aqRow = aquiferCensusRow(aquiferCensus(lines))
+  if (aqRow) console.log(`  ${aqRow}`)
 }
 
 // (v0.647.0) THE DEATH-DROP CENSUS - the deathdrop class's own arm join:
