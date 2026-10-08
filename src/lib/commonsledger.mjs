@@ -258,7 +258,8 @@ function zeroBot () {
     scanSaw: 0, scanSawSeen: 0, scanSawUsable: 0,
     askDefers: 0, maxDeferSpan: 0,
     deaths: 0,
-    doomShapes: [], walkFailWhys: {}, dryChests: {}, lastMileWhys: {}, lastMileD: [], lastMileMs: []
+    doomShapes: [], walkFailWhys: {}, dryChests: {}, lastMileWhys: {}, lastMileD: [], lastMileMs: [],
+    lastMilePairs: [] // (v0.821.0) the refused walk's own {d, ms} pair - the rent seat's own column (both tails on one match)
   }
 }
 
@@ -314,6 +315,7 @@ export function commonsLedger (lines) {
       for (const [w, n] of Object.entries(sw.lastMileWhys)) b.lastMileWhys[w] = (b.lastMileWhys[w] ?? 0) + n
       for (const d of sw.lastMileD) b.lastMileD.push(d) // (v0.740.0) the reach's own distances ride per bot
       for (const ms of sw.lastMileMs) b.lastMileMs.push(ms) // (v0.742.0) the last mile's own clocks ride per bot
+      for (const pr of sw.lastMilePairs) b.lastMilePairs.push(pr) // (v0.821.0) the paired walks ride per bot
     })
     rows.push({ type: 'sweep', bot, idx, lane: sw.lane, cls, units: sw.units, ...sw.anatomy })
   }
@@ -381,7 +383,8 @@ export function commonsLedger (lines) {
         dryChests: {},
         lastMileWhys: {},
         lastMileD: [], // (v0.740.0) the refused walk's own distances (the raw walker's d=)
-        lastMileMs: [] // (v0.742.0) the refused walk's own clocks (the elapsed ms the refusal threw away)
+        lastMileMs: [], // (v0.742.0) the refused walk's own clocks (the elapsed ms the refusal threw away)
+        lastMilePairs: [] // (v0.821.0) the refused walk's own {d, ms} pairs (both tails on one match)
       }
       void b
       continue
@@ -459,6 +462,12 @@ export function commonsLedger (lines) {
       // refusal threw away rides the same match (after Nms / for Nms)
       const msm = LASTMILE_MS_RE.exec(vm[2])
       if (msm) s.sweep.lastMileMs.push(Number(msm[1]))
+      // (v0.821.0) the last mile's own rent seat - when the same match
+      // carried BOTH tails (the d= and the elapsed ms) the pair rides
+      // as one record: the rent's own banding needs the walk's own
+      // WHERE and WHAT-it-paid on one row, never two columns joined by
+      // index luck. A one-sided tail pairs nothing - the honest gap.
+      if (dm && msm) s.sweep.lastMilePairs.push({ d: Number(dm[1]), ms: Number(msm[1]) })
       continue
     }
     vm = COMMONS_OPENFAIL_RE.exec(line)
@@ -502,6 +511,7 @@ export function commonsLedger (lines) {
     for (const [w, n] of Object.entries(b.lastMileWhys)) totals.lastMileWhys[w] = (totals.lastMileWhys[w] ?? 0) + n
     for (const d of b.lastMileD) totals.lastMileD.push(d) // (v0.740.0) the reach's own distances ride the totals
     for (const ms of b.lastMileMs) totals.lastMileMs.push(ms) // (v0.742.0) the last mile's own clocks ride the totals
+    for (const pr of b.lastMilePairs) totals.lastMilePairs.push(pr) // (v0.821.0) the paired walks ride the totals
   }
   return { bots, totals, rows }
 }

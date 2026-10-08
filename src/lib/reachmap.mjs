@@ -109,3 +109,70 @@ export function reachClockRow (c) {
   const secs = v => (v / 1000).toFixed(1)
   return `the last mile's own clock: the refused walks spent ${secs(c.msSum)}s dying (max ${secs(c.msMax)}s across ${c.withMs} read(s)) - the raw walk's own rent`
 }
+
+// (v0.821.0) THE LAST MILE'S OWN RENT SEAT - the radius's and the
+// clock's own offspring: the radius priced WHERE the refused walk
+// died (the d= bands) and the clock priced WHAT the walk paid dying
+// (the elapsed ms), but the two columns rode apart - which BAND's
+// walks burned the clock stayed unread. The pair column (the
+// commonsledger's v0.821.0 lastMilePairs - one {d, ms} record when
+// the same match carried both tails, never two columns joined by
+// index luck) seats the rent by the radius's own bands (close d<5 /
+// mid 5-10 / far >10): the band whose ms holds the strict majority
+// of the book owns the seat - the same one-law-two-words shape the
+// story seat rides (v0.818.0). THE CURE'S OWN PRICE: a band that
+// owns the whole rent while the delivered ledger stays 0 prices the
+// preflight's own gate - the walk that cannot arrive should never
+// rent the clock.
+//
+// Pure on the commonsLedger result - no parsing here, the skywalk
+// law: two lenses one read. Mining-surface only: zero fleet wiring,
+// zero new log lines. Junk-safe end to end: no pairs (the old
+// callers, the bare tails, the one-sided matches) reads null - the
+// honest silence.
+/**
+ * Seat the last mile's own rent - the paired walks' ms by the d-band.
+ * @param {null|{bots: Object, totals: object, rows: object[]}} ledger commonsLedger(lines)'s own result
+ * @returns {null|{pairs: number, msSum: number, bands: {close: {n: number, ms: number}, mid: {n: number, ms: number}, far: {n: number, ms: number}}, owner: null|string}}
+ */
+export function reachRentSeat (ledger) {
+  if (!ledger || !ledger.totals) return null
+  const t = ledger.totals
+  const pairs = Array.isArray(t.lastMilePairs)
+    ? t.lastMilePairs.filter(p => p && Number.isFinite(p.d) && Number.isFinite(p.ms) && p.ms >= 0)
+    : []
+  if (pairs.length === 0) return null
+  const bands = { close: { n: 0, ms: 0 }, mid: { n: 0, ms: 0 }, far: { n: 0, ms: 0 } }
+  let msSum = 0
+  for (const p of pairs) {
+    msSum += p.ms
+    const band = p.d < 5 ? 'close' : (p.d <= 10 ? 'mid' : 'far') // the radius's own bands (v0.740.0)
+    bands[band].n++
+    bands[band].ms += p.ms
+  }
+  let owner = null
+  for (const name of ['close', 'mid', 'far']) {
+    if (bands[name].ms * 2 > msSum) owner = name // the strict majority of the rent owns the seat
+  }
+  return { pairs: pairs.length, msSum, bands, owner }
+}
+
+// ONE verdict line, only when a seat could form (no pairs / a zero
+// book = the honest silence; a mix book - no strict majority - rides
+// the mix row only for the honest owner-null shape, the story seat's
+// own law).
+export function reachRentSeatRow (seat) {
+  if (!seat || !(seat.msSum > 0)) return null
+  if (seat.owner === null) {
+    return "the last mile's own rent seat (v0.821.0): no solo band owns the rent book (the mix owns nothing)"
+  }
+  if (!seat.bands || !Object.prototype.hasOwnProperty.call(seat.bands, seat.owner)) return null // the junk owner reads null - the seat's own law (the story seat's v0.818.0 lesson)
+  const secs = v => (v / 1000).toFixed(1)
+  const pct = ((seat.bands[seat.owner].ms / seat.msSum) * 100).toFixed(1)
+  const tails = {
+    close: "the chest at arm's reach and the walk still died - geometry's own rent",
+    mid: "the envelope's own band - the raw clock's own price, the hop never bought",
+    far: 'the walk died before the envelope ever declared - the preflight\'s own gate prices the never-arriving walk'
+  }
+  return `the last mile's own rent seat (v0.821.0): the ${seat.owner} band owns ${secs(seat.bands[seat.owner].ms)}s of ${secs(seat.msSum)}s (${pct}%) - THE RENT'S OWN SEAT: ${tails[seat.owner]}`
+}

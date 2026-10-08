@@ -71,7 +71,7 @@ import { torchBook } from '../../src/lib/torchbook.mjs' // (v0.500.0) the torch 
 import { veinLedger, tierGuardBill } from '../../src/lib/veinledger.mjs' // (v0.501.0) the vein ledger - the sweep's terminals, walk yield, gallery digs, refusals and the tier guard; (v0.768.0) the tier guard's own bill - the repeat rider's own seat
 import { commonsLedger, sweepBookSeat, sweepBookSeatRow, sweepBookRiders, sweepBookRidersRow, chestCloseSeat, chestCloseSeatRow } from '../../src/lib/commonsledger.mjs' // (v0.502.0) the commons ledger - the ask's answer: the sweeps, the walk anatomy, the deliveries; (v0.800.0) WHICH close class owns the sweep book; (v0.815.0) + the chest's own close - WHICH chest-side close owns the chest book
 import { droughtTimeline, droughtTimelineRow, drySideSeat, drySideSeatRow } from '../../src/lib/droughttimeline.mjs' // (v0.738.0) the pump's own timeline - the tithe's banks vs the dry reads' positions; (v0.816.0) + the dry read's own side - WHICH side of the first bank owns the dry book
-import { reachRadius, reachRadiusRow, reachClock, reachClockRow } from '../../src/lib/reachmap.mjs' // (v0.740.0) the reach's own radius - the last mile's refused distances; (v0.742.0) the last mile's own clock - the refused walks' elapsed ms (the raw walk's own rent)
+import { reachRadius, reachRadiusRow, reachClock, reachClockRow, reachRentSeat, reachRentSeatRow } from '../../src/lib/reachmap.mjs' // (v0.740.0) the reach's own radius - the last mile's refused distances; (v0.742.0) the last mile's own clock - the refused walks' elapsed ms (the raw walk's own rent); (v0.821.0) the last mile's own rent seat - the paired walks' rent by the d-band
 import { bridgeBook, bridgePocketBill, bridgePocketBillRow, bridgePocketRiders, bridgePocketRidersRow } from '../../src/lib/bridgebook.mjs' // (v0.496.0) the bridge book - the vertical walk's fill lane (the refusals' why-flip, the cobble signature, the server's own veto; SLOT COLLISION #17: 0.495.0 taken by fire-0008's THE TABLE GATE mid-fire); (v0.786.0) WHICH bot owns the pocket tax
 import { bridgeRefusalCensus, bridgeRefusalRow } from '../../src/lib/climbbridge.mjs' // (v0.665.0) THE CLIMB BRIDGE'S FIELD READ - the refusal book's own grains wired to the mining surface: the gate, the pit donor, the plant clear, the shadow gate's defers
 import { planTopCensus } from '../../src/lib/plantop.mjs' // (v0.440.0) the named board - the stuck slot's own name
@@ -3931,6 +3931,11 @@ console.log('  plan lines:', count(/materials plan|plan progress/i))
     const rc = reachClock(cl)
     const rcRow = reachClockRow(rc)
     if (rcRow) console.log(`  ${rcRow}`)
+    // (v0.821.0) the last mile's own rent seat - the paired walks'
+    // rent by the d-band (which band's walks burned the clock - the
+    // preflight's own gate's own price); no pairs = the honest silence
+    const rrentRow = reachRentSeatRow(reachRentSeat(cl))
+    if (rrentRow) console.log(`  ${rrentRow}`)
     if (t.scanSaw > 0) console.log(`  anchor scans that found no anchor: ${t.scanSaw} (saw ${t.scanSawSeen} chest(s), ${t.scanSawUsable} usable after the empty memory)`)
     // (v0.738.0) the pump's own timeline - the tithe's banked events
     // vs the dry reads' positions in the stream (the 53rd's motive:

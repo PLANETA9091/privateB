@@ -14,7 +14,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { commonsLedger } from '../../src/lib/commonsledger.mjs'
-import { reachRadius, reachRadiusRow, reachClock, reachClockRow } from '../../src/lib/reachmap.mjs'
+import { reachRadius, reachRadiusRow, reachClock, reachClockRow, reachRentSeat, reachRentSeatRow } from '../../src/lib/reachmap.mjs'
 
 // The 53rd's own refusals, byte-verbatim and in the live order (the
 // bots' anchor reads open one sweep each - the refusal is anatomy,
@@ -178,4 +178,125 @@ test('reachClockRow: the honest silences and the mixed face', () => {
   assert.equal(reachClock({}), null)
   const junked = reachClock(commonsLedger([null, 7, ANCHOR('F2'), undefined, 'F2 fuel commons: the last mile refused (raw walk stalled after 1955ms (d=8.3))']))
   assert.deepEqual([junked.withMs, junked.msSum, junked.msMax], [1, 1955, 1955])
+})
+
+// (v0.821.0) THE LAST MILE'S OWN RENT SEAT - the pairs' own tests.
+// The 97th face's own refusals, byte-verbatim and in the live order
+// (run 37739905661, the v0.818.0 tree's calm read: 0 FATAL, 0
+// stormguard lines - the storm's own silence let the drought speak:
+// 17 last-mile refusals, EVERY tail carrying BOTH the d= and the
+// elapsed ms, every d=13.0-21.1 beyond the envelope's own band, the
+// whole 54.6s rent burned by walks that could never arrive).
+const FACE97_LINES = [
+  ANCHOR('F1'),
+  ANCHOR('F2'),
+  ANCHOR('F11'),
+  ANCHOR('F9'),
+  ANCHOR('F8'),
+  ANCHOR('F19'),
+  ANCHOR('F15'),
+  ANCHOR('F10'),
+  ANCHOR('F13'),
+  ANCHOR('F16'),
+  ANCHOR('F14'),
+  ANCHOR('F5'),
+  ANCHOR('F18'),
+  'F1 fuel commons: the last mile refused (raw walk timeout after 2648ms (d=18.6))',
+  'F2 fuel commons: the last mile refused (raw walk timeout after 2379ms (d=15.0))',
+  'F11 fuel commons: the last mile refused (raw walk timeout after 4379ms (d=17.0))',
+  'F9 fuel commons: the last mile refused (raw walk timeout after 3851ms (d=17.1))',
+  'F8 fuel commons: the last mile refused (raw walk timeout after 5689ms (d=15.0))',
+  'F19 fuel commons: the last mile refused (raw walk timeout after 810ms (d=19.6))',
+  'F15 fuel commons: the last mile refused (raw walk timeout after 5608ms (d=17.0))',
+  'F10 fuel commons: the last mile refused (raw walk timeout after 4329ms (d=15.0))',
+  'F13 fuel commons: the last mile refused (raw walk timeout after 1099ms (d=16.8))',
+  'F16 fuel commons: the last mile refused (raw walk timeout after 2904ms (d=17.0))',
+  'F14 fuel commons: the last mile refused (raw walk timeout after 2163ms (d=13.0))',
+  'F5 fuel commons: the last mile refused (raw walk timeout after 1161ms (d=18.1))',
+  'F2 fuel commons: the last mile refused (raw walk timeout after 817ms (d=17.2))',
+  'F18 fuel commons: the last mile refused (raw walk timeout after 5149ms (d=14.0))',
+  'F15 fuel commons: the last mile refused (raw walk timeout after 6877ms (d=20.5))',
+  'F9 fuel commons: the last mile refused (raw walk stalled after 2174ms (d=21.1))',
+  'F13 fuel commons: the last mile refused (raw walk timeout after 2525ms (d=18.0))'
+]
+
+test('reachRentSeat: the 97th\'s own 17 pairs - every tail carried both', () => {
+  const cl = commonsLedger(FACE97_LINES)
+  assert.ok(cl, 'reads the face')
+  assert.equal(cl.totals.lastMile, 17, 'every refusal counted once')
+  assert.equal(cl.totals.lastMilePairs.length, 17, 'both tails on one match - one pair per walk')
+  assert.equal(cl.totals.lastMileD.length, 17, 'the d column agrees')
+  assert.equal(cl.totals.lastMileMs.length, 17, 'the ms column agrees')
+  const seat = reachRentSeat(cl)
+  assert.equal(seat.pairs, 17)
+  assert.equal(seat.msSum, 54562, "the face's own rent")
+  assert.equal(seat.owner, 'far', 'every d beyond the band - the far band owns it all')
+  assert.deepEqual([seat.bands.close.n, seat.bands.mid.n, seat.bands.far.n], [0, 0, 17])
+  assert.equal(seat.bands.far.ms, 54562)
+  // the pairs ride the bots too (13 distinct walkers this face)
+  const walkers = Object.values(cl.bots).filter(b => b.lastMilePairs.length > 0)
+  assert.equal(walkers.length, 13)
+  assert.deepEqual(walkers.map(b => b.lastMilePairs.length).sort((a, b) => b - a), [2, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1])
+})
+
+test('reachRentSeatRow: the byte-exact maiden row + the owners + the laws', () => {
+  // the maiden read, byte-exact off the 97th's own book
+  const row = reachRentSeatRow(reachRentSeat(commonsLedger(FACE97_LINES)))
+  assert.equal(row, "the last mile's own rent seat (v0.821.0): the far band owns 54.6s of 54.6s (100.0%) - THE RENT'S OWN SEAT: the walk died before the envelope ever declared - the preflight's own gate prices the never-arriving walk")
+  // the mid owner (the envelope's own band - the 94th's own shape's law)
+  const midSeat = reachRentSeat(commonsLedger([
+    ANCHOR('F2'),
+    'F2 fuel commons: the last mile refused (raw walk timeout after 1000ms (d=8.0))',
+    'F2 fuel commons: the last mile refused (raw walk timeout after 2000ms (d=7.0))',
+    'F2 fuel commons: the last mile refused (raw walk timeout after 3000ms (d=9.0))'
+  ]))
+  assert.equal(midSeat.owner, 'mid')
+  assert.equal(reachRentSeatRow(midSeat), "the last mile's own rent seat (v0.821.0): the mid band owns 6.0s of 6.0s (100.0%) - THE RENT'S OWN SEAT: the envelope's own band - the raw clock's own price, the hop never bought")
+  // the close owner (the arm's reach death - geometry's own rent)
+  const closeSeat = reachRentSeat(commonsLedger([
+    ANCHOR('F2'),
+    'F2 fuel commons: the last mile refused (raw walk: no net progress for 4000ms (best d=2.0))'
+  ]))
+  assert.equal(closeSeat.owner, 'close')
+  assert.equal(reachRentSeatRow(closeSeat), "the last mile's own rent seat (v0.821.0): the close band owns 4.0s of 4.0s (100.0%) - THE RENT'S OWN SEAT: the chest at arm's reach and the walk still died - geometry's own rent")
+  // the tie law: far 1500 + close 1500 - no strict majority, the mix row (the honest owner-null shape)
+  const tieSeat = reachRentSeat(commonsLedger([
+    ANCHOR('F2'),
+    'F2 fuel commons: the last mile refused (raw walk timeout after 1500ms (d=3.0))',
+    'F2 fuel commons: the last mile refused (raw walk timeout after 1500ms (d=12.0))'
+  ]))
+  assert.equal(tieSeat.owner, null)
+  assert.equal(tieSeat.msSum, 3000)
+  assert.equal(reachRentSeatRow(tieSeat), "the last mile's own rent seat (v0.821.0): no solo band owns the rent book (the mix owns nothing)")
+  // exactly half is not a majority either (2 of 4 walks one band, the rent split even)
+  const halfSeat = reachRentSeat({ totals: { lastMilePairs: [{ d: 2, ms: 500 }, { d: 2, ms: 500 }, { d: 12, ms: 500 }, { d: 12, ms: 500 }] } })
+  assert.equal(halfSeat.owner, null)
+  // the guards: the junk shapes read null - the seat's own law
+  assert.equal(reachRentSeatRow(null), null)
+  assert.equal(reachRentSeatRow({ msSum: 0, owner: 'far', bands: { far: { n: 1, ms: 0 } } }), null)
+  assert.equal(reachRentSeatRow({ msSum: 100, owner: 'junk', bands: { far: { n: 1, ms: 100 } } }), null, 'the junk owner reads null')
+  assert.equal(reachRentSeatRow({ msSum: 100, owner: undefined, bands: {} }), null)
+  assert.equal(reachRentSeatRow({ msSum: 100 }), null)
+})
+
+test('reachRentSeat: the honest silences + the junk battery', () => {
+  // no refusals: the silence
+  assert.equal(reachRentSeat(commonsLedger([ANCHOR('F9'), 'F9 fuel commons: budget spent (0/1 units)'])), null)
+  // the bare class: no d, no ms - the pair rides nothing
+  const bare = reachRentSeat(commonsLedger([ANCHOR('F2'), 'F2 fuel commons: the last mile refused (raw walk refused by the caller)']))
+  assert.equal(bare, null, 'one-sided tails pair nothing')
+  // the old caller: a totals without the pairs column - the honest gap
+  assert.equal(reachRentSeat({ totals: { lastMile: 3 } }), null)
+  assert.equal(reachRentSeat(null), null)
+  assert.equal(reachRentSeat({}), null)
+  assert.equal(reachRentSeat({ totals: { lastMilePairs: 'junk' } }), null)
+  // the junk records in the column are filtered (null / non-finite / negative)
+  const junked = reachRentSeat({ totals: { lastMilePairs: [null, { d: 8, ms: 'x' }, { d: 'y', ms: 500 }, { d: 8, ms: -5 }, { d: 8, ms: 700 }] } })
+  assert.equal(junked.pairs, 1)
+  assert.equal(junked.owner, 'mid')
+  // junk rows in the stream never invent a pair
+  const junkLines = commonsLedger([null, 7, ANCHOR('F2'), undefined, 'F2 fuel commons: the last mile refused (raw walk timeout after 1224ms (d=8.7))'])
+  assert.equal(junkLines.totals.lastMile, 1)
+  assert.equal(junkLines.totals.lastMilePairs.length, 1)
+  assert.deepEqual(junkLines.totals.lastMilePairs, [{ d: 8.7, ms: 1224 }])
 })
