@@ -2511,3 +2511,43 @@ export function depositRingFoldRow (book) {
   const seat = book.whySeat != null ? `"${book.whySeat}"` : 'THE SPREAD IS THE SHAPE (the tie law held)'
   return `the deposit ring's own fold (v0.876.0): ${book.n} refusal(s) by ${botNames.length} bot(s) (${botNames.join('+')}), ${Object.keys(book.chests).length} chest(s), top [${top[0]}] x${top[1].n} - the why's seat: ${seat} - repeats ${book.repeats.length}`
 }
+
+// (v0.877.0) THE RING'S OWN EXCLUDE CANDIDATE - the fold's repeats cell
+// priced. The v0.875.0 fold reads the swap voice's refusals and counts the
+// per-chest repeats (the swap list's own signal: one door refusing many
+// bots); the candidate prices the book's own TOP repeat - the fold's own
+// order rides as the priority (the heaviest chest, then the position -
+// the n desc + coords-lex law the fold sorts by), the kind reads from the
+// crowd (>= 2 distinct bots -> THE SWAP LIST: the fleet's shared truth,
+// the v0.23.1 swap's next-chest ring prices it out; one bot -> THE MEMORY
+// HOLE: the same bot came BACK, the private loop, the TTL's own class).
+// THE BOUND (the v0.869.0 exclude-one-candidate law): at most ONE
+// candidate priced per face - a face that names many has not priced any,
+// the top rides, the rest stay the honest spread. Junk-safe: an
+// inconsistent book or a repeat-free face prices nothing (the fence law,
+// the honest once). Pure mining-surface, ZERO fleet wiring - the fleet
+// wire (the candidate riding the deposit chain's own exclude) waits for
+// the pricing's own field verdict (the price-before-wire law).
+// @param {object} [book] the depositRingFold's own book
+// @returns {null | {chest: string, n: number, bots: string[], kind: string}}
+export function depositRingCandidate (book) {
+  if (!depositRingFoldConsistent(book)) return null
+  const repeats = Array.isArray(book.repeats) ? book.repeats : []
+  if (repeats.length === 0) return null
+  const top = repeats[0]
+  if (!top || typeof top.chest !== 'string' || !Number.isFinite(top.n) || top.n < 2) return null
+  if (!Array.isArray(top.bots) || top.bots.length === 0) return null
+  const kind = top.bots.length >= 2 ? 'swap-list' : 'memory-hole'
+  return { chest: top.chest, n: top.n, bots: [...top.bots], kind }
+}
+
+/** The candidate's own row: 'the ring's own exclude candidate (v0.877.0):
+ * [x,y,z] xN - THE SWAP LIST: A+B+C' / '... - THE MEMORY HOLE: A came back'.
+ * A junk or inconsistent candidate renders nothing (the fence law). */
+export function depositRingCandidateRow (cand) {
+  if (!cand || typeof cand.chest !== 'string' || !Number.isFinite(cand.n) || cand.n < 2) return null
+  if (!Array.isArray(cand.bots) || cand.bots.length === 0) return null
+  if (cand.kind === 'swap-list') return `the ring's own exclude candidate (v0.877.0): [${cand.chest}] x${cand.n} - THE SWAP LIST: ${[...cand.bots].sort().join('+')}`
+  if (cand.kind === 'memory-hole') return `the ring's own exclude candidate (v0.877.0): [${cand.chest}] x${cand.n} - THE MEMORY HOLE: ${cand.bots[0]} came back`
+  return null
+}

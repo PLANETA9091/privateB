@@ -128,9 +128,78 @@ test('THE ROW BYTES: the verdict line rides verbatim', () => {
 
 test('THE WIRING PINS: the decompose print site rides beside the preflight book\'s own', () => {
   const dec = readFileSync(new URL('../../scripts/fleet-mining/decompose.mjs', import.meta.url), 'utf8')
-  assert.match(dec, /import \{ depositRingFold, depositRingFoldRow \} from '\.\.\/\.\.\/src\/lib\/deposit\.mjs'/, 'the fold rides its own import band (the fire-1030/1500 precedent - the band grows with the list)')
+  assert.match(dec, /import \{ depositRingFold, depositRingFoldRow, depositRingCandidate, depositRingCandidateRow \} from '\.\.\/\.\.\/src\/lib\/deposit\.mjs'/, 'the fold rides its own import band (the fire-1030/1500 precedent - the band grows with the list; the v0.877.0 candidate functions joined the same band)')
   assert.match(dec, /const drf = depositRingFold\(lines\)/, 'the fold reads the face')
   assert.match(dec, /const drfRow = depositRingFoldRow\(drf\)/, 'the row renders')
   const lib = readFileSync(new URL('../../src/lib/deposit.mjs', import.meta.url), 'utf8')
   assert.match(lib, /\(v0\.876\.0\) THE DEPOSIT RING'S OWN FOLD/, 'the lib rides its own version stamp')
+})
+
+// (v0.877.0) THE RING'S OWN EXCLUDE CANDIDATE - the repeats cell's own
+// pricing battery. The face-142 shape is SYNTHETIC (the v0.873.0
+// precedent: pre-field tests pin the shape, the field face rides the next
+// fire's artifact read): [-144,80,393] x4 across 3 bots was face 142's
+// swap-list candidate; the memory-hole is the same-bot return class.
+import { depositRingCandidate, depositRingCandidateRow } from '../../src/lib/deposit.mjs'
+
+test('THE FACE-142 CANDIDATE: the x4 cross-bot repeat prices as THE SWAP LIST', () => {
+  const book = depositRingFold([
+    refusalLine('F9', '-144,80,393', 'No path to the goal!'),
+    refusalLine('F15', '-144,80,393', 'No path to the goal!'),
+    refusalLine('F15', '-144,80,393', 'No path to the goal!'),
+    refusalLine('F3', '-144,80,393', 'No path to the goal!'),
+    refusalLine('F9', '-113,70,398', 'No path to the goal!')
+  ])
+  const cand = depositRingCandidate(book)
+  assert.ok(cand, 'the candidate prices')
+  assert.deepEqual(cand, { chest: '-144,80,393', n: 4, bots: ['F15', 'F3', 'F9'], kind: 'swap-list' }, 'the top repeat rides, the crowd names the kind - the bots ride the fold\'s own lexicographic order')
+  assert.equal(depositRingCandidateRow(cand), 'the ring\'s own exclude candidate (v0.877.0): [-144,80,393] x4 - THE SWAP LIST: F15+F3+F9', 'the row rides its exact bytes - the bots sorted')
+})
+
+test('THE MEMORY HOLE: the same-bot return names the private loop', () => {
+  const book = depositRingFold([
+    refusalLine('F9', '-113,70,398', 'No path to the goal!'),
+    refusalLine('F9', '-113,70,398', 'budget exhausted (walk floor)'),
+    refusalLine('F15', '-155,70,404', 'No path to the goal!')
+  ])
+  const cand = depositRingCandidate(book)
+  assert.ok(cand, 'the single-bot repeat prices')
+  assert.equal(cand.kind, 'memory-hole', 'one bot came BACK - the TTL\'s own class')
+  assert.equal(depositRingCandidateRow(cand), 'the ring\'s own exclude candidate (v0.877.0): [-113,70,398] x2 - THE MEMORY HOLE: F9 came back', 'the row rides its exact bytes')
+})
+
+test('THE ONE-CANDIDATE BOUND: many repeats price ONE - the fold\'s own order', () => {
+  const book = depositRingFold([
+    refusalLine('F9', '-113,70,398', 'No path to the goal!'),
+    refusalLine('F9', '-113,70,398', 'No path to the goal!'),
+    refusalLine('F9', '-113,70,398', 'No path to the goal!'),
+    refusalLine('F15', '-144,80,393', 'No path to the goal!'),
+    refusalLine('F15', '-144,80,393', 'No path to the goal!')
+  ])
+  const cand = depositRingCandidate(book)
+  assert.equal(cand.chest, '-113,70,398', 'the heaviest chest rides - n desc')
+  assert.equal(cand.n, 3, 'the top repeat\'s own count')
+  assert.equal(depositRingCandidateRow(cand).includes('[-113,70,398] x3'), true, 'the row names the top only')
+})
+
+test('THE HONEST ONCE: a repeat-free face, an inconsistent book and junk price nothing', () => {
+  assert.equal(depositRingCandidate(depositRingFold([refusalLine('F9', '-113,70,398', 'No path to the goal!')])), null, 'every chest refused once - no candidate')
+  assert.equal(depositRingCandidate(null), null, 'null book refused')
+  assert.equal(depositRingCandidate({}), false || null, 'empty shape refused')
+  assert.equal(depositRingCandidate({ n: 1, truncated: 0, byBot: { F9: 1 }, chests: { '-113,70,398': { n: 1, bots: ['F9'] } }, whys: { x: 1 }, whySeat: 'x', repeats: 'junk' }), null, 'a junk repeats cell refused by the fence')
+})
+
+test('THE ROW JUNK LAW: sub-2 counts, empty crowds and unknown kinds render nothing', () => {
+  assert.equal(depositRingCandidateRow(null), null, 'null renders nothing')
+  assert.equal(depositRingCandidateRow({ chest: '-113,70,398', n: 1, bots: ['F9'], kind: 'swap-list' }), null, 'a sub-2 count renders nothing')
+  assert.equal(depositRingCandidateRow({ chest: '-113,70,398', n: 2, bots: [], kind: 'swap-list' }), null, 'an empty crowd renders nothing')
+  assert.equal(depositRingCandidateRow({ chest: '-113,70,398', n: 2, bots: ['F9'], kind: 'junk-kind' }), null, 'an unknown kind renders nothing')
+})
+
+test('THE WIRING PIN: the candidate print site rides beside the fold\'s own row', () => {
+  const dec = readFileSync(new URL('../../scripts/fleet-mining/decompose.mjs', import.meta.url), 'utf8')
+  assert.match(dec, /const drc = depositRingCandidate\(drf\)/, 'the candidate prices the fold\'s own book')
+  assert.match(dec, /const drcRow = depositRingCandidateRow\(drc\)/, 'the candidate row renders')
+  const lib = readFileSync(new URL('../../src/lib/deposit.mjs', import.meta.url), 'utf8')
+  assert.match(lib, /\(v0\.877\.0\) THE RING'S OWN EXCLUDE CANDIDATE/, 'the lib rides its own version stamp')
 })
