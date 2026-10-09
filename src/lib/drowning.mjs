@@ -346,6 +346,59 @@ export function dryTailTimeoutProof ({ headWetPasses = null, tailWet = null, tai
 }
 
 /**
+ * (v0.859.0) THE SENTINEL'S OWN WET ARM (pure) - the o2 book's never lane's
+ * own cure (the v0.813.0 design note's own words: 'arming the rescue on the
+ * mirror's last-known o2 fixes it'). Face 132 (run 37879880275) measured the
+ * gap live: F11's connection reset mid-life, the relog re-deployed the leg,
+ * and the bot drowned ONE SECOND into its witnessed head-wet - 'rescue
+ * never, o2 reset(-1), wet 1s'. The v0.64.0 law reads the sentinel as FULL
+ * (the post-rescue swim-loop's own cure), which leaves a bot whose bar
+ * drained UNSEEN with exactly one live lane: the 5s head-wet clock - and a
+ * bar that was already empty at submersion kills inside it (F11: 1s).
+ *
+ * The arm's own fences (each one prices a KNOWN false-page class):
+ *   - a LIVE bar never arms (in-domain reads own the verdict - the critical,
+ *     falling-bar and clock lanes are the bar's own voices);
+ *   - a DRY or unreadable head never arms (the v0.64.0 dry-land byte stays
+ *     byte for byte - 'oxygen -1 on dry land' never pages again);
+ *   - a FRESH rescue or release holds the arm for SURFACE_REARM_MS (the
+ *     sentinel's KNOWN seat is 'within seconds of a rescue/death event' -
+ *     run60's 395 bursts; the v0.129.0 surface re-arm owns that pacing, the
+ *     same window here - one constant, two consumers, zero drift).
+ * What remains is exactly the arm gap: an unreadable bar at a witnessed wet
+ * head with NO fresh water event to explain the reset - the relog-into-water
+ * class and the mid-drain sensor death. The v0.16.0 law owns the direction:
+ * better a wasted swim than a silent drown. Junk ages never witness an event
+ * (a junk clock cannot hold the arm) - null means 'never happened', the
+ * strongest arm case. THE DEFAULT AGES READ 0 (a fresh event): an unwired
+ * caller keeps the v0.64.0 byte for byte - only a caller that KNOWS its
+ * water-event clock (the sentry, the one production call site) opts in.
+ *
+ * @param {object} [p]
+ * @param {number} [p.oxygen] the RAW oxygen read (not the gated read)
+ * @param {boolean} [p.headWet] the witnessed head-water contact
+ * @param {number|null} [p.lastRescueAgoMs] ms since the last rescue start
+ * @param {number|null} [p.releasedAgoMs] ms since the last surface-safe release
+ * @param {number} [p.floorMs] the fresh-event window (default SURFACE_REARM_MS)
+ * @returns {boolean} true = arm the rescue on the unreadable bar
+ */
+export const SENTINEL_ARM_FLOOR_MS = SURFACE_REARM_MS
+export function sentinelWetArm ({ oxygen = 20, headWet = false, lastRescueAgoMs = 0, releasedAgoMs = 0, floorMs = SENTINEL_ARM_FLOOR_MS } = {}) {
+  // a live bar never arms: the in-domain lanes own the verdict (the arm is
+  // the UNREADABLE bar's own voice, never a second opinion on a real one)
+  if (oxygenInDomain(Number(oxygen))) return false
+  if (headWet !== true) return false
+  const floor = Number.isFinite(floorMs) && floorMs > 0 ? floorMs : SENTINEL_ARM_FLOOR_MS
+  const fresh = (ago) => {
+    if (ago == null) return false // no record = never happened = nothing to hold
+    const n = Number(ago)
+    return Number.isFinite(n) && n >= 0 && n < floor
+  }
+  if (fresh(lastRescueAgoMs) || fresh(releasedAgoMs)) return false
+  return true
+}
+
+/**
  * The one-look verdict. Inputs are the raw reads the bot already has:
  *   feet/head : block NAME at the feet cell / head cell (string | null when
  *               unloaded - null is NOT water)
@@ -356,13 +409,17 @@ export function dryTailTimeoutProof ({ headWetPasses = null, tailWet = null, tai
  *               counted (junk -> 0 = the legacy never-believe-a-dry-glitch
  *               shape); at AIR_GLITCH_STREAK_CAP the bar is believed (run84a
  *               F17: a sustained zero on dry land was a real drowning)
+ *   lastRescueAgoMs / releasedAgoMs : (v0.859.0, optional) the fresh water
+ *               event ages the sentinel's wet arm reads - null = no record
+ *               (the strongest arm case), the DEFAULT 0 = a fresh event (an
+ *               unwired caller keeps the v0.64.0 byte for byte)
  * Verdicts:
  *   'none'     - dry, nothing to do
  *   'wet'      - water contact but breathing fine (feet-only, or head just
  *                broke surface with air to spare) - monitor, no emergency
  *   'drowning' - rescue NOW
  */
-export function waterVerdict ({ feet = null, head = null, feetWaterlogged = false, headWaterlogged = false, oxygen = 20, headWetMs = 0, dryGlitchStreak = 0, dryGlitchCap = AIR_GLITCH_STREAK_CAP, airHistory = null } = {}) {
+export function waterVerdict ({ feet = null, head = null, feetWaterlogged = false, headWaterlogged = false, oxygen = 20, headWetMs = 0, dryGlitchStreak = 0, dryGlitchCap = AIR_GLITCH_STREAK_CAP, airHistory = null, lastRescueAgoMs = 0, releasedAgoMs = 0 } = {}) {
   const raw = Number(oxygen)
   // (v0.64.0) oxygenInDomain gates the read: NaN/undefined AND the -1 reset
   // sentinel (measured post-rescue/post-death in run60) all read as FULL - a
@@ -391,6 +448,18 @@ export function waterVerdict ({ feet = null, head = null, feetWaterlogged = fals
   // the critical lane above and ABOVE the block-trust gates below on
   // purpose - fresh evidence outranks stale cells.
   if (o2 <= OXYGEN_RESCUE_LEVEL && airBarFalling(airHistory)) return 'drowning'
+  // (v0.859.0) THE SENTINEL'S OWN WET ARM: an UNREADABLE bar (the -1 reset
+  // sentinel, NaN, junk) at a WITNESSED wet head with no fresh rescue or
+  // release to explain the reset is the never lane's own shape (face 132's
+  // F11: 'rescue never, o2 reset(-1), wet 1s') - the arm pages on the
+  // v0.16.0 law (better a wasted swim than a silent drown). The fences live
+  // in sentinelWetArm; the placement rides BELOW the in-domain lanes (a live
+  // bar outranks the arm by construction) and ABOVE the block-trust gates
+  // (fresh evidence outranks stale cells). The post-rescue bob keeps its
+  // v0.129.0 hold (the release floor), the v0.64.0 dry-land byte stays, and
+  // the UNWIRED callers (the defaults' 0 ages) keep every legacy byte - only
+  // the sentry's own clock opts in.
+  if (sentinelWetArm({ oxygen: raw, headWet, lastRescueAgoMs, releasedAgoMs })) return 'drowning'
   // (v0.95.0) THE GLITCH ESCALATION: the dry out-vote is no longer ABSOLUTE -
   // a SUSTAINED critical-on-dry streak means the server is draining a real
   // air bar the block reads miss (run84a F17: 675+ ignored reads, then dead

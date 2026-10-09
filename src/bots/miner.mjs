@@ -2921,7 +2921,7 @@ export function createMiner ({
         ? 'drowning'
         : abandoned
           ? 'none'
-          : waterVerdict({ ...read, headWetMs: headWet ? now - headWetSince : 0, dryGlitchStreak, dryGlitchCap: glitchStreakCap(glitchConfirmed), airHistory: o2History.slice() })
+          : waterVerdict({ ...read, headWetMs: headWet ? now - headWetSince : 0, dryGlitchStreak, dryGlitchCap: glitchStreakCap(glitchConfirmed), airHistory: o2History.slice(), lastRescueAgoMs: lastRescueAt > 0 ? now - lastRescueAt : null, releasedAgoMs: surfaceReleaseAt > 0 ? now - surfaceReleaseAt : null }) // (v0.859.0) the sentinel's wet arm reads the fresh water events - the never lane's own arm gap (face 132's F11)
       sentryLast = { at: now, verdict, criticalOnDry, witnessed, o2: o2raw, headWet } // (v0.248.0) the mirror's snapshot
       // (v0.356.0) THE HONEST HOLE - the ignored reads counter. The glitch
       // counter counts EVERY critical-on-dry read, but the reads whose

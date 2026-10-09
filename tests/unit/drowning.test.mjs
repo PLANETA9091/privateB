@@ -16,6 +16,7 @@ import {
   OXYGEN_RESET_SENTINEL, oxygenInDomain,
   historyAdmissible, O2_HISTORY_CAP,
   surfaceRearmHolds, SURFACE_REARM_MS,
+  sentinelWetArm, SENTINEL_ARM_FLOOR_MS,
   isWaterName, waterVerdict, airBarTrust, shoreDirection, rescueDone, fleePlan,
   shoreCandidates, firstVerifiedShore, AQUATIC_SHORE_CANDIDATES,
   airBarFalling, AIR_FALL_MIN_DROP, AIR_FALL_MIN_READS,
@@ -2204,4 +2205,92 @@ test('firstVerifiedShore: the shore-bound law never dies for lack of an alternat
 test('the re-flee rotation constants stay sane', () => {
   assert.equal(RE_FLEE_ROTATE_AFTER, 3, 'three consecutive picks of one bearing and the next pick must differ (the whale ran 37)')
   assert.equal(RE_FLEE_MEMORY_MS, 30000, 'the memory decays at 30s - a stale chase never taxes a fresh flee')
+})
+
+// ---------------------------------------------------------------------------
+// (v0.859.0) THE SENTINEL'S OWN WET ARM - the o2 book's never lane's own cure
+// (the v0.813.0 design note's own named fix). Face 132 = 37879880275 measured
+// the gap live: F11's connection reset mid-life, the relog re-deployed the
+// leg, and the bot drowned ONE SECOND into its witnessed head-wet ('rescue
+// never, o2 reset(-1), wet 1s') - the v0.64.0 law reads the sentinel as FULL,
+// which left the 5s head-wet clock as the unreadable bar's only lane, and a
+// bar already empty at submersion kills inside it.
+// ---------------------------------------------------------------------------
+
+test('sentinelWetArm: the sentinel at a witnessed wet head arms (the never lane\'s own cure)', () => {
+  // undefined never reaches the body (the default eats it = the unwired caller's own hold, pinned below)
+  for (const junk of [OXYGEN_RESET_SENTINEL, NaN, Infinity, -Infinity]) {
+    assert.equal(sentinelWetArm({ oxygen: junk, headWet: true, lastRescueAgoMs: null, releasedAgoMs: null }), true, `o2 ${junk}: the arm fires - no water event owns the reset (the sentry's no-record null)`)
+  }
+})
+
+test('sentinelWetArm: the UNWIRED caller keeps the legacy hold (the default ages read a fresh event)', () => {
+  assert.equal(sentinelWetArm({ oxygen: OXYGEN_RESET_SENTINEL, headWet: true }), false, 'no ages passed = the conservative hold - the v0.64.0 byte stays for every unwired caller')
+})
+
+test('sentinelWetArm: a live bar never arms (the in-domain lanes own the verdict)', () => {
+  for (const o2 of [0, 2, OXYGEN_RESCUE_LEVEL, 20]) {
+    assert.equal(sentinelWetArm({ oxygen: o2, headWet: true }), false, `o2 ${o2}: the bar's own lanes speak`)
+  }
+  assert.equal(sentinelWetArm({ oxygen: '0', headWet: true }), false, 'the string \'0\' coerces to a live read - the stale-bar family\'s own lanes own it')
+})
+
+test('sentinelWetArm: a dry or unknown head never arms (the v0.64.0 dry-land byte stays)', () => {
+  for (const headWet of [false, null, undefined, 0, 'yes']) {
+    assert.equal(sentinelWetArm({ oxygen: OXYGEN_RESET_SENTINEL, headWet }), false, `headWet ${String(headWet)}: 'oxygen -1 on dry land' never pages again`)
+  }
+})
+
+test('sentinelWetArm: a fresh rescue or release holds the arm (the post-rescue burst owns its seat)', () => {
+  const justUnder = SENTINEL_ARM_FLOOR_MS - 1
+  assert.equal(sentinelWetArm({ oxygen: OXYGEN_RESET_SENTINEL, headWet: true, lastRescueAgoMs: justUnder }), false, 'a rescue seconds ago owns the reset (run60\'s 395 bursts)')
+  assert.equal(sentinelWetArm({ oxygen: OXYGEN_RESET_SENTINEL, headWet: true, releasedAgoMs: justUnder }), false, 'a release seconds ago owns the reset (the v0.129.0 float)')
+  assert.equal(sentinelWetArm({ oxygen: OXYGEN_RESET_SENTINEL, headWet: true, lastRescueAgoMs: SENTINEL_ARM_FLOOR_MS, releasedAgoMs: null }), true, 'the boundary expires: the arm takes over (the sentry always passes both ages)')
+})
+
+test('sentinelWetArm: junk ages never hold (a junk clock cannot witness an event)', () => {
+  // undefined ages = the unwired caller (the default 0 = hold, pinned separately)
+  for (const junk of [null, NaN, -5, 'soon']) {
+    assert.equal(sentinelWetArm({ oxygen: OXYGEN_RESET_SENTINEL, headWet: true, lastRescueAgoMs: junk, releasedAgoMs: junk }), true, `age ${String(junk)}: null means never - the strongest arm case`)
+  }
+})
+
+test('waterVerdict: the arm pages the relog class (the face-132 F11 shape, verbatim)', () => {
+  const f11 = { feet: 'water', head: 'water', oxygen: OXYGEN_RESET_SENTINEL, headWetMs: 1000 }
+  assert.equal(waterVerdict({ ...f11, lastRescueAgoMs: null, releasedAgoMs: null }), 'drowning', 'rescue never + the sentinel + a wet head = the arm (the legacy read was \'wet\')')
+  assert.equal(waterVerdict({ ...f11, lastRescueAgoMs: NaN, releasedAgoMs: NaN }), 'drowning', 'junk clocks ride the arm (a junk clock cannot witness an event)')
+  assert.equal(waterVerdict({ ...f11 }), 'wet', 'the UNWIRED waterVerdict caller keeps the legacy byte (the defaults\' 0 ages hold the arm)')
+})
+
+test('waterVerdict: the arm keeps the post-rescue bob byte (the release floor holds)', () => {
+  const f11 = { feet: 'water', head: 'water', oxygen: OXYGEN_RESET_SENTINEL, headWetMs: 1000 }
+  assert.equal(waterVerdict({ ...f11, lastRescueAgoMs: 3000, releasedAgoMs: null }), 'wet', 'a fresh rescue holds the arm - the legacy byte')
+  assert.equal(waterVerdict({ ...f11, lastRescueAgoMs: null, releasedAgoMs: 3000 }), 'wet', 'a fresh release holds the arm - the v0.129.0 float\'s own pacing')
+})
+
+test('waterVerdict: the sentinel on dry land stays silent (the v0.64.0 cure byte for byte)', () => {
+  assert.equal(waterVerdict({ feet: 'sand', head: 'air', oxygen: OXYGEN_RESET_SENTINEL }), 'none')
+  assert.equal(waterVerdict({ feet: 'water', head: 'air', oxygen: OXYGEN_RESET_SENTINEL }), 'wet', 'feet-only contact with an unreadable bar stays the monitor verdict')
+})
+
+test('waterVerdict: the legacy lanes outrank the arm (a live bar never reads the arm\'s verdict)', () => {
+  assert.equal(waterVerdict({ feet: 'water', head: 'water', oxygen: 2 }), 'drowning', 'the critical lane owns a live bar')
+  assert.equal(waterVerdict({ feet: 'water', head: 'water', oxygen: 15, headWetMs: HEAD_SUBMERGED_RESCUE_MS }), 'drowning', 'the clock lane keeps its byte (a full clock drowns regardless)')
+})
+
+test('the arm\'s floor is the surface re-arm\'s own window (one constant, two consumers, zero drift)', () => {
+  assert.equal(SENTINEL_ARM_FLOOR_MS, SURFACE_REARM_MS, 'the same window the v0.129.0 hold paces - the post-rescue bob cannot split the two')
+})
+
+test('WIRING PIN: the sentry feeds the arm its fresh water events (v0.859.0)', async () => {
+  const fs = await import('node:fs')
+  const minerSrc = fs.readFileSync(new URL('../../src/bots/miner.mjs', import.meta.url), 'utf8')
+  assert.match(minerSrc, /lastRescueAgoMs: lastRescueAt > 0 \? now - lastRescueAt : null/, 'the sentry passes the rescue age')
+  assert.match(minerSrc, /releasedAgoMs: surfaceReleaseAt > 0 \? now - surfaceReleaseAt : null/, 'the sentry passes the release age')
+  const libSrc = fs.readFileSync(new URL('../../src/lib/drowning.mjs', import.meta.url), 'utf8')
+  const laneIdx = libSrc.indexOf('if (sentinelWetArm({ oxygen: raw, headWet, lastRescueAgoMs, releasedAgoMs })) return \'drowning\'')
+  const fallingIdx = libSrc.indexOf("if (o2 <= OXYGEN_RESCUE_LEVEL && airBarFalling(airHistory)) return 'drowning'")
+  const clockIdx = libSrc.indexOf('if (headWetMs >= HEAD_SUBMERGED_RESCUE_MS) return \'drowning\'')
+  assert.ok(laneIdx > fallingIdx, 'the arm rides BELOW the in-domain lanes (a live bar outranks the arm)')
+  assert.ok(laneIdx < clockIdx, 'the arm rides ABOVE the head-wet clock (fresh evidence outranks the fallback clock)')
 })
