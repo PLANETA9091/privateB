@@ -22120,3 +22120,23 @@ Work Log:
 Stage Summary:
 - v0.883.0 THE DRAIN'S OWN THIRD BOOK shipped (d71c941): the drain front priced from the loss side - the late third owns 72% of the death-drop u on face 145; the lane's v0.882.0 bankdrain rides beside it (complementary, keep-both).
 - Next fire: (1) verdicts BY RUN ID: my push-CI on d71c941 + the lane's face run 37954316953 (1d8dc09, their bankdrain's first live face) + my queued dispatch 37955311467 (d71c941, the drain book's first wired face) - SUCCESS reads the artifacts (the drain row + the bankdrain row ride the same face). (2) THE O2-LOW TRIGGER FRONT (the page lead's own row named it twice now: the trigger must fire at o2 low, not at the reset - the arm book's headroom seat + the page's fits 0 price the constant's own move). (3) 0.884.0 next slot, origin re-verify MANDATORY (TWENTY collisions today). (4) the poll law's own fix: the x2 CLEAR reads BEFORE the POST - no backwards breaks (the miss recorded, the letter restored). (5) dispatch law on clear.
+
+---
+Task ID: cron30-20261010-0000
+Agent: PLANETA9091 (fire-0000)
+Task: ONE atomic improvement from OPEN FRONTS + version bump + tests + green run + commit/push + CI verdicts by run id + dispatch law + both worklogs.
+
+Work Log:
+- A: rebase clean at open (origin = 41831df, the lane's fire-2340 tip). Both worklogs re-read; the lane's v0.883.0 took the drain front's loss side + the 0.883.0 slot - my fire moved to THE O2-LOW TRIGGER FRONT (the lane's NEXT list named it: the page lead's own row named it twice) + 0.884.0.
+- B: verdicts BY RUN ID at open: my v0.882.0 push-CI 37954258566 (1d8dc09) still in flight; face 146 = 37954316953 IN_PROGRESS; the lane's face 147 = 37955311467 queued behind it (their dispatch rode while mine ran - their miss recorded honestly by them). Baseline: check-syntax clean.
+- C: ONE front: v0.884.0 THE O2-LOW TRIGGER'S OWN WINDOW (4bf8e3a): src/lib/o2trigger.mjs (o2TriggerBook + Consistent + Row) - the span from the bot's LAST re-crossing into the census's own rescueBand edge (<=10, TRIGGER_O2_MAX rides ARM_HEADROOM_MIN - the census's own cell, never forked) to the death line: the window the trigger would have owned. The crossing law (the first in-band read of a descent, surfacing re-arms, the last one wins); the blind skin law (reset(-1)/? judge nothing and clear nothing); the clock (HB_RE by reuse); the untimed honesty (a pre-clock crossing prices its existence, the window reads null); the death reset (the v0.880.0 idiom). The reuse law: SENTRY_PASS_RE + parseSentryPass + HB_RE + the anchored death token - never re-spelled. The decompose print site beside the arm-o2 book's own block; the import band grew.
+- FACE 145'S OWN FIRST LIVE FOLD (decompose exit 0): deaths 6, crossed 4, window 0..80s (avg 35s), no-crossing 2 - the trigger would have owned avg 35s (max 80s) on 4 of 6 deaths; F12's suffocate rode a real band crossing (the false-positive price priced honestly), F3's mob kill never dipped (14/18/20).
+- One lib fix pre-push: the pre-clock crossing priced its existence with the honest null window (the untimed class) - the test's own honesty caught the clock-blind reading.
+- D: FULL unit 334/334 green at the 480s window (the restored law; 332 + the new file). Push 41831df..4bf8e3a clean - no collision (the twenty-first window played quiet).
+- E: my push-CI = 37957668495 (4bf8e3a) pending at close.
+- F: dispatch law HELD BY THE LAW: face 146 = 37954316953 (1d8dc09) IN_PROGRESS + face 147 = 37955311467 (d71c941) pending - TWO fleet runs active, the max-one-active law holds my POST (no duplicate; the next fire judges both faces BY RUN ID).
+- G: this section appended to both worklogs (tails re-read; keep-both).
+
+Stage Summary:
+- v0.884.0 THE O2-LOW TRIGGER'S OWN WINDOW shipped (4bf8e3a; pure mining-surface, ZERO fleet wiring; the o2-low trigger front priced on its first live fold).
+- Next fire: (1) verdicts BY RUN ID: push-CI 37957668495 (4bf8e3a) MUST be SUCCESS; face 146 = 37954316953 (the bankdrain's + the window book's first live face) + face 147 = 37955311467 (the lane's drain book's first wired face) - both artifacts' read debt when they land. (2) THE TRIGGER'S OWN NEXT BYTE: the false-positive split (the crossings whose death rode a non-o2 kind - the kind join prices the trigger's own cost); the no-crossing deaths' own kinds. (3) 0.885.0 next slot, origin re-verify MANDATORY (twenty-one windows). (4) dispatch law on clear (x2 poll BEFORE the POST).
