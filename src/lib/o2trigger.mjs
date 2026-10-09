@@ -248,6 +248,21 @@ export function o2TriggerRow (book) {
 // seat prices nothing. The server verdict stays the authority - the
 // attacker's word is READ, never re-adjudicated (the v0.117.0
 // doctrine).
+//
+// (v0.891.0) THE ARRIVAL BUDGET - the window join's own next byte
+// (the faces' own mass named it: the melee clock rode 20s on face 148
+// AND face 149 - the STABLE race clock prices the lever's own
+// number). The rescue must arrive inside the melee seat's own span -
+// the tightest observed race IS the budget: the fold's own floor
+// (meleeWindow's own min) prices the arrival budget. THE REUSE LAW AT
+// ITS PUREST: the budget is a READ of the fold's own min cell - never
+// a new computation, no new book cells, no new fence cells (the fence
+// already pins the min against the perDeath image); a lying min
+// prices nothing the same way it already did. The zero-window
+// silence holds: no timed melee seats -> the budget clause stays
+// silent beside the clock (the blind-skin idiom); the wrong-door
+// windows stay unjoined (the honest defer stands - their question is
+// the wasted rent, not the winnable race).
 
 // The trigger's own death word - the server's own kind= vocabulary's
 // oxygen death (deathcause.mjs's own bucket, never invented here).
@@ -421,7 +436,11 @@ export function o2TriggerKindRow (book) {
     if (book.kinds.fp.melee > 0) {
       const mw = book.kinds.fp.meleeWindow
       let seat = `drowned-melee ${book.kinds.fp.melee}`
-      if (mw.count > 0) seat += ` (window ${mw.min}..${mw.max}s avg ${Math.round(mw.sum / mw.count)}s)`
+      if (mw.count > 0) {
+        // the arrival budget = the fold's own floor (the tightest
+        // observed race) - a READ of the min cell, never re-computed
+        seat += ` (window ${mw.min}..${mw.max}s avg ${Math.round(mw.sum / mw.count)}s - the rescue's arrival budget: beat ${mw.min}s)`
+      }
       anatomy.push(seat)
     }
     if (book.kinds.fp.wrongDoor > 0) anatomy.push(`wrong-door ${book.kinds.fp.wrongDoor}`)
@@ -435,5 +454,5 @@ export function o2TriggerKindRow (book) {
   if (book.kinds.miss.drowned > 0) parts.push(`the miss's own predator: drowned ${book.kinds.miss.drowned}`)
   if (book.kinds.noCrossingUnknown > 0) parts.push(`no-crossing unkinded ${book.kinds.noCrossingUnknown}`)
   if (!parts.length) return null
-  return `the o2-low trigger's own kind join (v0.890.0): ${parts.join(', ')} - the kind join prices the trigger's own cost`
+  return `the o2-low trigger's own kind join (v0.891.0): ${parts.join(', ')} - the kind join prices the trigger's own cost`
 }

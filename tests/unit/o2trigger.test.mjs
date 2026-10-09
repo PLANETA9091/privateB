@@ -223,7 +223,7 @@ test('the false-positive split - the crossed deaths\' own kinds', () => {
   assert.equal(b.kinds.fp.melee, 0, 'suffocate has no attacker - the true wrong door')
   assert.equal(b.kinds.fp.wrongDoor, 1)
   const row = o2TriggerKindRow(b)
-  assert.ok(row.includes("the o2-low trigger's own kind join (v0.890.0)"))
+  assert.ok(row.includes("the o2-low trigger's own kind join (v0.891.0)"))
   assert.ok(row.includes('crossed drown 1 (the trigger\'s own)'))
   assert.ok(row.includes('crossed non-o2 1 (the false-positive price: wrong-door 1)'))
 })
@@ -304,7 +304,7 @@ test('the face-145 kind join - the artifact\'s own death lines, byte for byte', 
   assert.equal(b.kinds.fp.wrongDoor, 1)
   assert.deepEqual(b.kinds.noCrossing, { mob: 1, fall: 1 })
   const row = o2TriggerKindRow(b)
-  assert.ok(row.includes("the o2-low trigger's own kind join (v0.890.0)"))
+  assert.ok(row.includes("the o2-low trigger's own kind join (v0.891.0)"))
   assert.ok(row.includes('crossed drown 1 (the trigger\'s own), crossed non-o2 1 (the false-positive price: wrong-door 1), no-crossing mob 1/fall 1'))
   assert.ok(row.includes('the kind join prices the trigger\'s own cost'))
 })
@@ -350,8 +350,33 @@ test('the face-148 kind join - the drowned-melee seat\'s own live face', () => {
   assert.equal(b.perDeath[1].missClass, 'drowned')
   assert.equal(b.perDeath[1].attacker, 'Drowned')
   const row = o2TriggerKindRow(b)
-  assert.ok(row.includes("the o2-low trigger's own kind join (v0.890.0)"))
-  assert.ok(row.includes('crossed drown 2 (the trigger\'s own), crossed non-o2 1 (the false-positive price: drowned-melee 1 (window 20..20s avg 20s)), no-crossing mob 1, the miss\'s own predator: drowned 1'))
+  assert.ok(row.includes("the o2-low trigger's own kind join (v0.891.0)"))
+  assert.ok(row.includes('crossed drown 2 (the trigger\'s own), crossed non-o2 1 (the false-positive price: drowned-melee 1 (window 20..20s avg 20s - the rescue\'s arrival budget: beat 20s)), no-crossing mob 1, the miss\'s own predator: drowned 1'))
+})
+
+// (v0.891.0) the arrival budget - the fold's own floor prices the
+// lever: the budget is a READ of the meleeWindow's own min cell (the
+// tightest observed race), never a re-computation - the two-seat mass
+// pins the budget against the avg's own temptation (20..40 avg 30:
+// the budget rides 20, the floor)
+test('the arrival budget - the fold\'s own floor prices the lever', () => {
+  const lines = [
+    hb(1, 20),
+    pass('F1', 0, 5),
+    hb(2, 45),
+    diedKind('F1', 'was slain by Drowned', 'mob', 'Drowned'), // window 25
+    hb(3, 80),
+    pass('F2', 0, 6),
+    hb(4, 115),
+    diedKind('F2', 'was slain by Drowned', 'mob', 'Drowned') // window 35
+  ]
+  const b = o2TriggerKindBook(lines)
+  assert.ok(o2TriggerKindConsistent(b))
+  assert.equal(b.kinds.fp.melee, 2)
+  assert.deepEqual(b.kinds.fp.meleeWindow, { count: 2, min: 25, max: 35, sum: 60 }, 'the two seats\' own mass')
+  const row = o2TriggerKindRow(b)
+  assert.ok(row.includes('drowned-melee 2 (window 25..35s avg 30s - the rescue\'s arrival budget: beat 25s)'), 'the budget rides the fold\'s own floor, never the avg')
+  assert.ok(!row.includes('beat 30s') && !row.includes('beat 35s'), 'neither the avg nor the max prices the lever')
 })
 
 test('the anatomy\'s both seats live - the row names only the live ones, joined', () => {
@@ -371,7 +396,7 @@ test('the anatomy\'s both seats live - the row names only the live ones, joined'
   assert.equal(b.kinds.fp.wrongDoor, 1)
   assert.deepEqual(b.kinds.fp.meleeWindow, { count: 1, min: 25, max: 25, sum: 25 }, 'only the melee seat\'s clock joins - the wrong-door windows stay unjoined')
   const row = o2TriggerKindRow(b)
-  assert.ok(row.includes('crossed non-o2 2 (the false-positive price: drowned-melee 1 (window 25..25s avg 25s) / wrong-door 1)'))
+  assert.ok(row.includes('crossed non-o2 2 (the false-positive price: drowned-melee 1 (window 25..25s avg 25s - the rescue\'s arrival budget: beat 25s) / wrong-door 1)'))
 })
 
 // (v0.889.0) the untimed melee seat - a crossing before the first
@@ -499,7 +524,7 @@ test("the miss seat's own predator - the blind spot named by the attacker's own 
   assert.equal(b.perDeath[2].missClass, null)
   assert.equal(b.perDeath[2].attacker, null, 'the fall carries no attacker')
   const row = o2TriggerKindRow(b)
-  assert.ok(row.includes("the o2-low trigger's own kind join (v0.890.0)"))
+  assert.ok(row.includes("the o2-low trigger's own kind join (v0.891.0)"))
   assert.ok(row.includes("no-crossing mob 2/fall 1, the miss's own predator: drowned 1"))
 })
 
