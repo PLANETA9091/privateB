@@ -1335,6 +1335,43 @@ export function yardGraceGate ({ dist = null, graceUsed = false, shortDist = CHE
   return { grant: false, budgetMs: 0, why: `d=${Math.round(d)} beyond the grace envelope (${Math.round(fDist)}) - the doom guard stands` }
 }
 
+// (v0.871.0) THE WALK FLOOR'S OWN PREFLIGHT - the chain prices the walk
+// BEFORE the visit, with the same ruler and the same grace (the one-ruler
+// law: chestWalkBudgetMs prices, effectiveWalkBudget floors, yardGraceGate
+// pardons - no new pin, no new arithmetic). Face 138's budget-floor book
+// named the front: the floor's refusals rode the MID-VISIT throw ('visit
+// died mid-visit (budget exhausted (walk floor))') - the scan, the three
+// ledger skips and the doom gate all paid their bytes for a verdict the
+// floor already knew at pricing time. The preflight answers the same
+// question the visit's own walkOnce entry would answer, one gate earlier:
+//   affordable   -> the legacy visit runs (its entry check re-reads the
+//                   same numbers - byte-identical)
+//   grace-funded -> the legacy visit runs (the one-shot still rides INSIDE
+//                   the visit, never here - the preflight only peeks)
+//   doomed       -> refuse with a name: the chest is clock-dead, every
+//                   farther one is too (the scan is nearest-first and the
+//                   ruler is monotonic in d) - the v0.45.0 far-chest skip's
+//                   own break law applies.
+// Junk distance or an unbounded chain clock reads no preflight - the legacy
+// visit decides byte for byte. The refusal line rides the 'chest skip'
+// filter-key family (zero fleet wiring), the why names d, the price and
+// the clock left, and the grace's own verdict rides inside it.
+// @param {object} [p]
+// @param {number} [p.dist] the live bot->chest distance (junk/null -> no preflight)
+// @param {number} [p.remainingMs] the chain clock left (non-finite = unbounded -> no preflight)
+// @param {boolean} [p.graceUsed] the chain's grace already rode?
+// @returns {{refuse: boolean, pricedMs: number, why: string}}
+export function walkFloorPreflight ({ dist = null, remainingMs = Infinity, graceUsed = false } = {}) {
+  if (!Number.isFinite(dist) || dist < 0) return { refuse: false, pricedMs: 0, why: 'no distance read - the legacy visit decides' }
+  if (!Number.isFinite(remainingMs)) return { refuse: false, pricedMs: 0, why: 'the chain clock is unbounded - the legacy visit decides' }
+  const priced = chestWalkBudgetMs(dist)
+  const ms = effectiveWalkBudget({ distBudget: priced, remainingMs })
+  if (ms > 0) return { refuse: false, pricedMs: priced, why: 'the floor prices the walk affordable' }
+  const g = yardGraceGate({ dist, graceUsed })
+  if (g.grant) return { refuse: false, pricedMs: priced, why: `the grace would fund the walk (${g.why})` }
+  return { refuse: true, pricedMs: priced, why: `d=${Math.round(dist)} prices ${Math.round(priced / 1000)}s beyond the ${Math.round(remainingMs / 1000)}s left - ${g.why}` }
+}
+
 // (v0.113.0) THE CHEST DOOM HALF-LIFE - a chest cell's walk-verdict lives 15s,
 // not the no-path ledger's 45/90s. Run100 (35874523075, the v0.112.0 fleet)
 // named the class: the yard chest row [-113..-143,70,398-408] was doom-ledgered
@@ -2228,6 +2265,25 @@ export async function depositToChests (bot, { maxChests = 8, findRadius = 64, ke
         tried.push(typeof chest.position.floored === 'function' ? chest.position.floored() : chest.position)
         continue
       }
+    }
+    // (v0.871.0) THE WALK FLOOR'S OWN PREFLIGHT - the visit's own walk-floor
+    // verdict, priced one gate earlier. The same ruler (chestWalkBudgetMs at
+    // the live distance), the same floor (effectiveWalkBudget against THIS
+    // chain's remaining clock), the same grace peek (yardGraceGate with the
+    // shared holder's state - the one-shot still rides INSIDE the visit
+    // only). A refusal here is the 'budget exhausted (walk floor)' throw the
+    // mid-visit net would have caught - now named at the scan's own level,
+    // riding the 'chest skip' filter-key family, and the loop BREAKS: the
+    // scan is nearest-first and the ruler is monotonic in d, so a chest the
+    // clock cannot fund dooms every farther one (the v0.45.0 far-chest
+    // skip's own break law). Junk distance or an unbounded chain clock
+    // reads no preflight - the legacy visit runs byte for byte.
+    const dPf = (() => { try { const d = bot.entity?.position?.distanceTo?.(chest.position); return Number.isFinite(d) ? d : null } catch { return null } })()
+    const pf = walkFloorPreflight({ dist: dPf, remainingMs: remaining(), graceUsed: yardGrace.used === true })
+    if (pf.refuse) {
+      log(`[${bot.username ?? 'bot'}] chest skip (walk floor preflight: ${pf.why})`)
+      reports.push('budget exhausted') // the loop-top's own name for a clock that cannot fund the floor
+      break
     }
     // (v0.416.0) THE MID-VISIT GUARD, arm 2 - the chain net: a visit that
     // THROWS anyway (a throwing inventory read the arm-1 guard cannot
