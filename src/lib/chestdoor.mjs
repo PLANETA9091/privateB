@@ -688,7 +688,7 @@ export function chestBudgetFloorBookRow (book) {
   return `${head} ${seat}`
 }
 
-// (v0.873.0) THE WALK FLOOR PREFLIGHT'S OWN BOOK - the gate's refusals own
+// (v0.874.0) THE WALK FLOOR PREFLIGHT'S OWN BOOK - the gate's refusals own
 // WHO+WHERE fold. The v0.872.0 preflight (deposit.mjs) prices the visit's
 // own walk-floor verdict one gate earlier and refuses at the scan's own
 // level ('chest skip (walk floor preflight: d=NN prices NNs beyond the NNs
@@ -775,7 +775,7 @@ export function chestWalkPreflightBookConsistent (book) {
   return true
 }
 
-/** The book's own row: 'the walk floor preflight's own book (v0.873.0):
+/** The book's own row: 'the walk floor preflight's own book (v0.874.0):
  * 5 refusal(s) by 2 bot(s), d 9..40 avg 26 - prices 30..30 s vs 1..4 s
  * left - THE ONE-SHOT'S OWN EXHAUST: the clause's own majority'. Junk-safe:
  * a junk candidate, an inconsistent book or a zero-refusal face renders
@@ -789,5 +789,5 @@ export function chestWalkPreflightBookRow (book) {
   const seat = book.seatClause != null
     ? `${book.seat}: ${book.seatClause}`
     : 'THE SPREAD IS THE SHAPE: no clause owns the book - the tie law held'
-  return `the walk floor preflight's own book (v0.873.0): ${book.n} refusal(s) by ${botNames.length} bot(s) (${botNames.join('+')}), d ${d.min}..${d.max} avg ${d.avg} - prices ${ps.min}..${ps.max} s vs ${ls.min}..${ls.max} s left - ${seat}`
+  return `the walk floor preflight's own book (v0.874.0): ${book.n} refusal(s) by ${botNames.length} bot(s) (${botNames.join('+')}), d ${d.min}..${d.max} avg ${d.avg} - prices ${ps.min}..${ps.max} s vs ${ls.min}..${ls.max} s left - ${seat}`
 }

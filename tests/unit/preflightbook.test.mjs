@@ -1,4 +1,4 @@
-// THE WALK FLOOR PREFLIGHT'S OWN BOOK (v0.873.0) - the v0.872.0 gate's
+// THE WALK FLOOR PREFLIGHT'S OWN BOOK (v0.874.0) - the v0.872.0 gate's
 // refusals own WHO+WHERE fold. The preflight line rides the 'chest skip'
 // filter-key the fleet already carries, so the face logs speak - but a
 // lens that cannot fold the class leaves the verdict unnamed (the
@@ -103,7 +103,7 @@ test('the row: exact bytes for a pinned book', () => {
   const pinned = chestWalkPreflightBook([L_GRACE, L_GRACE, L_JUNKCELL])
   assert.equal(
     chestWalkPreflightBookRow(pinned),
-    "the walk floor preflight's own book (v0.873.0): 3 refusal(s) by 2 bot(s) (F19+F2), d 0..26 avg 17.3 - prices 30..30 s vs 4..4 s left - THE ONE-SHOT'S OWN EXHAUST: the grace already rode (one-shot per chain)"
+    "the walk floor preflight's own book (v0.874.0): 3 refusal(s) by 2 bot(s) (F19+F2), d 0..26 avg 17.3 - prices 30..30 s vs 4..4 s left - THE ONE-SHOT'S OWN EXHAUST: the grace already rode (one-shot per chain)"
   )
   assert.equal(chestWalkPreflightBookRow(null), null)
   assert.equal(chestWalkPreflightBookRow('junk'), null)

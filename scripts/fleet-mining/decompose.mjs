@@ -2103,7 +2103,7 @@ if (cbfb) {
   const cbfbRow = chestBudgetFloorBookRow(cbfb)
   if (cbfbRow) console.log(`  ${cbfbRow}`)
 }
-// (v0.873.0) THE WALK FLOOR PREFLIGHT'S OWN BOOK - the v0.872.0 gate's own
+// (v0.874.0) THE WALK FLOOR PREFLIGHT'S OWN BOOK - the v0.872.0 gate's own
 // refusals folded per bot, the d/price/left bands and the grace clause's
 // own majority (the seat the verdict rides). The self-inconsistent book
 // never renders (the fence law); a face with zero preflight refusals
