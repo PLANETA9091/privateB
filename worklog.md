@@ -21446,3 +21446,18 @@ Work Log:
 Stage Summary:
 - The mob front now owns TWO late storms (127: 0/2/4, 128: 0/4/5 late-mob-clean) - the late-third mob survivability front is the named seat.
 - Next fire: (1) verdicts BY RUN ID: 37871217582 (13dc771) + face 129 = 37871246660 (SUCCESS -> mine with the v0.854.0 stack: the kind row prints? the VOICE speaks its first live face? the door's decide-majority holds? the bank's 16th point off 46.9%). (2) THE CHEST DOOR'S NEXT LEG: voice high + rate low -> walk budget/chest-ring geometry; voice low -> the swap's exclude-one-candidate bound. (3) Queued: THE WET-COLUMN KEEP, THE LEDGE GUARD; 0.855.0 next slot, re-verify on origin. (4) dispatch law on clear (face 130, x2 poll BEFORE the POST).
+
+---
+Task ID: cron30-20261009-1000
+Agent: main (Super Z, fire-1000)
+Task: ONE atomic improvement; zero-conflict protocol (rebase before push, append-only worklogs, x2 poll before dispatch).
+
+Work Log:
+- Verdicts BY RUN ID: push-CI 37871217582 (13dc771, v0.854.0) = SUCCESS; face 129 = 37871246660 SUCCESS - MINED (the kind row's first live face: early 0 / mid 3 (drown 2, suffocate 1) / late 1 (drown 1) - 25% - drown owns the face's end, the late mob storm did NOT confirm a third time; the bill's second live face: 15 rides, bots 5 (F6=6 F5=4), 11 chests shared 1 [-121,73,415] x2, verdicts no-path 4 / decide 11 (73% majority held); THE VOICE'S FIRST LIVE FACE = the honest silence (0 swap lines - the rides ride the hop/bank lanes, the deposit-walk swap had no refusals); the bank's 16th point 31.1%).
+- v0.855.0 THE LATE MOB'S OWN ATTACKER shipped (e9a93d3): the thirdkind lens joins the server's own attacker word to the same hb stamp; the kinds render grows the attacker detail ('mob 5 (Drowned 4, Skeleton 1)', full-family-only); the seat names the top attacker; the fence grows the attackers-exceed break; the spread law kept; the row's byte v0.854.0 -> v0.855.0. Tests: 15 blocks. Local: check-syntax 562/0, FULL unit 317/317, real-log byte-verified.
+- VERSION LAW: the lane's 1de1722 "v0.854.0 THE RELOOT'S OWN DROWN" landed WITHOUT a package.json bump (files disjoint from mine; rebase clean; my 0.855.0 = the tree's version on origin). Push 1de1722..e9a93d3 clean. NO force-push, NO history rewrite.
+- Dispatch law: x2 poll = 0 active -> face 130 DISPATCHED on e9a93d3 (HTTP 204, verified = 37873436284) - carries the attacker row + the reloot wet-spot fence's first live face. Push-CI 37873310192 (e9a93d3) pending at close - verdict BY RUN ID next fire.
+
+Stage Summary:
+- The door's decide class owns the book two faces running (6/11 then 11/15) - the 'Took to long' walk-budget seat is the chest door's next front.
+- Next fire: (1) verdicts BY RUN ID: 37873310192 (e9a93d3) + face 130 = 37873436284 (mine with the v0.855.0 stack). (2) THE DECIDE READ: the decide rides' d=N distance distribution (are the decide chests farther?) - the walk-budget/chest-ring geometry front. (3) Watch the reloot wet-spot fence's first live face. (4) Queued: THE WET-COLUMN KEEP, THE LEDGE GUARD; 0.856.0 next slot, re-verify on origin (the lane skips package.json bumps - verify BOTH the number and the tree). (5) dispatch law on clear (face 131, x2 poll BEFORE the POST).
