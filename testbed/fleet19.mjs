@@ -2013,7 +2013,8 @@ async function runBot (name, target, index) {
               botPos: miner.bot.entity
                 ? { x: miner.bot.entity.position.x, y: miner.bot.entity.position.y, z: miner.bot.entity.position.z }
                 : null,
-              spotWet: relootSpotWet
+              spotWet: relootSpotWet,
+              pocketU: relootDeath.pocketU // (v0.865.0) the stake rides the call - the no-stake fence reads the read-empty death
             })
           } catch { rp = { go: false, why: 'no-spot' } }
           if (!rp.go) {

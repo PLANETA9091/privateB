@@ -645,8 +645,10 @@ test('v0.649.0: the carry keeps the un-attempted stake (spot, clock AND pocketU)
   assert.notEqual(c.spot, death.spot)
   // a fractional stake floors (the unit is a count, never a fraction)
   assert.equal(relootCarry({ spot: { x: 1, y: 2, z: 3 }, at: 5, attempted: false, pocketU: 19.7 }).pocketU, 19)
-  // a zero stake reads null - 'unknown', never a fabricated 0 (the write-off law)
-  assert.equal(relootCarry({ spot: { x: 1, y: 2, z: 3 }, at: 5, attempted: false, pocketU: 0 }).pocketU, null)
+  // (v0.865.0) the zero stake reads ZERO now - the no-stake fence reads it
+  // on the fresh pass (the face-137 read-empty class); the v0.649.0 law's
+  // 'unknown' shape keeps its seat for junk and negative stakes (below)
+  assert.equal(relootCarry({ spot: { x: 1, y: 2, z: 3 }, at: 5, attempted: false, pocketU: 0 }).pocketU, 0)
 })
 
 test('v0.649.0: the carry refuses resolved records and invents nothing from junk', () => {
@@ -718,4 +720,49 @@ test('v0.854.0: the surface ladder is untouched by the fence (its own class)', (
     botPos: BOT
   })
   assert.equal(rs.go, true, 'the surface retry still arms on the flooded-pit shape (the v0.208.0 protocol keeps its byte)')
+})
+
+// (v0.865.0) THE NO-STAKE FENCE - the empty pocket's own refusal. MEASURED
+// (face 137 = 37897288332): F17 fell with the drop snapshot reading EMPTY
+// (0u) and the record expired in the night hold with the walk never even
+// VERDICTED. A zero stake is the read-empty death: the return walk digs up
+// an empty cell by construction - the plan refuses it and the why speaks
+// for the census. The unknown stake walks (silence is never evidence).
+test('v0.865.0 the no-stake fence: a READ-EMPTY stake (0) refuses the walk as no-stake', () => {
+  const p = relootPlan({ spot: SPOT, deathAt: NOW - 10000, now: NOW, botPos: BOT, pocketU: 0 })
+  assert.equal(p.go, false, 'the read-empty death walks nowhere - the cell holds nothing by construction')
+  assert.equal(p.why, 'no-stake', 'the why speaks for the census (the lane never walks a pointless walk silently)')
+})
+
+test('v0.865.0 the no-stake fence: the UNKNOWN stake walks (silence is never evidence)', () => {
+  for (const stake of [null, undefined, 'junk', -5, NaN]) {
+    const p = relootPlan({ spot: SPOT, deathAt: NOW - 10000, now: NOW, botPos: BOT, pocketU: stake })
+    assert.equal(p.go, true, `stake ${String(stake)} reads unknown - a junk stake never invents a refusal`)
+  }
+  const p = relootPlan({ spot: SPOT, deathAt: NOW - 10000, now: NOW, botPos: BOT, pocketU: 15 })
+  assert.equal(p.go, true, 'a real stake walks (the fence judges the zero, not the pile)')
+})
+
+test('v0.865.0 the no-stake fence: the structural fences keep their precedence, the wet fence keeps the last gate', () => {
+  // a stakeless + too-far spot reads too-far (the structural fences first)
+  const far = relootPlan({ spot: { x: 500, y: 64, z: 500 }, deathAt: NOW - 10000, now: NOW, botPos: BOT, pocketU: 0 })
+  assert.equal(far.why, 'too-far', 'the structural fences outrank the stake')
+  // a stakeless + wet spot reads no-stake (the cheap data fence precedes the world read)
+  const wet = relootPlan({ spot: SPOT, deathAt: NOW - 10000, now: NOW, botPos: BOT, pocketU: 0, spotWet: true })
+  assert.equal(wet.why, 'no-stake', 'the no-stake fence precedes the wet read (the walk is pointless before it is dangerous)')
+  // a STAKED wet spot still reads wet-spot (the v0.854.0 fence untouched)
+  const stakedWet = relootPlan({ spot: SPOT, deathAt: NOW - 10000, now: NOW, botPos: BOT, pocketU: 15, spotWet: true })
+  assert.equal(stakedWet.why, 'wet-spot', 'the wet fence keeps its byte for walks that would otherwise go')
+})
+
+test('v0.865.0 the carry keeps the ZERO stake (the fence needs it on the fresh pass)', () => {
+  const zero = relootCarry({ spot: { x: 1, y: 2, z: 3 }, at: NOW, attempted: false, pocketU: 0 })
+  assert.ok(zero, 'the zero-stake record carries (the face-137 class survives the rebuild)')
+  assert.equal(zero.pocketU, 0, 'zero is ZERO, not unknown - the fence reads it on the fresh pass')
+  const neg = relootCarry({ spot: { x: 1, y: 2, z: 3 }, at: NOW, attempted: false, pocketU: -5 })
+  assert.equal(neg.pocketU, null, 'a negative stake still reads unknown (the junk law)')
+  const junk = relootCarry({ spot: { x: 1, y: 2, z: 3 }, at: NOW, attempted: false, pocketU: 'junk' })
+  assert.equal(junk.pocketU, null, 'a junk stake still reads unknown')
+  const real = relootCarry({ spot: { x: 1, y: 2, z: 3 }, at: NOW, attempted: false, pocketU: 141 })
+  assert.equal(real.pocketU, 141, 'the big pile keeps its stake (the v0.649.0 law intact)')
 })

@@ -355,7 +355,11 @@ export function createMiner ({
       spot: { x: seedLastDeath.spot.x, y: seedLastDeath.spot.y, z: seedLastDeath.spot.z },
       at: seedLastDeath.at,
       attempted: !!seedLastDeath.attempted,
-      pocketU: Number.isFinite(seedLastDeath.pocketU) && seedLastDeath.pocketU > 0
+      // (v0.865.0) the ZERO stake rides the seed (>= 0): the no-stake fence
+      // reads it on the fresh pass - the face-137 read-empty class. A
+      // junk/negative stake still reads null (the pile arm's junk law, the
+      // write-off's 'unknown').
+      pocketU: Number.isFinite(seedLastDeath.pocketU) && seedLastDeath.pocketU >= 0
         ? Math.floor(seedLastDeath.pocketU)
         : null
     }

@@ -128,7 +128,8 @@ export function relootPlan ({
   despawnMs = RELOOT_DESPAWN_MS,
   maxDist = RELOOT_MAX_DIST,
   marginMs = RELOOT_MARGIN_MS,
-  spotWet = false
+  spotWet = false,
+  pocketU = null
 } = {}) {
   const fin = v => Number.isFinite(v)
   const spotOk = spot && fin(spot.x) && fin(spot.y) && fin(spot.z)
@@ -163,6 +164,18 @@ export function relootPlan ({
   // death the bot cannot stand at - the drops ride out their despawn
   // honestly, the v0.847.0 refusal lens prices the stake, and the surface
   // ladder keeps serving the spots that read dry and fail on the walk.
+  // (v0.865.0) THE NO-STAKE FENCE - the empty pocket's own refusal.
+  // MEASURED (face 137 = 37897288332): F17 fell at [-104,43,400] with the
+  // drop snapshot reading EMPTY (0u) - nothing dropped - and the lane's
+  // whole window then died in the night hold (the shift never started, the
+  // v0.185.0 law) - the record expired with the walk never even VERDICTED.
+  // A zero stake is the read-empty death (the post-bank walk's own class):
+  // the return walk digs up an empty cell by construction - the plan
+  // refuses it BEFORE the wet read (the cheap data fence precedes the world
+  // read) and the why speaks for the census. The UNKNOWN stake (null - the
+  // read failed) walks: silence is never evidence. Junk (negative,
+  // non-number) reads unknown - a junk stake never invents a refusal.
+  if (pocketU === 0) return { go: false, why: 'no-stake' }
   if (spotWet === true) return { go: false, why: 'wet-spot' }
   return {
     go: true,
@@ -714,7 +727,16 @@ export function relootCarry (prevDeath = null) {
   if (!s || typeof s !== 'object' ||
     !Number.isFinite(s.x) || !Number.isFinite(s.y) || !Number.isFinite(s.z)) return null
   if (!Number.isFinite(at)) return null
-  const pocketU = Number.isFinite(prevDeath.pocketU) && prevDeath.pocketU > 0
+  // (v0.649.0) THE DEATH CARRY STAKE: the seed keeps the POCKET STAKE too
+  // (the v0.484.0 pile arm reads it; the old shape dropped it at both hops
+  // and every post-rebuild big pile armed as an empty pocket - the silent
+  // class's rebuild face).
+  // (v0.865.0) the ZERO stake rides too - the no-stake fence reads it on
+  // the fresh pass (the face-137 class: the read-empty death's walk is the
+  // pointless class, and the fence needs the zero to say so). A
+  // junk/negative stake still reads null - the pile arm's junk law judges
+  // it not-bypass, the write-off line says 'unknown'.
+  const pocketU = Number.isFinite(prevDeath.pocketU) && prevDeath.pocketU >= 0
     ? Math.floor(prevDeath.pocketU)
     : null
   return { spot: { x: s.x, y: s.y, z: s.z }, at, pocketU }

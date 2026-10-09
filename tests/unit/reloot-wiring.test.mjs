@@ -411,3 +411,18 @@ test('v0.484.0: the pile arm rides the delay condition and the walking line (the
   assert.ok(nightArm && nightArm[0].includes('relootDeath.attempted = true'),
     'the night fence still owns the surface (the bypass never skips the night gate)')
 })
+
+test('v0.865.0: the no-stake fence rides the call and the zero survives the seed (the dead-wire class)', async () => {
+  // the call site: the stake rides the plan call (the run195 precedent: the
+  // fence is only as real as its wire)
+  const call = fleetSrc.match(/relootPlan\(\{[\s\S]*?\}\)/)
+  assert.ok(call, 'the call site exists')
+  assert.match(call[0], /pocketU:\s*relootDeath\.pocketU/, 'the stake rides the call - the no-stake fence reads the read-empty death (the face-137 class)')
+  // the seed: the ZERO stake survives the rebuild (>= 0 - the v0.649.0 guard grows)
+  assert.match(minerSrc, /pocketU: Number\.isFinite\(seedLastDeath\.pocketU\) && seedLastDeath\.pocketU >= 0/,
+    'the seed keeps the zero (the fence needs it on the fresh pass - the carry alone is not the wire)')
+  // the carry: the zero survives the rebuild hop
+  const { relootCarry } = await import('../../src/lib/reloot.mjs')
+  const zero = relootCarry({ spot: { x: 1, y: 2, z: 3 }, at: 1000, attempted: false, pocketU: 0 })
+  assert.equal(zero && zero.pocketU, 0, 'the carry keeps the zero (the two-hop shape, both hops honest)')
+})
