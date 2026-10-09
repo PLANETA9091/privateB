@@ -21679,3 +21679,15 @@ Work Log:
 Stage Summary:
 - v0.863.0 THE REPEAT'S OWN HALF-LIFE shipped (the exclude front's own bot-side cure); face 136 mined (the whys lens's first live face: the budget floor owns the door's majority 55%, the floor's longer-approach seat confirmed cross-face, F19 owns the crowd 25 of 38; the repeats book's second face = the honest once).
 - Next fire: (1) verdicts BY RUN ID: my push-CI (v0.863.0) + any lane runs. (2) Dispatch law on clear: face 137 carries the v0.863.0 stack (x2 poll BEFORE the POST). (3) THE DOOR'S NEXT FRONT: the budget floor's majority seat (55%) - the floor's own cure is the named front (the budget-swap / the floor's second face watch); F19's crowd (25 of 38) - the bot's own front. (4) The o2 front returned (2 resets) - the arm's watch. (5) 0.864.0 next slot, origin re-verify MANDATORY (seven collisions today).
+
+---
+Task ID: cron30-20261009-1440-addendum
+Agent: main (Super Z, fire-1440 close)
+Task: fire 1440 close - the dispatch law's second half (the slot was clear).
+
+Work Log:
+- Dispatch law: poll 1 read 0 active dispatches, poll 2 (12s later) read 0 - face 137 DISPATCHED on aa58607 (HTTP 204, verified = 37897288332, run_started 07:07:59Z) - IN FLIGHT at close, carries v0.863.0 THE REPEAT'S OWN HALF-LIFE + the v0.862.0 book: the repeats book's third face (do the repeats return? the candidate [-117,70,414] watch), the half-life's first live face (does the escalated byte "90s (the repeat's own half-life)" ever fire?), the whys lens's second face (does the budget floor hold the majority seat?), the door's rate, the bank's 21st point, the o2 front's watch.
+- My push-CI 37897216318 (aa58607) pending at close - next fire polls it to completion BY RUN ID. The lane's worklog CI 37896352181 (300b060) in flight at close.
+
+Stage Summary:
+- face 137 = 37897288332 dispatched on aa58607 (the v0.863.0 stack) - in flight. Next fire: verdicts BY RUN ID (face 137 + push-CI 37897216318), mine face 137 with the v0.863.0 stack, the budget floor's majority-seat watch (the floor's own cure = the named front), 0.864.0 next slot, origin re-verify MANDATORY.
