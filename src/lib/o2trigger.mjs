@@ -66,10 +66,10 @@ const emptyBook = () => ({
 export function o2TriggerBook (lines) {
   const book = emptyBook()
   if (!Array.isArray(lines)) return book
-  const state = {} // per bot: { crossingTs, hasCrossing, inBand, lastO2, lastO2At, prevO2At }
+  const state = {} // per bot: { crossingTs, hasCrossing, inBand, lastO2, lastO2At, prevO2At, lastPassHead }
   let lastTs = null
   const seatFor = (bot) => {
-    if (!state[bot]) state[bot] = { crossingTs: null, hasCrossing: false, inBand: false, lastO2: null, lastO2At: null, prevO2At: null }
+    if (!state[bot]) state[bot] = { crossingTs: null, hasCrossing: false, inBand: false, lastO2: null, lastO2At: null, prevO2At: null, lastPassHead: null }
     return state[bot]
   }
   let li = -1 // the log's own adjacency: the fold's own line index (every element counts)
@@ -93,6 +93,10 @@ export function o2TriggerBook (lines) {
         // last TWO reads' own distance is the cadence's own cell
         seat.prevO2At = seat.lastO2At
         seat.lastO2At = li
+        // the last read's own head (the v0.896.0 byte): the read line's
+        // own shore state rides beside the air (the parse's own field,
+        // never re-judged - the chain stays one seat)
+        seat.lastPassHead = p.head
         if (p.o2.value <= TRIGGER_O2_MAX) {
           if (!seat.inBand) { seat.crossingTs = lastTs; seat.hasCrossing = true; seat.inBand = true }
         } else {
@@ -124,7 +128,7 @@ export function o2TriggerBook (lines) {
       // the cadence's own cell (the v0.895.0 byte): the last TWO
       // reads' own distance (the one-read seat rides the honest null)
       const lastO2Span = seat.lastO2At !== null && seat.prevO2At !== null ? seat.lastO2At - seat.prevO2At : null
-      book.perDeath.push({ bot, ts: lastTs, crossed, window, lastO2: seat.lastO2, lastO2Gap, lastO2Span })
+      book.perDeath.push({ bot, ts: lastTs, crossed, window, lastO2: seat.lastO2, lastO2Gap, lastO2Span, lastPassHead: seat.lastPassHead })
       // the death reset's own law: the state never survives the death
       seat.crossingTs = null
       seat.hasCrossing = false
@@ -132,6 +136,7 @@ export function o2TriggerBook (lines) {
       seat.lastO2 = null
       seat.lastO2At = null
       seat.prevO2At = null
+      seat.lastPassHead = null
       continue
     }
   }
@@ -168,6 +173,16 @@ export function o2TriggerConsistent (book) {
     if (d.lastO2Span !== null && d.lastO2Span !== undefined) {
       if (!Number.isInteger(d.lastO2Span) || d.lastO2Span < 0) return false
       if (d.lastO2Gap === null || d.lastO2Gap === undefined) return false
+    }
+    // the last read's own head shape (the v0.896.0 byte): the head must
+    // be the parse's own word, and the pair shares one seat - the head
+    // without its own read lies, the read without its own head lies
+    // (the read line's own fields ride together)
+    if (d.lastPassHead !== null && d.lastPassHead !== undefined) {
+      if (d.lastPassHead !== 'wet' && d.lastPassHead !== 'dry') return false
+      if (d.lastO2 === null || d.lastO2 === undefined) return false
+    } else if (d.lastO2 !== null && d.lastO2 !== undefined) {
+      return false
     }
     deaths++
     if (!d.crossed) noCrossing++
@@ -360,6 +375,30 @@ export function o2TriggerRow (book) {
 // the chain), min/max byte-verified against the perDeath image; a
 // lying cell prices nothing. Zero fleet wiring, zero new log lines
 // (the clause grows in place).
+//
+// (v0.896.0) THE LAST READ'S OWN HEAD - the cadence's own next byte
+// (the stopped sentry's own mass named it: BOTH live predator seats
+// rode a stopped stream - gap 197/cadence 11 and gap 87/cadence 5 -
+// and the face-148 read's own shape named the shore's own question:
+// 'o2=20 head=dry shore=hit' - the bot was DRY at its last read, then
+// the water-pass stream went quiet). The predator seats join their
+// own last read's head state (the sentry parse's own head field -
+// the one-parser law: the same parse's group, never re-judged):
+// perDeath.lastPassHead rides beside the air (the value <- the gap <-
+// the span <- the head chain - one seat, the read line's own fields);
+// kinds.miss.predatorO2 grows dry/wet - a DRY last read prices the
+// shore's own quiet (the water-pass stream went quiet ON SHORE - the
+// sentry's own liveness is the dry-side lever), a WET last read
+// prices the in-water quiet (the stream stopped while the bot still
+// rode the water). The headless seats ride the honest silence (the
+// blind-skin idiom: the head rides the NUMERIC read's own line - the
+// blind skins judge nothing). THE HEAD'S OWN FENCE: dry + wet must be
+// exactly the reads' own count (the head is grammatically total on
+// every numeric pass line - a missing head lies through the sum), the
+// pair shares one seat (the head without its read lies, the read
+// without its head lies), min/max byte-verified against the perDeath
+// image; a lying cell prices nothing. Zero fleet wiring, zero new log
+// lines (the clause grows in place).
 
 // The trigger's own death word - the server's own kind= vocabulary's
 // oxygen death (deathcause.mjs's own bucket, never invented here).
@@ -370,7 +409,7 @@ const emptyKindJoin = () => ({
   falsePositive: 0,
   crossedUnknown: 0,
   fp: { melee: 0, wrongDoor: 0, meleeWindow: { count: 0, min: null, max: null, sum: 0 } },
-  miss: { drowned: 0, predatorO2: { count: 0, min: null, max: null, gapMin: null, gapMax: null, spanMin: null, spanMax: null } },
+  miss: { drowned: 0, predatorO2: { count: 0, min: null, max: null, gapMin: null, gapMax: null, spanMin: null, spanMax: null, dry: 0, wet: 0 } },
   noCrossing: {},
   noCrossingUnknown: 0
 })
@@ -432,6 +471,10 @@ export function o2TriggerKindBook (lines) {
             if (po.spanMin === null || seat.lastO2Span < po.spanMin) po.spanMin = seat.lastO2Span
             if (po.spanMax === null || seat.lastO2Span > po.spanMax) po.spanMax = seat.lastO2Span
           }
+          // the head's own fold (the v0.896.0 byte): the seat's own
+          // shore state at its last read - the dry-side quiet's own price
+          if (seat.lastPassHead === 'dry') po.dry++
+          else if (seat.lastPassHead === 'wet') po.wet++
         }
       }
     } else if (seat.kind === null) book.kinds.crossedUnknown++
@@ -499,6 +542,12 @@ export function o2TriggerKindConsistent (book) {
   // the pair rides together (the one-read silence holds on both)
   if (![po.spanMin, po.spanMax].every((v) => v === null || (Number.isInteger(v) && v >= 0))) return false
   if ((po.spanMin === null) !== (po.spanMax === null)) return false
+  // the head's own cells (the v0.896.0 byte): non-negative, and the
+  // pair must sum to the reads' own count (the head is grammatically
+  // total on every numeric pass line - a missing head lies through
+  // the sum)
+  if (![po.dry, po.wet].every((v) => Number.isInteger(v) && v >= 0)) return false
+  if (po.dry + po.wet !== po.count) return false
   if (!k.noCrossing || typeof k.noCrossing !== 'object' || Array.isArray(k.noCrossing)) return false
   let ncSum = 0
   for (const key of Object.keys(k.noCrossing)) {
@@ -510,6 +559,7 @@ export function o2TriggerKindConsistent (book) {
   let o2 = 0, fp = 0, cu = 0, ncu = 0, melee = 0, wrongDoor = 0, missedDrowned = 0
   let mwc = 0, mws = 0, mwm = null, mwM = null
   let poCount = 0, poMin = null, poMax = null, poGapMin = null, poGapMax = null, poSpanMin = null, poSpanMax = null
+  let poDry = 0, poWet = 0
   for (const d of book.perDeath) {
     if (!d || typeof d !== 'object') return false
     if (d.kind !== null && typeof d.kind !== 'string') return false
@@ -542,6 +592,12 @@ export function o2TriggerKindConsistent (book) {
           if (poSpanMin === null || d.lastO2Span < poSpanMin) poSpanMin = d.lastO2Span
           if (poSpanMax === null || d.lastO2Span > poSpanMax) poSpanMax = d.lastO2Span
         }
+        // the head's own fold (the v0.896.0 byte): the seat's own shore
+        // state rides beside the air (the parse's own word - the pair
+        // coherence is the window fence's own law, the word check too)
+        if (d.lastPassHead === 'dry') poDry++
+        else if (d.lastPassHead === 'wet') poWet++
+        else return false
       }
     }
     if (!d.crossed) {
@@ -575,6 +631,7 @@ export function o2TriggerKindConsistent (book) {
     poCount === po.count && poMin === po.min && poMax === po.max &&
     poGapMin === po.gapMin && poGapMax === po.gapMax &&
     poSpanMin === po.spanMin && poSpanMax === po.spanMax &&
+    poDry === po.dry && poWet === po.wet &&
     mwc === mw.count && mws === mw.sum && mwm === mw.min && mwM === mw.max
 }
 
@@ -626,11 +683,17 @@ export function o2TriggerKindRow (book) {
       // span's own price rides the seat's own air (the one-read
       // silence: no span cells - the bare gap clause)
       if (po.spanMin !== null) seat += `, cadence ${po.spanMin}..${po.spanMax} lines`
+      // the head's own clause (the v0.896.0 byte): the last reads' own
+      // shore state (the zero-class silence: only the live classes ride)
+      const heads = []
+      if (po.dry > 0) heads.push(`dry ${po.dry}`)
+      if (po.wet > 0) heads.push(`wet ${po.wet}`)
+      if (heads.length) seat += `, head ${heads.join('/')}`
       seat += ')'
     }
     parts.push(seat)
   }
   if (book.kinds.noCrossingUnknown > 0) parts.push(`no-crossing unkinded ${book.kinds.noCrossingUnknown}`)
   if (!parts.length) return null
-  return `the o2-low trigger's own kind join (v0.895.0): ${parts.join(', ')} - the kind join prices the trigger's own cost`
+  return `the o2-low trigger's own kind join (v0.896.0): ${parts.join(', ')} - the kind join prices the trigger's own cost`
 }

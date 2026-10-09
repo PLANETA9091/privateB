@@ -114,9 +114,9 @@ test('the face-145 battery - the artifact\'s own lines, byte for byte', () => {
   // F12: the crossing at the o2=8 read (ts 241), the death at ts 261 -
   // the window 20s (the trigger's own false-positive price: the death
   // was suffocate, the band read was real)
-  assert.deepEqual(b.perDeath[0], { bot: 'F12', ts: 261, crossed: true, window: 20, lastO2: 20, lastO2Gap: 1, lastO2Span: 1 }, 'the last numeric read rides the seat with its own position and cadence (the v0.895.0 read gap + cadence)')
+  assert.deepEqual(b.perDeath[0], { bot: 'F12', ts: 261, crossed: true, window: 20, lastO2: 20, lastO2Gap: 1, lastO2Span: 1, lastPassHead: 'dry' }, 'the last numeric read rides the seat with its own position and cadence and shore state (the v0.895.0 read gap + cadence, the v0.896.0 head)')
   // F3: never dipped into the band (14/18/20) - the honest no-crossing
-  assert.deepEqual(b.perDeath[1], { bot: 'F3', ts: 280, crossed: false, window: null, lastO2: 20, lastO2Gap: 1, lastO2Span: 1 })
+  assert.deepEqual(b.perDeath[1], { bot: 'F3', ts: 280, crossed: false, window: null, lastO2: 20, lastO2Gap: 1, lastO2Span: 1, lastPassHead: 'wet' })
   assert.equal(b.noCrossing, 1)
   const row = o2TriggerRow(b)
   assert.ok(row.includes("the o2-low trigger's own window (v0.884.0)"))
@@ -223,7 +223,7 @@ test('the false-positive split - the crossed deaths\' own kinds', () => {
   assert.equal(b.kinds.fp.melee, 0, 'suffocate has no attacker - the true wrong door')
   assert.equal(b.kinds.fp.wrongDoor, 1)
   const row = o2TriggerKindRow(b)
-  assert.ok(row.includes("the o2-low trigger's own kind join (v0.895.0)"))
+  assert.ok(row.includes("the o2-low trigger's own kind join (v0.896.0)"))
   assert.ok(row.includes('crossed drown 1 (the trigger\'s own)'))
   assert.ok(row.includes('crossed non-o2 1 (the false-positive price: wrong-door 1)'))
 })
@@ -246,7 +246,7 @@ test('the no-crossing deaths\' own kinds - the misses\' own families', () => {
   assert.equal(b.perDeath[1].missClass, null, 'the fall carries no predator')
   assert.equal(b.perDeath[1].attacker, null)
   // (v0.892.0) the readless predator seat - the proximity's honest silence
-  assert.deepEqual(b.kinds.miss.predatorO2, { count: 0, min: null, max: null, gapMin: null, gapMax: null, spanMin: null, spanMax: null })
+  assert.deepEqual(b.kinds.miss.predatorO2, { count: 0, min: null, max: null, gapMin: null, gapMax: null, spanMin: null, spanMax: null, dry: 0, wet: 0 })
   assert.equal(b.kinds.o2, 0)
   assert.equal(b.kinds.falsePositive, 0)
   assert.ok(o2TriggerKindConsistent(b))
@@ -306,11 +306,11 @@ test('the face-145 kind join - the artifact\'s own death lines, byte for byte', 
   assert.equal(b.kinds.fp.wrongDoor, 1)
   assert.deepEqual(b.kinds.noCrossing, { mob: 1, fall: 1 })
   const row = o2TriggerKindRow(b)
-  assert.ok(row.includes("the o2-low trigger's own kind join (v0.895.0)"))
+  assert.ok(row.includes("the o2-low trigger's own kind join (v0.896.0)"))
   assert.ok(row.includes('crossed drown 1 (the trigger\'s own), crossed non-o2 1 (the false-positive price: wrong-door 1), no-crossing mob 1/fall 1'))
   assert.ok(row.includes("the miss's own predator: drowned 1"))
   assert.ok(!row.includes('last o2'), 'the readless predator seat rides the honest silence on the proximity')
-  assert.deepEqual(b.kinds.miss.predatorO2, { count: 0, min: null, max: null, gapMin: null, gapMax: null, spanMin: null, spanMax: null })
+  assert.deepEqual(b.kinds.miss.predatorO2, { count: 0, min: null, max: null, gapMin: null, gapMax: null, spanMin: null, spanMax: null, dry: 0, wet: 0 })
   assert.ok(row.includes('the kind join prices the trigger\'s own cost'))
 })
 
@@ -355,9 +355,9 @@ test('the face-148 kind join - the drowned-melee seat\'s own live face', () => {
   assert.equal(b.perDeath[1].missClass, 'drowned')
   assert.equal(b.perDeath[1].attacker, 'Drowned')
   const row = o2TriggerKindRow(b)
-  assert.ok(row.includes("the o2-low trigger's own kind join (v0.895.0)"))
+  assert.ok(row.includes("the o2-low trigger's own kind join (v0.896.0)"))
   assert.ok(row.includes('crossed drown 2 (the trigger\'s own), crossed non-o2 1 (the false-positive price: drowned-melee 1 (window 20..20s avg 20s - the rescue\'s arrival budget: beat 20s)), no-crossing mob 1, the miss\'s own predator: drowned 1'))
-  assert.deepEqual(b.kinds.miss.predatorO2, { count: 0, min: null, max: null, gapMin: null, gapMax: null, spanMin: null, spanMax: null }, 'F17 rode no pass - the readless seat')
+  assert.deepEqual(b.kinds.miss.predatorO2, { count: 0, min: null, max: null, gapMin: null, gapMax: null, spanMin: null, spanMax: null, dry: 0, wet: 0 }, 'F17 rode no pass - the readless seat')
 })
 
 // (v0.891.0) the arrival budget - the fold's own floor prices the
@@ -530,7 +530,7 @@ test("the miss seat's own predator - the blind spot named by the attacker's own 
   assert.equal(b.perDeath[2].missClass, null)
   assert.equal(b.perDeath[2].attacker, null, 'the fall carries no attacker')
   const row = o2TriggerKindRow(b)
-  assert.ok(row.includes("the o2-low trigger's own kind join (v0.895.0)"))
+  assert.ok(row.includes("the o2-low trigger's own kind join (v0.896.0)"))
   assert.ok(row.includes("no-crossing mob 2/fall 1, the miss's own predator: drowned 1"))
 })
 
@@ -596,14 +596,14 @@ test("the miss seat's own proximity - the seat's own air names the band edge's o
   const b = o2TriggerKindBook(lines)
   assert.ok(o2TriggerKindConsistent(b))
   assert.equal(b.kinds.miss.drowned, 2)
-  assert.deepEqual(b.kinds.miss.predatorO2, { count: 2, min: 14, max: 20, gapMin: 1, gapMax: 1, spanMin: null, spanMax: null }, "the seats' own air fold - 20 (dry, full air) and 14 (wet, near the edge); both seats rode ONE read - the cadence's honest silence")
+  assert.deepEqual(b.kinds.miss.predatorO2, { count: 2, min: 14, max: 20, gapMin: 1, gapMax: 1, spanMin: null, spanMax: null, dry: 1, wet: 1 }, "the seats' own air fold - 20 (dry, full air) and 14 (wet, near the edge); both seats rode ONE read - the cadence's honest silence; the heads fold beside the air (the shore's own split)")
   assert.equal(b.perDeath[0].lastO2, 20, "F17's own last read rides the seat")
   assert.equal(b.perDeath[0].lastO2Gap, 1, "F17's own read distance - the sight span's own seat (the v0.893.0 byte)")
   assert.equal(b.perDeath[1].lastO2, 14)
   assert.equal(b.perDeath[1].lastO2Gap, 1)
   const row = o2TriggerKindRow(b)
-  assert.ok(row.includes("the o2-low trigger's own kind join (v0.895.0)"))
-  assert.ok(row.includes("no-crossing mob 2, the miss's own predator: drowned 2 (last o2 14..20, read gap 1..1 lines)"))
+  assert.ok(row.includes("the o2-low trigger's own kind join (v0.896.0)"))
+  assert.ok(row.includes("no-crossing mob 2, the miss's own predator: drowned 2 (last o2 14..20, read gap 1..1 lines, head dry 1/wet 1)"), "the heads ride the seat clause beside the sight span")
 })
 
 test("the proximity's own fence - the lying cells price nothing", () => {
@@ -616,7 +616,7 @@ test("the proximity's own fence - the lying cells price nothing", () => {
   ]
   const b = o2TriggerKindBook(lines)
   assert.ok(o2TriggerKindConsistent(b))
-  assert.deepEqual(b.kinds.miss.predatorO2, { count: 1, min: 20, max: 20, gapMin: 1, gapMax: 1, spanMin: null, spanMax: null }, 'the readless seat rides the honest silence')
+  assert.deepEqual(b.kinds.miss.predatorO2, { count: 1, min: 20, max: 20, gapMin: 1, gapMax: 1, spanMin: null, spanMax: null, dry: 1, wet: 0 }, 'the readless seat rides the honest silence')
   const po = b.kinds.miss.predatorO2
   // the lying count / min / max - the cells must be the seats' own fold
   assert.equal(o2TriggerKindConsistent({ ...b, kinds: { ...b.kinds, miss: { ...b.kinds.miss, predatorO2: { ...po, count: 2 } } } }), false, 'a count the fold never rode')
@@ -633,7 +633,7 @@ test("the proximity's own fence - the lying cells price nothing", () => {
   assert.equal(o2TriggerKindRow({ ...b, kinds: { ...b.kinds, miss: { ...b.kinds.miss, predatorO2: { ...po, count: 9 } } } }), null)
   // the proximity's honest silence: both seats readless - the bare clause
   const readless = o2TriggerKindBook([hb(1, 20), diedKind('F9', 'was slain by Drowned', 'mob', 'Drowned')])
-  assert.deepEqual(readless.kinds.miss.predatorO2, { count: 0, min: null, max: null, gapMin: null, gapMax: null, spanMin: null, spanMax: null })
+  assert.deepEqual(readless.kinds.miss.predatorO2, { count: 0, min: null, max: null, gapMin: null, gapMax: null, spanMin: null, spanMax: null, dry: 0, wet: 0 })
   const rRow = o2TriggerKindRow(readless)
   assert.ok(rRow.includes("the miss's own predator: drowned 1"))
   assert.ok(!rRow.includes('last o2'), 'the readless mass never names a span')
@@ -661,10 +661,10 @@ test("the read gap's own seat - the sight span's own price rides the predator cl
   assert.equal(b.perDeath[0].lastO2Gap, 3, "F17's own sight span - 3 lines from the last read to the death")
   assert.equal(b.perDeath[0].lastO2Span, null, 'the one-read seat rides the honest null cadence')
   assert.equal(b.perDeath[1].lastO2Gap, null, 'the readless seat rides the honest null')
-  assert.deepEqual(b.kinds.miss.predatorO2, { count: 1, min: 20, max: 20, gapMin: 3, gapMax: 3, spanMin: null, spanMax: null }, 'the gap fold rides only the seats that read; the cadence stays silent on the one-read seat')
+  assert.deepEqual(b.kinds.miss.predatorO2, { count: 1, min: 20, max: 20, gapMin: 3, gapMax: 3, spanMin: null, spanMax: null, dry: 1, wet: 0 }, 'the gap fold rides only the seats that read; the cadence stays silent on the one-read seat')
   const row = o2TriggerKindRow(b)
-  assert.ok(row.includes("the o2-low trigger's own kind join (v0.895.0)"))
-  assert.ok(row.includes("the miss's own predator: drowned 2 (last o2 20..20, read gap 3..3 lines)"), 'the sight span rides the seat clause')
+  assert.ok(row.includes("the o2-low trigger's own kind join (v0.896.0)"))
+  assert.ok(row.includes("the miss's own predator: drowned 2 (last o2 20..20, read gap 3..3 lines, head dry 1)"), 'the sight span and the shore state ride the seat clause')
   // the gap's own fence - the lying cells price nothing
   const po = b.kinds.miss.predatorO2
   assert.equal(o2TriggerKindConsistent({ ...b, kinds: { ...b.kinds, miss: { ...b.kinds.miss, predatorO2: { ...po, gapMin: 2 } } } }), false, 'a min the fold never rode')
@@ -714,10 +714,10 @@ test("the read cadence's own seat - the span splits the uniform from the stopped
   assert.equal(b.perDeath[0].lastO2Span, 1, 'the uniform seat\'s own cadence - reads came tight, the gap is the quiet tail')
   assert.equal(b.perDeath[1].lastO2Gap, 1)
   assert.equal(b.perDeath[1].lastO2Span, 3, 'the sparse seat\'s own cadence - the reads themselves were far apart')
-  assert.deepEqual(b.kinds.miss.predatorO2, { count: 2, min: 16, max: 20, gapMin: 1, gapMax: 2, spanMin: 1, spanMax: 3 }, 'the gap and the cadence fold side by side (the last reads\' own air: 20 and 16)')
+  assert.deepEqual(b.kinds.miss.predatorO2, { count: 2, min: 16, max: 20, gapMin: 1, gapMax: 2, spanMin: 1, spanMax: 3, dry: 0, wet: 2 }, 'the gap and the cadence fold side by side (the last reads\' own air: 20 and 16); both seats read WET - the shore stays innocent on this mass')
   const row = o2TriggerKindRow(b)
-  assert.ok(row.includes("the o2-low trigger's own kind join (v0.895.0)"))
-  assert.ok(row.includes("the miss's own predator: drowned 2 (last o2 16..20, read gap 1..2 lines, cadence 1..3 lines)"), 'the cadence rides the seat clause beside the sight span')
+  assert.ok(row.includes("the o2-low trigger's own kind join (v0.896.0)"))
+  assert.ok(row.includes("the miss's own predator: drowned 2 (last o2 16..20, read gap 1..2 lines, cadence 1..3 lines, head wet 2)"), 'the cadence rides the seat clause beside the sight span')
   // the span's own fence - the lying cells price nothing
   const po = b.kinds.miss.predatorO2
   assert.equal(o2TriggerKindConsistent({ ...b, kinds: { ...b.kinds, miss: { ...b.kinds.miss, predatorO2: { ...po, spanMin: 0 } } } }), false, 'a span the fold never rode')
@@ -738,8 +738,59 @@ test("the read cadence's own seat - the span splits the uniform from the stopped
     'F17 [F17] water: pass 28 head=dry shore=hit r=4 land=none y=62.8 o2=20 probes=0 at=[-102,63,365]',
     diedKind('F17', 'was slain by Drowned', 'mob', 'Drowned')
   ])
-  assert.deepEqual(oneRead.kinds.miss.predatorO2, { count: 1, min: 20, max: 20, gapMin: 1, gapMax: 1, spanMin: null, spanMax: null }, 'the one-read seat rides the honest null cadence')
+  assert.deepEqual(oneRead.kinds.miss.predatorO2, { count: 1, min: 20, max: 20, gapMin: 1, gapMax: 1, spanMin: null, spanMax: null, dry: 1, wet: 0 }, 'the one-read seat rides the honest null cadence')
   const oneRow = o2TriggerKindRow(oneRead)
-  assert.ok(oneRow.includes("the miss's own predator: drowned 1 (last o2 20..20, read gap 1..1 lines)"))
+  assert.ok(oneRow.includes("the miss's own predator: drowned 1 (last o2 20..20, read gap 1..1 lines, head dry 1)"))
   assert.ok(!oneRow.includes('cadence'), 'the one-read mass never names a cadence')
+})
+
+// (v0.896.0) THE LAST READ'S OWN HEAD - the cadence's own next byte:
+// the stopped sentry's own mass (gap 197/cadence 11, gap 87/cadence 5)
+// left the WHY open - the face-148 read's own shape names the shore's
+// own question ('o2=20 head=dry shore=hit': DRY at the last read, then
+// the water-pass stream went quiet). The head state is the parse's own
+// field (the one-parser law): a DRY last read prices the shore's own
+// quiet, a WET last read prices the in-water quiet - the dry-side
+// lever named by the seat's own word.
+test("the last read's own head - the shore state prices the stopped sentry's own quiet", () => {
+  const lines = [
+    hb(1, 20),
+    'F17 [F17] water: pass 28 head=dry shore=hit r=4 land=none y=62.8 o2=20 probes=0 at=[-102,63,365]', // the last read: DRY AT FULL AIR - the shore's own quiet followed
+    'F17 [F17] died - respawning (cause: server: was slain by Drowned [kind=mob by Drowned] | inferred: drowned@1.9 (0s before death at [-91,62,346]) [the inference corroborates the server verdict])',
+    hb(2, 40),
+    'F8 [F8] water: pass 3 head=wet shore=none land=n/a y=59.1 o2=14 probes=0 at=[-95,59,350]', // the wet read - the stream stayed water-side
+    diedKind('F8', 'was slain by Drowned', 'mob', 'Drowned')
+  ]
+  const b = o2TriggerKindBook(lines)
+  assert.ok(o2TriggerKindConsistent(b))
+  assert.equal(b.perDeath[0].lastPassHead, 'dry', "F17's own last read rode DRY - the shore's own state")
+  assert.equal(b.perDeath[1].lastPassHead, 'wet', "F8's own last read rode WET - the water's own state")
+  assert.deepEqual(b.kinds.miss.predatorO2, { count: 2, min: 14, max: 20, gapMin: 1, gapMax: 1, spanMin: null, spanMax: null, dry: 1, wet: 1 }, 'the heads fold beside the air - one shore quiet, one water-side')
+  const row = o2TriggerKindRow(b)
+  assert.ok(row.includes("the o2-low trigger's own kind join (v0.896.0)"))
+  assert.ok(row.includes("the miss's own predator: drowned 2 (last o2 14..20, read gap 1..1 lines, head dry 1/wet 1)"), 'the heads ride the seat clause beside the sight span')
+  // the head's own fence - the lying cells price nothing
+  const po = b.kinds.miss.predatorO2
+  assert.equal(o2TriggerKindConsistent({ ...b, kinds: { ...b.kinds, miss: { ...b.kinds.miss, predatorO2: { ...po, dry: 2 } } } }), false, 'a dry the fold never rode')
+  assert.equal(o2TriggerKindConsistent({ ...b, kinds: { ...b.kinds, miss: { ...b.kinds.miss, predatorO2: { ...po, wet: 9 } } } }), false)
+  assert.equal(o2TriggerKindConsistent({ ...b, kinds: { ...b.kinds, miss: { ...b.kinds.miss, predatorO2: { ...po, dry: 0, wet: 1 } } } }), false, 'the sum must be the reads\' own count')
+  // the pair shares one seat: the head without its own read lies
+  const headed = o2TriggerKindBook(lines)
+  headed.perDeath[1].lastPassHead = null
+  assert.equal(o2TriggerKindConsistent(headed), false, 'the read without its own head prices nothing')
+  // the head without its read lies the other way
+  const headless = o2TriggerKindBook(lines)
+  headless.perDeath[0].lastO2 = null
+  headless.perDeath[0].lastO2Gap = null
+  assert.equal(o2TriggerKindConsistent(headless), false, 'the head without its own read prices nothing')
+  // an invalid head word prices nothing
+  const word = o2TriggerKindBook(lines)
+  word.perDeath[0].lastPassHead = 'soaked'
+  assert.equal(o2TriggerKindConsistent(word), false, "the head must be the parse's own word")
+  // the readless mass: the bare clause holds - no head ever named
+  const readless = o2TriggerKindBook([hb(1, 20), diedKind('F9', 'was slain by Drowned', 'mob', 'Drowned')])
+  assert.equal(readless.perDeath[0].lastPassHead, null, 'the readless seat rides the honest null head')
+  const rRow = o2TriggerKindRow(readless)
+  assert.ok(rRow.includes("the miss's own predator: drowned 1"))
+  assert.ok(!rRow.includes('head'), 'the readless mass never names a head')
 })
