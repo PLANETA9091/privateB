@@ -22506,3 +22506,20 @@ Stage Summary:
 - The code discipline is RE-OPEN on my side (334/334 + syntax verified this fire); the next code front must be a genuinely atomic pure function + tests - candidates for next fire: the trigger's-constant lever is THE LANE'S named front (no same-file-same-front), mine stays the melee clock's third data point watch + the no-crossing drown watch (read-only until a face delivers mass).
 - v0.896.0 stands (origin re-verified 1217af7 tip); 0.897.0 next free.
 - Next fire: (1) verdicts BY RUN ID: face 155 = 37996225577 MUST be terminal -> artifacts -> the head clause's third face read (the predator family's starvation watch: zero Drowned kills 4 faces running would name the FAMILY's own hunger, not the clauses'). (2) the 1217af7 push-CI closeout. (3) code front: ONLY a small pure function + unit tests (e.g. toolupgrade's tier-debt read if it prices a real face byte, or a WorldMap pure helper) - full battery via the repo runner MANDATORY (the raw --test shape is FORBIDDEN for local runs). (4) 0.897.0 at bump time with origin re-verify. (5) dispatch law on clear (x2 poll BEFORE the POST). NO force-push, NO history rewrite. Identity: PLANETA9091
+
+---
+Task ID: cron30-20261010-0630
+Agent: PLANETA9091 (fire-0630)
+Task: ONE atomic improvement from OPEN FRONTS + version bump + tests + green run + commit/push + CI verdicts by run id + dispatch law + both worklogs.
+
+Work Log:
+- A: rebase clean at open (local == origin == f53c9fa; zero lane pushes since fire-0540b).
+- B: verdicts BY RUN ID at open: face 155 = 37996225577 SUCCESS; 37997741495 (f53c9fa, my fire-0600 push) in_progress; 37996297360 (1217af7) SUCCESS (the lane's, repaid on record).
+- C: FACE 155 READ (artifacts -> /home/z/my-project/run37996225577/, re-mined on the v0.896.0 tree, decompose exit 0, band + kind fences consistent): BAND 'deaths 1, no-crossing 1' - THE QUIETEST FACE ON RECORD; KIND 'no-crossing fall 1' - a FALL death outside the band (the no-crossing family's new kind cell). READS: (1) the PREDATOR FAMILY STARVED A FOURTH FACE (zero Drowned kills 152/153/154/155 - gap/span/cadence/head all correct-but-silent; the clauses' hunger is the data's, not the code's); (2) the head clause seatless again (no predatorO2 miss to price); (3) no-crossing cum across 152-155: mob 2 + drown 1 + mob 3 + fall 1 - the fall is a single instance, the watch holds.
+- D: code front weighed (WorldMap target assignment - src/fleet/worldmap.mjs, the records/nearestK family read) and DECLINED honestly inside the time-box: fleet19.mjs line 2446 already carries the inline target-assignment scoring (the v0.15.0 distribution family), an unwired parallel helper would risk the duplicate-logic shape without a face price; the price-before-wire law holds. Version stays 0.896.0, 0.897.0 NOT consumed (fourth fire).
+- E: dispatch law: x2 poll BEFORE the POST (zero active dispatches both rounds; face 155 terminal) -> POST ci.yml fleet_seconds=600 -> HTTP 204 -> FACE 156 = 37999722918 (in_progress, f53c9fa = the v0.896.0 tree) - the head clause's FOURTH face rides it.
+
+Stage Summary:
+- Face 155 READ: quietest face (deaths 1, no-crossing fall 1), the predator family's starvation now FOUR faces deep - the family-hunger watch is the standing read (a fifth silent face prices the clauses' wait, not a code gap).
+- v0.896.0 stands (origin re-verified f53c9fa tip); 0.897.0 next free.
+- Next fire: (1) verdicts BY RUN ID: face 156 = 37999722918 MUST be terminal -> artifacts -> re-mine (the head clause's fourth face read + the family-hunger watch at five faces). (2) 37997741495 closeout. (3) code front candidates remain: toolupgrade tier-debt pure read, or the WorldMap assignment byte IF a face prices it (fleet19:2446's inline scoring is the price hook - a real double-target face would wake it). (4) 0.897.0 at bump time with origin re-verify MANDATORY. (5) dispatch law on clear (x2 poll BEFORE the POST). NO force-push, NO history rewrite. Identity: PLANETA9091
