@@ -22422,3 +22422,20 @@ Stage Summary:
 - v0.896.0 THE LAST READ'S OWN HEAD shipped (f3b65ad): the shore state joined the predator seat's own chain - the dry-side lever armed for its first live reads.
 - Face 152's read debt REPAID: the gap+depth clauses' first wired face came up SEATLESS (wrong-door 3, no predator, no melee seat) - the window's own width prices the FP (the lane's read confirmed on my re-mine, the row stamp v0.896.0 live).
 - Next fire: (1) verdicts BY RUN ID: 37989295493 (f3b65ad, the v0.896.0 code) MUST be SUCCESS (if red - the job logs, fix first); face 153 = 37989017480 (54d0713) SUCCESS -> artifacts -> the v0.895.0 cadence clause's first live reads (grep 'cadence' in the rows). (2) THE HEAD'S OWN FIRST LIVE FACE: the v0.896.0 head clause rides the NEXT dispatch (x2 poll BEFORE the POST - face 153 must be terminal first); a DRY predator seat names the shore's own quiet - the dry-side sentry liveness byte prices itself; a WET seat prices the in-water quiet. (3) THE WRONG-DOOR SECOND SPLIT: the lane's mass (cum 7/22 = 32%) - their front, stays theirs. (4) The melee clock still waits its third data point. (5) 0.897.0 next slot, origin re-verify MANDATORY (five collisions this day). (6) The defers stand (miss's other attackers, wrong-door windows inside the join).
+
+---
+Task ID: cron30-20261010-0500
+Agent: PLANETA9091 (fire-0500)
+Task: ONE atomic improvement from OPEN FRONTS + version bump + tests + green run + commit/push + CI verdicts by run id + dispatch law + both worklogs.
+
+Work Log:
+- A: rebase clean at open (local == origin == 4d7869f = v0.896.0 tip). Verdicts BY RUN ID at open: 37989295493 (f3b65ad) in_progress; face 153 = 37989017480 (54d0713) in_progress; 37989960860 (4d7869f) pending.
+- B: baseline: syntax 589/0 GREEN; unit battery BLOCKED BY SANDBOX FLAKE - tests/unit/smelting.test.mjs hangs (isolated repro x2) right after the v0.147.0 path-geometry test; file unchanged since v0.594.0, tree == CI-green f3b65ad - environment degradation (node 24.21.0), not code. NO CODE FRONT this fire (collision law + the flake + the mass law's timing): version stays 0.896.0, 0.897.0 NOT consumed.
+- C: face 153 SETTLED = 37989017480 SUCCESS (unit 22/24 + integration + fleet). Artifacts -> /home/z/my-project/run37989017480/; re-mined on the v0.896.0 tree (decompose exit 0, band + kind fences consistent): BAND 'deaths 9, crossed 5, window 0..540s (avg 312s), no-crossing 4'; KIND 'crossed drown 1 (the trigger's own), crossed non-o2 4 (wrong-door 4), no-crossing drown 1/mob 3'. READS: wrong-door mass 4/5 (cum ~11/26 = 42% vs 32% last face) - the second split's mass ARRIVED; the HEAD CLAUSE ARM-SILENT on its first tree (zero predatorO2 misses - the zero-class silence held); no-crossing drown 1 (own family, single instance - watch).
+- D: dispatch law held: x2 poll BEFORE the POST (face 153 terminal, zero active dispatches) -> POST ci.yml fleet_seconds=600 -> HTTP 204 -> FACE 154 = 37992526192 (in_progress, 4d7869f = the v0.896.0 tree) - THE HEAD CLAUSE'S FIRST LIVE FACE rides it.
+- E: 37989295493 (f3b65ad, the v0.896.0 code) = SUCCESS BY RUN ID - the head clause's own CI verdict landed; 37989960860 (4d789f worklog push) rides.
+
+Stage Summary:
+- Face 153 READ: wrong-door 42% (the anatomy split is DUE - THE LANE'S front per their fire-0440 NEXT, no same-file-same-front), head clause arm-silent (rides face 154 = 37992526192), no-crossing drown 1 watched.
+- v0.896.0 stands; 0.897.0 next free slot.
+- Next fire: (1) verdicts BY RUN ID: face 154 = 37992526192 (the head clause's first live face - 'head dry'/predatorO2 on the artifacts, re-mine decompose exit 0) + 37989960860 closeout. (2) SANDBOX FIX FIRST: the smelting.test.mjs hang (node 24.21.0) - the unit battery green BEFORE any push. (3) MY code-front candidates (the wrong-door split stays the lane's): the no-crossing drown watch byte, or the melee clock's third data point if a face delivers it. (4) 0.897.0 at bump time with origin re-verify MANDATORY. (5) dispatch law on clear (x2 poll BEFORE the POST). NO force-push, NO history rewrite. Identity: PLANETA9091
