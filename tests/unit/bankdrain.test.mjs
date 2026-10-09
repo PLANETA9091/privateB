@@ -16,6 +16,7 @@ import { BANK_ZERO_RE, classifyBankReason } from '../../src/lib/bankfail.mjs'
 import { NIGHT_WALK_START } from '../../src/lib/nightsafety.mjs'
 import { finalBankDrainBook, finalBankDrainConsistent, finalBankDrainRow } from '../../src/lib/bankdrain.mjs'
 import { finalBankHoldBook, finalBankHoldConsistent, finalBankHoldRow } from '../../src/lib/bankdrain.mjs'
+import { finalBankStaggerBook, finalBankStaggerConsistent, finalBankStaggerRow } from '../../src/lib/bankdrain.mjs'
 
 // the emitters' own grammar, byte for byte (testbed/fleet19.mjs lines
 // 3346, 3233, 3753, 3766, 3710, 3209, 3755)
@@ -185,6 +186,10 @@ test('the decompose WIRING pins - the import band + the print site ride the byte
   assert.ok(src.includes("import { finalBankHoldBook, finalBankHoldRow } from '../../src/lib/bankdrain.mjs'"), 'the hold clock rides its own band line')
   assert.ok(src.includes('const hbk = finalBankHoldBook(lines)'), 'the hold book call rides the print site')
   assert.ok(src.includes('finalBankHoldRow(hbk)'), 'the hold row renders at the site')
+  // (v0.888.0) the stagger seat rides its own band line + its own site
+  assert.ok(src.includes("import { finalBankStaggerBook, finalBankStaggerRow } from '../../src/lib/bankdrain.mjs'"), 'the stagger seat rides its own band line')
+  assert.ok(src.includes('const sbk = finalBankStaggerBook(dbk, hbk)'), 'the stagger book call rides the print site')
+  assert.ok(src.includes('finalBankStaggerRow(dbk, hbk, sbk)'), 'the stagger row renders at the site')
 })
 
 // (v0.886.0) THE HOLD CLOCK - the night-held seats' own tod join. The
@@ -283,4 +288,213 @@ test('the hold row\'s honest silence - no holds, the junk, the empty book', () =
   const b = finalBankHoldBook([null, night('F1', 12434), 42, 'junk line', night('F2', 12676)])
   assert.equal(b.held, 2)
   assert.ok(finalBankHoldConsistent(b))
+})
+
+// (v0.888.0) THE STAGGER SEAT - the flow-priced slots' own fates + the
+// hold join's pushed/late split. The synthetic lines ride the emitters'
+// own grammar byte for byte; the face-146/148 batteries ride the
+// artifacts' own lines verbatim.
+
+test('the stagger seat grammar pin - the slots ride the drain book\'s own fold, the join reads the bot\'s own slot', () => {
+  const lines = [
+    stagger('F2', 56),
+    night('F2', 12420), // gap 20 ticks (1s) inside a 56s slot - the stagger alone pushed it
+    night('F3', 12434) // no slot line - the arm's own lateness
+  ]
+  const dbk = finalBankDrainBook(lines)
+  const hbk = finalBankHoldBook(lines)
+  const s = finalBankStaggerBook(dbk, hbk)
+  assert.ok(finalBankStaggerConsistent(dbk, hbk, s))
+  assert.deepEqual(s.slots, { count: 1, min: 56, max: 56, sum: 56 })
+  assert.equal(s.fates.held, 1, 'the slot\'s fate rides the verdict it ended on - the hold')
+  assert.equal(s.join.holds, 2)
+  assert.equal(s.join.pushed.count, 1, 'F2\'s 1s gap fits the 56s slot - pushed')
+  assert.equal(s.join.pushed.sum, 20)
+  assert.equal(s.join.noStagger, 1, 'F3 rode no slot')
+  assert.deepEqual(s.perJoin[0], { bot: 'F2', gap: 20, staggerSec: 56, cls: 'pushed', residualTicks: null })
+  assert.deepEqual(s.perJoin[1], { bot: 'F3', gap: 34, staggerSec: null, cls: 'no-stagger', residualTicks: null })
+  const row = finalBankStaggerRow(dbk, hbk, s)
+  assert.ok(row.includes('slots 1 (+56s) - fates held 1 - hold join pushed 1, no-stagger 1'))
+})
+
+test('the pushed/late boundary - the slot\'s own second is the push\'s own edge, the residual is the legs\' own lateness', () => {
+  const lines = [
+    stagger('F4', 56),
+    night('F4', 12400 + 1120), // gap == slot*20 exactly - the boundary rides the push
+    stagger('F5', 56),
+    night('F5', 12400 + 1200) // gap 1200 ticks (60s) vs the 56s slot - residual 80 ticks (4s)
+  ]
+  const dbk = finalBankDrainBook(lines)
+  const hbk = finalBankHoldBook(lines)
+  const s = finalBankStaggerBook(dbk, hbk)
+  assert.ok(finalBankStaggerConsistent(dbk, hbk, s))
+  assert.equal(s.join.pushed.count, 1, 'the exact slot edge rides the push (gap <= slot)')
+  assert.equal(s.join.pushed.sum, 1120)
+  assert.deepEqual(s.join.late, { count: 1, min: 80, max: 80, sum: 80 }, 'the residual = gap - slot*20')
+  assert.deepEqual(s.perJoin[1], { bot: 'F5', gap: 1200, staggerSec: 56, cls: 'late', residualTicks: 80 })
+  const row = finalBankStaggerRow(dbk, hbk, s)
+  assert.ok(row.includes('late 1 (residual 80..80 ticks)'))
+})
+
+test('the fates census - the slot\'s fate is the verdict it ended on (the last-wins law)', () => {
+  const lines = [
+    stagger('F6', 64),
+    banked('F6', 13), // the slot delivered
+    stagger('F7', 88),
+    zeroUnderground('F7', 1), // the slot died underground
+    stagger('F8', 96),
+    night('F8', 12434), // the slot held
+    stagger('F9', 104) // the slot cut
+  ]
+  const dbk = finalBankDrainBook(lines)
+  const hbk = finalBankHoldBook(lines)
+  const s = finalBankStaggerBook(dbk, hbk)
+  assert.ok(finalBankStaggerConsistent(dbk, hbk, s))
+  assert.deepEqual(s.slots, { count: 4, min: 64, max: 104, sum: 352 })
+  assert.deepEqual(s.fates, { banked: 1, held: 1, zero: 1, chainError: 0, cut: 1 })
+  assert.equal(s.join.pushed.count, 1, 'F8\'s 34-tick gap fits the 96s slot')
+  assert.equal(s.join.noStagger, 0)
+  const row = finalBankStaggerRow(dbk, hbk, s)
+  assert.ok(row.includes('slots 4 (+64..+104s)'))
+  assert.ok(row.includes('fates banked 1, held 1, zero 1, cut 1'))
+})
+
+test('the blind skin - the hold\'s tod=-1 rides the join as blind, the slot judges nothing', () => {
+  const lines = [stagger('F1', 56), night('F1', -1), night('F2', 12434)]
+  const dbk = finalBankDrainBook(lines)
+  const hbk = finalBankHoldBook(lines)
+  const s = finalBankStaggerBook(dbk, hbk)
+  assert.ok(finalBankStaggerConsistent(dbk, hbk, s))
+  assert.equal(s.join.blind, 1)
+  assert.deepEqual(s.perJoin[0], { bot: 'F1', gap: null, staggerSec: 56, cls: 'blind', residualTicks: null }, 'the slot counts in the row, the gap judges nothing')
+  assert.equal(s.join.pushed.count, 0)
+})
+
+test('the face-146 stagger battery - the artifact\'s own lines, byte for byte', () => {
+  const lines = [
+    'F12 final bank deferred: night (tod=12434) - the pocket rides out the dark alive (the v0.140.1 night hold)',
+    'F14 final bank deferred: night (tod=12452) - the pocket rides out the dark alive (the v0.140.1 night hold)',
+    'F1 final bank deferred: night (tod=12451) - the pocket rides out the dark alive (the v0.140.1 night hold)',
+    'F18 final bank deferred: night (tod=12448) - the pocket rides out the dark alive (the v0.140.1 night hold)',
+    'F7 final bank deferred: night (tod=12534) - the pocket rides out the dark alive (the v0.140.1 night hold)',
+    'F5 final bank deferred: night (tod=12538) - the pocket rides out the dark alive (the v0.140.1 night hold)',
+    'F6 final bank deferred: night (tod=12676) - the pocket rides out the dark alive (the v0.140.1 night hold)',
+    'F15 final bank: staggered +64s',
+    'F15 final bank: 0 (still underground after 1 climb attempt - the chain from the shaft bottom is doomed walks)'
+  ]
+  const dbk = finalBankDrainBook(lines)
+  const hbk = finalBankHoldBook(lines)
+  const s = finalBankStaggerBook(dbk, hbk)
+  assert.ok(finalBankStaggerConsistent(dbk, hbk, s))
+  assert.deepEqual(s.slots, { count: 1, min: 64, max: 64, sum: 64 })
+  assert.deepEqual(s.fates, { banked: 0, held: 0, zero: 1, chainError: 0, cut: 0 }, 'the only slot never delivered')
+  assert.equal(s.join.holds, 7)
+  assert.equal(s.join.noStagger, 7, 'none of the held chains rode a slot - the crater is not the stagger\'s own')
+  assert.equal(s.join.pushed.count, 0)
+  assert.equal(s.join.late.count, 0)
+  assert.equal(s.join.blind, 0)
+  const row = finalBankStaggerRow(dbk, hbk, s)
+  assert.ok(row.includes('slots 1 (+64s) - fates zero 1 - hold join no-stagger 7'))
+})
+
+test('the face-148 stagger battery - the artifact\'s own lines, byte for byte', () => {
+  const lines = [
+    'F15 final bank: staggered +104s',
+    'F10 final bank: staggered +88s',
+    'F1 final bank: staggered +104s',
+    'F12 final bank: staggered +88s',
+    'F19 final bank: staggered +96s',
+    'F11 final bank: staggered +88s',
+    'F8 final bank deferred: night (tod=12414) - the pocket rides out the dark alive (the v0.140.1 night hold)',
+    'F2 final bank deferred: night (tod=12437) - the pocket rides out the dark alive (the v0.140.1 night hold)',
+    'F14 final bank deferred: night (tod=12697) - the pocket rides out the dark alive (the v0.140.1 night hold)',
+    'F17 final bank deferred: night (tod=13168) - the pocket rides out the dark alive (the v0.140.1 night hold)',
+    'F11 final bank: 0 (still underground after 1 climb attempt - the chain from the shaft bottom is doomed walks)',
+    'F10 final bank: 0 (still underground after 1 climb attempt - the chain from the shaft bottom is doomed walks)',
+    'F19 final bank: 0 (still underground after 1 climb attempt - the chain from the shaft bottom is doomed walks)',
+    'F12 final bank: 0 (still underground after 1 climb attempt - the chain from the shaft bottom is doomed walks)',
+    'F1 final bank: 0 (still underground after 1 climb attempt - the chain from the shaft bottom is doomed walks)',
+    'F15 final bank: 0 (still underground after 1 climb attempt - the chain from the shaft bottom is doomed walks)'
+  ]
+  const dbk = finalBankDrainBook(lines)
+  const hbk = finalBankHoldBook(lines)
+  const s = finalBankStaggerBook(dbk, hbk)
+  assert.ok(finalBankStaggerConsistent(dbk, hbk, s))
+  assert.deepEqual(s.slots, { count: 6, min: 88, max: 104, sum: 568 })
+  assert.deepEqual(s.fates, { banked: 0, held: 0, zero: 6, chainError: 0, cut: 0 }, 'every slot died underground - the flow-priced pockets never delivered')
+  assert.equal(s.join.holds, 4)
+  assert.equal(s.join.noStagger, 4)
+  const row = finalBankStaggerRow(dbk, hbk, s)
+  assert.ok(row.includes('slots 6 (+88..+104s) - fates zero 6 - hold join no-stagger 4'))
+  // the hold clock's own first face-148 read rides beside (the gaps 14/37/297/768)
+  assert.equal(hbk.gap.min, 14)
+  assert.equal(hbk.gap.max, 768, 'F17\'s chain rode 768 ticks (38.4s) into the dark - 2.8x face 146\'s max')
+  assert.equal(hbk.gap.sum, 1116)
+})
+
+test('the stagger seat fence battery - the tampered books price nothing', () => {
+  const lines = [stagger('F1', 56), night('F1', 12500), night('F2', 12434)]
+  const dbk = finalBankDrainBook(lines)
+  const hbk = finalBankHoldBook(lines)
+  const s = finalBankStaggerBook(dbk, hbk)
+  assert.ok(finalBankStaggerConsistent(dbk, hbk, s))
+  // the sources' own fences guard the join
+  assert.equal(finalBankStaggerConsistent({ ...dbk, armed: 99 }, hbk, s), false, 'an inconsistent drain prices nothing')
+  assert.equal(finalBankStaggerConsistent(dbk, { ...hbk, held: 9 }, s), false, 'an inconsistent hold prices nothing')
+  // the join's own image
+  assert.equal(finalBankStaggerConsistent(dbk, hbk, { ...s, join: { ...s.join, holds: 9 } }), false)
+  assert.equal(finalBankStaggerConsistent(dbk, hbk, { ...s, join: { ...s.join, noStagger: 9 } }), false)
+  assert.equal(finalBankStaggerConsistent(dbk, hbk, { ...s, join: { ...s.join, late: { ...s.join.late, sum: 99 } } }), false)
+  assert.equal(finalBankStaggerConsistent(dbk, hbk, { ...s, perJoin: [...s.perJoin, { bot: 'F9', gap: 34, staggerSec: null, cls: 'no-stagger', residualTicks: null }] }), false, 'an extra join row breaks the image')
+  assert.equal(finalBankStaggerConsistent(dbk, hbk, { ...s, perJoin: s.perJoin.map(r => r.bot === 'F2' ? { ...r, cls: 'pushed' } : r) }), false, 'a lying class breaks the lookup law')
+  assert.equal(finalBankStaggerConsistent(dbk, hbk, { ...s, perJoin: s.perJoin.map(r => r.bot === 'F1' ? { ...r, residualTicks: 1 } : r) }), false, 'a lying residual breaks the gap law')
+  // the slots' own census
+  assert.equal(finalBankStaggerConsistent(dbk, hbk, { ...s, perSlot: [...s.perSlot, { bot: 'F9', staggerSec: 30, verdict: null, why: null }] }), false, 'an invented slot breaks the census')
+  assert.equal(finalBankStaggerConsistent(dbk, hbk, { ...s, slots: { ...s.slots, sum: 99 } }), false)
+  assert.equal(finalBankStaggerConsistent(dbk, hbk, { ...s, fates: { ...s.fates, held: 9 } }), false)
+  assert.equal(finalBankStaggerConsistent(null, hbk, s), false)
+  assert.equal(finalBankStaggerConsistent(dbk, null, s), false)
+  assert.equal(finalBankStaggerConsistent(dbk, hbk, null), false)
+  assert.equal(finalBankStaggerRow({ ...dbk, armed: 99 }, hbk, s), null)
+  assert.equal(finalBankStaggerRow(dbk, hbk, { ...s, perJoin: [] }), null)
+})
+
+test('the ghost units cure - the banked release rides the seat\'s own units out of the book (the face-148 catch)', () => {
+  // the face-148 story byte for byte: F2 banked +32 then held for the night
+  const lines = [
+    banked('F2', 32),
+    night('F2', 12437),
+    banked('F4', 4),
+    banked('F5', 220)
+  ]
+  const dbk = finalBankDrainBook(lines)
+  assert.equal(dbk.banked.count, 2, 'the held bot is not a banked seat (the last-wins law)')
+  assert.equal(dbk.banked.units, 224, 'the released 32u ride OUT with the seat - no ghost total')
+  assert.ok(finalBankDrainConsistent(dbk), 'the fence prices the book again')
+  const row = finalBankDrainRow(dbk)
+  assert.ok(row.includes('banked 2 +224u'))
+  // the double re-bank: the seat rides its own LAST bank only
+  const lines2 = [banked('F6', 10), banked('F6', 25)]
+  const dbk2 = finalBankDrainBook(lines2)
+  assert.equal(dbk2.banked.count, 1)
+  assert.equal(dbk2.banked.units, 25, 'the seat\'s own last bank is the book\'s own units')
+  assert.ok(finalBankDrainConsistent(dbk2))
+})
+
+test('the stagger row\'s honest silence - no slots, no holds, the junk, the empty book', () => {
+  const emptyDbk = finalBankDrainBook([])
+  const emptyHbk = finalBankHoldBook([])
+  assert.equal(finalBankStaggerRow(emptyDbk, emptyHbk, finalBankStaggerBook(emptyDbk, emptyHbk)), null)
+  assert.equal(finalBankStaggerBook(null, null).slots.count, 0)
+  assert.equal(finalBankStaggerBook('junk', 'junk').join.holds, 0)
+  assert.equal(finalBankStaggerRow(null, null, null), null)
+  assert.equal(finalBankStaggerRow(undefined, undefined, undefined), null)
+  // junk between the emitters rides nothing
+  const lines = [null, stagger('F1', 56), 42, 'junk', night('F1', 12434), undefined, night('F2', 12676)]
+  const dbk = finalBankDrainBook(lines)
+  const hbk = finalBankHoldBook(lines)
+  const s = finalBankStaggerBook(dbk, hbk)
+  assert.ok(finalBankStaggerConsistent(dbk, hbk, s))
+  assert.equal(s.slots.count, 1)
+  assert.equal(s.join.holds, 2)
 })

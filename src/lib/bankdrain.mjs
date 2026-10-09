@@ -103,7 +103,14 @@ function armTotal (book, seat, verdict, why, units, climbs, tod) {
   // last-wins law): a re-armed bot's old class gives way - the counts
   // are the verdicts' census, never the lines' (a bot that rode zero
   // then banked is one banked, not one of each).
-  if (seat.verdict === 'banked') book.banked.count--
+  // (v0.888.0) THE GHOST UNITS' OWN CURE - the banked release rides the
+  // seat's own units OUT of the book (the face-148 catch: F2 banked +32
+  // then held for the night - the count released, the units stayed and
+  // haunted the total 256 against the seats' own 224; the fence priced
+  // nothing, the row went silent). The units ride the same last-wins
+  // seat as the count: the book's banked census is the banked seats'
+  // own image, whole.
+  if (seat.verdict === 'banked') { book.banked.count--; book.banked.units -= (seat.units ?? 0) }
   else if (seat.verdict === 'zero') {
     if (seat.why === 'nothing') book.nothing--
     else if (seat.why === 'underground') { book.underground.count--; book.underground.climbs -= (seat.climbs ?? 0) }
@@ -372,4 +379,241 @@ export function finalBankHoldRow (book) {
   }
   if (book.blind > 0) parts.push(`blind ${book.blind}`)
   return `the final bank's own hold clock (v0.886.0): ${parts.join(', ')} - the bank-before-night lever prices the walk gate's own edge (${NIGHT_WALK_START})`
+}
+
+// (v0.888.0) THE FINAL BANK'S OWN STAGGER SEAT - the flow-priced slots'
+// own fates + the hold join's pushed/late split (the drain's own NEXT
+// BYTE the two faces' own mass named: face 146 held 7 with ONE slot in
+// play (+64s, never held), face 148 held 4 with SIX slots (+88..104s,
+// none held) - the slots' own share of the gate crater was unread).
+// The slots' census rides the drain book's own perBot seats (the
+// STAGGER_RE fold above - never re-spelled); the fates ride the seat's
+// own final verdict (the last-wins law: the slot's fate is the verdict
+// it ended on - banked | zero | held | chain-error | cut). THE HOLD
+// JOIN (the fire-0100 worklog's own named byte): every hold row rides
+// the bot's own slot - pushed = the gap fits inside the slot's own
+// seconds (gap <= slot*20 ticks: the stagger ALONE pushed the chain
+// past the walk gate - the near-free lever's own seat); late = the
+// chain's own legs own the residual (gap - slot*20 ticks - the
+// lateness no slot reorder cures); no-stagger = the held chain rode no
+// slot at all (the arm's own lateness, the slots' innocence); the
+// blind skin rides the hold book's own tod=-1 (the seat counts, the
+// join judges nothing - the v0.884.0 idiom). THE FENCE: the sources
+// must be consistent books (the drain's + the hold's own fences); the
+// join rows mirror the hold book's own rows index for index; the
+// lookup rides the drain seat's own slot (never invented); the slots'
+// census mirrors the drain book's own slots; the sums agree - an
+// inconsistent book prices nothing (the row stays silent).
+
+const emptyStaggerBook = () => ({
+  slots: { count: 0, min: null, max: null, sum: 0 },
+  fates: { banked: 0, held: 0, zero: 0, chainError: 0, cut: 0 },
+  join: {
+    holds: 0,
+    blind: 0,
+    noStagger: 0,
+    pushed: { count: 0, sum: 0 },
+    late: { count: 0, min: null, max: null, sum: 0 }
+  },
+  perSlot: [],
+  perJoin: []
+})
+
+const seatSlot = (seat) => (seat && typeof seat === 'object' &&
+  Number.isInteger(seat.staggerSec) && seat.staggerSec >= 0)
+  ? seat.staggerSec
+  : null
+
+/**
+ * Fold the final bank's own stagger seat: the flow-priced slots' own
+ * fates (the drain book's own slots, the last verdict wins) + the hold
+ * join's pushed/late/no-stagger split (the hold book's own rows, the
+ * slots read by bot token). Returns the totals book or the empty book
+ * for junk/inconsistent sources - never null, never invented.
+ */
+export function finalBankStaggerBook (drainBook, holdBook) {
+  const book = emptyStaggerBook()
+  if (!drainBook || typeof drainBook !== 'object' || !drainBook.perBot) return book
+  if (!holdBook || typeof holdBook !== 'object' || !Array.isArray(holdBook.perHold)) return book
+  if (!finalBankDrainConsistent(drainBook) || !finalBankHoldConsistent(holdBook)) return book
+  for (const [bot, seat] of Object.entries(drainBook.perBot)) {
+    const slot = seatSlot(seat)
+    if (slot === null) continue
+    book.slots.count++
+    book.slots.sum += slot
+    if (book.slots.min === null || slot < book.slots.min) book.slots.min = slot
+    if (book.slots.max === null || slot > book.slots.max) book.slots.max = slot
+    if (seat.verdict === 'banked') book.fates.banked++
+    else if (seat.verdict === 'held') book.fates.held++
+    else if (seat.verdict === 'zero') book.fates.zero++
+    else if (seat.verdict === 'chain-error') book.fates.chainError++
+    else book.fates.cut++
+    book.perSlot.push({ bot, staggerSec: slot, verdict: seat.verdict, why: seat.why ?? null })
+  }
+  for (const h of holdBook.perHold) {
+    if (!h || typeof h !== 'object') continue
+    book.join.holds++
+    const seat = Object.prototype.hasOwnProperty.call(drainBook.perBot, h.bot)
+      ? drainBook.perBot[h.bot]
+      : null
+    const slot = seatSlot(seat)
+    if (h.gap === null || !Number.isInteger(h.gap)) {
+      book.join.blind++
+      book.perJoin.push({ bot: h.bot, gap: h.gap ?? null, staggerSec: slot, cls: 'blind', residualTicks: null })
+      continue
+    }
+    if (slot === null) {
+      book.join.noStagger++
+      book.perJoin.push({ bot: h.bot, gap: h.gap, staggerSec: null, cls: 'no-stagger', residualTicks: null })
+      continue
+    }
+    if (h.gap <= slot * 20) {
+      book.join.pushed.count++
+      book.join.pushed.sum += h.gap
+      book.perJoin.push({ bot: h.bot, gap: h.gap, staggerSec: slot, cls: 'pushed', residualTicks: null })
+    } else {
+      const residual = h.gap - slot * 20
+      book.join.late.count++
+      book.join.late.sum += residual
+      if (book.join.late.min === null || residual < book.join.late.min) book.join.late.min = residual
+      if (book.join.late.max === null || residual > book.join.late.max) book.join.late.max = residual
+      book.perJoin.push({ bot: h.bot, gap: h.gap, staggerSec: slot, cls: 'late', residualTicks: residual })
+    }
+  }
+  return book
+}
+
+/**
+ * The stagger seat's own fence: the sources must be consistent books;
+ * the join rows must be exactly the hold book's own rows' image (index
+ * for index, the lookup riding the drain seat's own slot); the slots'
+ * census must mirror the drain book's own slots; the sums must agree.
+ * An inconsistent book prices nothing.
+ */
+export function finalBankStaggerConsistent (drainBook, holdBook, book) {
+  if (!drainBook || typeof drainBook !== 'object' || !holdBook || typeof holdBook !== 'object' ||
+    !book || typeof book !== 'object') return false
+  if (!finalBankDrainConsistent(drainBook) || !finalBankHoldConsistent(holdBook)) return false
+  if (!Array.isArray(book.perSlot) || !Array.isArray(book.perJoin)) return false
+  const nonNeg = (v) => Number.isInteger(v) && v >= 0
+  if (!nonNeg(book.slots.count) || !nonNeg(book.slots.sum)) return false
+  if (book.slots.count > 0 && (book.slots.min === null || book.slots.max === null)) return false
+  if (book.slots.count === 0 && (book.slots.min !== null || book.slots.max !== null || book.slots.sum !== 0)) return false
+  if (![book.fates.banked, book.fates.held, book.fates.zero, book.fates.chainError, book.fates.cut].every(nonNeg)) return false
+  if (!nonNeg(book.join.holds) || !nonNeg(book.join.blind) || !nonNeg(book.join.noStagger)) return false
+  if (!nonNeg(book.join.pushed.count) || !nonNeg(book.join.pushed.sum)) return false
+  if (!nonNeg(book.join.late.count) || !nonNeg(book.join.late.sum)) return false
+  if (book.join.late.count > 0 && (book.join.late.min === null || book.join.late.max === null)) return false
+  if (book.join.late.count === 0 && (book.join.late.min !== null || book.join.late.max !== null || book.join.late.sum !== 0)) return false
+  if (book.join.holds !== holdBook.held || book.join.blind !== holdBook.blind) return false
+  if (book.perJoin.length !== book.join.holds) return false
+  let pushed = 0, late = 0, noStagger = 0, blind = 0, pushedSum = 0, lateSum = 0
+  let lateMin = null, lateMax = null
+  for (let i = 0; i < book.perJoin.length; i++) {
+    const j = book.perJoin[i]
+    const h = holdBook.perHold[i]
+    if (!j || typeof j !== 'object' || !h || typeof h !== 'object') return false
+    if (j.bot !== h.bot || j.gap !== h.gap) return false
+    const seat = Object.prototype.hasOwnProperty.call(drainBook.perBot, j.bot)
+      ? drainBook.perBot[j.bot]
+      : null
+    if (!seat) return false
+    const slot = seatSlot(seat)
+    if ((j.staggerSec === null || Number.isInteger(j.staggerSec)) !== true) return false
+    if (j.staggerSec !== slot) return false
+    if (j.cls === 'blind') {
+      if (h.gap !== null || j.residualTicks !== null) return false
+      blind++
+      continue
+    }
+    if (h.gap === null) return false
+    if (j.cls === 'no-stagger') {
+      if (slot !== null || j.residualTicks !== null) return false
+      noStagger++
+      continue
+    }
+    if (slot === null) return false
+    if (j.cls === 'pushed') {
+      if (h.gap > slot * 20 || j.residualTicks !== null) return false
+      pushed++
+      pushedSum += h.gap
+      continue
+    }
+    if (j.cls === 'late') {
+      const residual = h.gap - slot * 20
+      if (residual <= 0 || j.residualTicks !== residual) return false
+      late++
+      lateSum += residual
+      if (lateMin === null || residual < lateMin) lateMin = residual
+      if (lateMax === null || residual > lateMax) lateMax = residual
+      continue
+    }
+    return false
+  }
+  if (pushed !== book.join.pushed.count || pushedSum !== book.join.pushed.sum) return false
+  if (late !== book.join.late.count || lateSum !== book.join.late.sum ||
+    lateMin !== book.join.late.min || lateMax !== book.join.late.max) return false
+  if (noStagger !== book.join.noStagger || blind !== book.join.blind) return false
+  if (pushed + late + noStagger + blind !== book.join.holds) return false
+  let slots = 0, slotSum = 0, slotMin = null, slotMax = null
+  const fates = { banked: 0, held: 0, zero: 0, chainError: 0, cut: 0 }
+  for (const s of book.perSlot) {
+    if (!s || typeof s !== 'object' || typeof s.bot !== 'string') return false
+    const seat = drainBook.perBot[s.bot]
+    if (!seat || typeof seat !== 'object' || !seat.armed) return false
+    const slot = seatSlot(seat)
+    if (slot === null || s.staggerSec !== slot) return false
+    if (s.verdict !== seat.verdict || (s.why ?? null) !== (seat.why ?? null)) return false
+    slots++
+    slotSum += slot
+    if (slotMin === null || slot < slotMin) slotMin = slot
+    if (slotMax === null || slot > slotMax) slotMax = slot
+    if (seat.verdict === 'banked') fates.banked++
+    else if (seat.verdict === 'held') fates.held++
+    else if (seat.verdict === 'zero') fates.zero++
+    else if (seat.verdict === 'chain-error') fates.chainError++
+    else fates.cut++
+  }
+  if (slots !== book.slots.count || slotSum !== book.slots.sum ||
+    slotMin !== book.slots.min || slotMax !== book.slots.max) return false
+  if (fates.banked !== book.fates.banked || fates.held !== book.fates.held ||
+    fates.zero !== book.fates.zero || fates.chainError !== book.fates.chainError ||
+    fates.cut !== book.fates.cut) return false
+  if (fates.banked + fates.held + fates.zero + fates.chainError + fates.cut !== book.slots.count) return false
+  return true
+}
+
+/**
+ * The stagger seat's own row (the v0.881.0 single-seat idiom): the
+ * slots' census + their fates, the hold join's live classes. An
+ * inconsistent book prices nothing; a face with no slots and no holds
+ * reads the honest silence.
+ */
+export function finalBankStaggerRow (drainBook, holdBook, book) {
+  if (!finalBankStaggerConsistent(drainBook, holdBook, book)) return null
+  if (book.slots.count === 0 && book.join.holds === 0) return null
+  const parts = []
+  if (book.slots.count > 0) {
+    const span = book.slots.min === book.slots.max
+      ? `+${book.slots.min}s`
+      : `+${book.slots.min}..+${book.slots.max}s`
+    parts.push(`slots ${book.slots.count} (${span})`)
+    const fates = []
+    if (book.fates.banked > 0) fates.push(`banked ${book.fates.banked}`)
+    if (book.fates.held > 0) fates.push(`held ${book.fates.held}`)
+    if (book.fates.zero > 0) fates.push(`zero ${book.fates.zero}`)
+    if (book.fates.chainError > 0) fates.push(`chain-error ${book.fates.chainError}`)
+    if (book.fates.cut > 0) fates.push(`cut ${book.fates.cut}`)
+    if (fates.length > 0) parts.push(`fates ${fates.join(', ')}`)
+  }
+  if (book.join.holds > 0) {
+    const j = []
+    if (book.join.pushed.count > 0) j.push(`pushed ${book.join.pushed.count}`)
+    if (book.join.late.count > 0) j.push(`late ${book.join.late.count} (residual ${book.join.late.min}..${book.join.late.max} ticks)`)
+    if (book.join.noStagger > 0) j.push(`no-stagger ${book.join.noStagger}`)
+    if (book.join.blind > 0) j.push(`blind ${book.join.blind}`)
+    if (j.length > 0) parts.push(`hold join ${j.join(', ')}`)
+  }
+  if (parts.length === 0) return null
+  return `the final bank's own stagger seat (v0.888.0): ${parts.join(' - ')} - the slots' own fates price the flow-priced path, the hold join prices the slots' own share of the gate`
 }
