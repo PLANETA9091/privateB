@@ -66,10 +66,10 @@ const emptyBook = () => ({
 export function o2TriggerBook (lines) {
   const book = emptyBook()
   if (!Array.isArray(lines)) return book
-  const state = {} // per bot: { crossingTs, hasCrossing, inBand, lastO2, lastO2At }
+  const state = {} // per bot: { crossingTs, hasCrossing, inBand, lastO2, lastO2At, prevO2At }
   let lastTs = null
   const seatFor = (bot) => {
-    if (!state[bot]) state[bot] = { crossingTs: null, hasCrossing: false, inBand: false, lastO2: null, lastO2At: null }
+    if (!state[bot]) state[bot] = { crossingTs: null, hasCrossing: false, inBand: false, lastO2: null, lastO2At: null, prevO2At: null }
     return state[bot]
   }
   let li = -1 // the log's own adjacency: the fold's own line index (every element counts)
@@ -88,6 +88,10 @@ export function o2TriggerBook (lines) {
         // never re-computed (the reuse law); the read's own position
         // rides beside it (the v0.893.0 gap's own seat)
         seat.lastO2 = p.o2.value
+        // the read cadence's own seat (the v0.895.0 byte): the read's
+        // own position hands its post to the previous-read slot - the
+        // last TWO reads' own distance is the cadence's own cell
+        seat.prevO2At = seat.lastO2At
         seat.lastO2At = li
         if (p.o2.value <= TRIGGER_O2_MAX) {
           if (!seat.inBand) { seat.crossingTs = lastTs; seat.hasCrossing = true; seat.inBand = true }
@@ -117,13 +121,17 @@ export function o2TriggerBook (lines) {
       // distance from the bot's last numeric read - the sensor's own
       // sight span (the readless seat rides the honest null)
       const lastO2Gap = seat.lastO2 !== null && seat.lastO2At !== null ? li - seat.lastO2At : null
-      book.perDeath.push({ bot, ts: lastTs, crossed, window, lastO2: seat.lastO2, lastO2Gap })
+      // the cadence's own cell (the v0.895.0 byte): the last TWO
+      // reads' own distance (the one-read seat rides the honest null)
+      const lastO2Span = seat.lastO2At !== null && seat.prevO2At !== null ? seat.lastO2At - seat.prevO2At : null
+      book.perDeath.push({ bot, ts: lastTs, crossed, window, lastO2: seat.lastO2, lastO2Gap, lastO2Span })
       // the death reset's own law: the state never survives the death
       seat.crossingTs = null
       seat.hasCrossing = false
       seat.inBand = false
       seat.lastO2 = null
       seat.lastO2At = null
+      seat.prevO2At = null
       continue
     }
   }
@@ -153,6 +161,13 @@ export function o2TriggerConsistent (book) {
     if (d.lastO2Gap !== null && d.lastO2Gap !== undefined) {
       if (!Number.isInteger(d.lastO2Gap) || d.lastO2Gap < 0) return false
       if (d.lastO2 === null || d.lastO2 === undefined) return false
+    }
+    // the cadence's own shape (the v0.895.0 byte): the span must be
+    // the fold's own non-negative line count, and the chain is the
+    // value's own - the span without its gap lies
+    if (d.lastO2Span !== null && d.lastO2Span !== undefined) {
+      if (!Number.isInteger(d.lastO2Span) || d.lastO2Span < 0) return false
+      if (d.lastO2Gap === null || d.lastO2Gap === undefined) return false
     }
     deaths++
     if (!d.crossed) noCrossing++
@@ -325,6 +340,26 @@ export function o2TriggerRow (book) {
 // byte-verified against the perDeath image; a lying cell prices
 // nothing. Zero fleet wiring, zero new log lines (the clause grows
 // in place).
+//
+// (v0.895.0) THE READ CADENCE'S OWN SEAT - the gap's own next byte
+// (the sight spans' own mass named it: 197 and 87 lines - but the GAP
+// alone cannot split the two levers: a UNIFORM slow cadence and a
+// cadence that STOPPED near the death both read huge gaps). The
+// predator seats join their own cadence (the fold's own position
+// again: seat.prevO2At riding beside seat.lastO2At - the last TWO
+// numeric reads' own distance, perDeath.lastO2Span, never
+// re-computed): kinds.miss.predatorO2 grows spanMin/spanMax - a span
+// NEAR the gap prices the uniform slow cadence (the sensor never saw
+// the descent because it reads too rarely - the cadence lever); a
+// span FAR BELOW the gap prices the stopped sentry (the reads went
+// quiet before the death - a different lever entirely). The
+// one-read seats ride the honest null (the blind-skin idiom). THE
+// SPAN'S OWN FENCE: the cells must be exactly the predator seats'
+// own span fold - the chain is the value's own (the span without its
+// gap lies, the gap without its read lies, the window fence prices
+// the chain), min/max byte-verified against the perDeath image; a
+// lying cell prices nothing. Zero fleet wiring, zero new log lines
+// (the clause grows in place).
 
 // The trigger's own death word - the server's own kind= vocabulary's
 // oxygen death (deathcause.mjs's own bucket, never invented here).
@@ -335,7 +370,7 @@ const emptyKindJoin = () => ({
   falsePositive: 0,
   crossedUnknown: 0,
   fp: { melee: 0, wrongDoor: 0, meleeWindow: { count: 0, min: null, max: null, sum: 0 } },
-  miss: { drowned: 0, predatorO2: { count: 0, min: null, max: null, gapMin: null, gapMax: null } },
+  miss: { drowned: 0, predatorO2: { count: 0, min: null, max: null, gapMin: null, gapMax: null, spanMin: null, spanMax: null } },
   noCrossing: {},
   noCrossingUnknown: 0
 })
@@ -390,6 +425,12 @@ export function o2TriggerKindBook (lines) {
           if (typeof seat.lastO2Gap === 'number') {
             if (po.gapMin === null || seat.lastO2Gap < po.gapMin) po.gapMin = seat.lastO2Gap
             if (po.gapMax === null || seat.lastO2Gap > po.gapMax) po.gapMax = seat.lastO2Gap
+          }
+          // the cadence's own fold (the v0.895.0 byte): the seat's own
+          // read-to-read span - the uniform-vs-stopped split
+          if (typeof seat.lastO2Span === 'number') {
+            if (po.spanMin === null || seat.lastO2Span < po.spanMin) po.spanMin = seat.lastO2Span
+            if (po.spanMax === null || seat.lastO2Span > po.spanMax) po.spanMax = seat.lastO2Span
           }
         }
       }
@@ -454,6 +495,10 @@ export function o2TriggerKindConsistent (book) {
   // pair rides together (the count-0 silence holds on both)
   if (![po.gapMin, po.gapMax].every((v) => v === null || (Number.isInteger(v) && v >= 0))) return false
   if ((po.gapMin === null) !== (po.gapMax === null)) return false
+  // the span's own cells (the v0.895.0 byte): null-or-nonnegative,
+  // the pair rides together (the one-read silence holds on both)
+  if (![po.spanMin, po.spanMax].every((v) => v === null || (Number.isInteger(v) && v >= 0))) return false
+  if ((po.spanMin === null) !== (po.spanMax === null)) return false
   if (!k.noCrossing || typeof k.noCrossing !== 'object' || Array.isArray(k.noCrossing)) return false
   let ncSum = 0
   for (const key of Object.keys(k.noCrossing)) {
@@ -464,7 +509,7 @@ export function o2TriggerKindConsistent (book) {
   if (ncSum + k.noCrossingUnknown !== book.noCrossing) return false
   let o2 = 0, fp = 0, cu = 0, ncu = 0, melee = 0, wrongDoor = 0, missedDrowned = 0
   let mwc = 0, mws = 0, mwm = null, mwM = null
-  let poCount = 0, poMin = null, poMax = null, poGapMin = null, poGapMax = null
+  let poCount = 0, poMin = null, poMax = null, poGapMin = null, poGapMax = null, poSpanMin = null, poSpanMax = null
   for (const d of book.perDeath) {
     if (!d || typeof d !== 'object') return false
     if (d.kind !== null && typeof d.kind !== 'string') return false
@@ -490,6 +535,12 @@ export function o2TriggerKindConsistent (book) {
         if (d.lastO2Gap !== null && d.lastO2Gap !== undefined) {
           if (poGapMin === null || d.lastO2Gap < poGapMin) poGapMin = d.lastO2Gap
           if (poGapMax === null || d.lastO2Gap > poGapMax) poGapMax = d.lastO2Gap
+        }
+        // the span's own fold (the v0.895.0 byte): the seat's own
+        // cadence - the one-read seat rides the honest silence
+        if (d.lastO2Span !== null && d.lastO2Span !== undefined) {
+          if (poSpanMin === null || d.lastO2Span < poSpanMin) poSpanMin = d.lastO2Span
+          if (poSpanMax === null || d.lastO2Span > poSpanMax) poSpanMax = d.lastO2Span
         }
       }
     }
@@ -523,6 +574,7 @@ export function o2TriggerKindConsistent (book) {
     melee === k.fp.melee && wrongDoor === k.fp.wrongDoor && missedDrowned === k.miss.drowned &&
     poCount === po.count && poMin === po.min && poMax === po.max &&
     poGapMin === po.gapMin && poGapMax === po.gapMax &&
+    poSpanMin === po.spanMin && poSpanMax === po.spanMax &&
     mwc === mw.count && mws === mw.sum && mwm === mw.min && mwM === mw.max
 }
 
@@ -570,11 +622,15 @@ export function o2TriggerKindRow (book) {
       // span's own price rides the seat's own air (the zero-gap
       // silence: no gap cells - the bare air clause)
       if (po.gapMin !== null) seat += `, read gap ${po.gapMin}..${po.gapMax} lines`
+      // the cadence's own clause (the v0.895.0 byte): the read-to-read
+      // span's own price rides the seat's own air (the one-read
+      // silence: no span cells - the bare gap clause)
+      if (po.spanMin !== null) seat += `, cadence ${po.spanMin}..${po.spanMax} lines`
       seat += ')'
     }
     parts.push(seat)
   }
   if (book.kinds.noCrossingUnknown > 0) parts.push(`no-crossing unkinded ${book.kinds.noCrossingUnknown}`)
   if (!parts.length) return null
-  return `the o2-low trigger's own kind join (v0.893.0): ${parts.join(', ')} - the kind join prices the trigger's own cost`
+  return `the o2-low trigger's own kind join (v0.895.0): ${parts.join(', ')} - the kind join prices the trigger's own cost`
 }
