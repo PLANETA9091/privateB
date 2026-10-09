@@ -1293,7 +1293,7 @@ export const CHEST_WALK_SHORT_MS = 15000
 // returns 0 exactly as before, the grace is a separate, logged, bounded
 // decision the chain makes after the refusal.
 //
-// (v0.865.0) THE GRACE'S OWN DISTANCE LEVER - the far band's honest admission.
+// (v0.866.0) THE GRACE'S OWN DISTANCE LEVER - the far band's honest admission.
 // Face 136 (37894029206, the budget-floor book's first live read) named the
 // lever: 20 budget-floor rides F19=20 at d 23..29 avg 26, the FAR band 13 of
 // 20 - the floor dies on the longer approach, and the v0.303.0 pardon never
@@ -1535,7 +1535,7 @@ export async function depositToChest (bot, {
   // proven-affordable short walk (d<=16, the v0.56.0 class) may convert its
   // FIRST refusal into a bounded CHEST_WALK_SHORT_MS walk. A refused grace
   // logs the why and re-throws the byte-identical floor verdict.
-  // (v0.865.0) the gate's own distance lever: the FAR band (d<=40) prices its
+  // (v0.866.0) the gate's own distance lever: the FAR band (d<=40) prices its
   // walk by the hop's own ruler - the same one-shot holder, the same floor
   // arithmetic (effectiveWalkBudget returns 0 exactly as before), and the
   // grant line prints the gate's own why (the short and the far classes read
