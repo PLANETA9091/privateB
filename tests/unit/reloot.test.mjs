@@ -665,3 +665,57 @@ test('v0.649.0: the carry refuses resolved records and invents nothing from junk
   assert.equal(relootCarry({ spot: { x: 1, y: 2, z: 3 }, at: 5, attempted: false, pocketU: -5 }).pocketU, null)
   assert.equal(relootCarry({ spot: { x: 1, y: 2, z: 3 }, at: 5, attempted: false }).pocketU, null)
 })
+
+// (v0.854.0) THE WET-SPOT FENCE - the measured loop's own refusal.
+// MEASURED (face 128 = 37867025314): F19 drowned at [-127,49,401], the
+// hazard was memorized fleet-wide, and the reloot lane walked the
+// respawned bot BACK into that water - the retry leg drowned the bot again
+// at [-122,47,401] 135s after the first rescue (wet 12s, the loss deepened
+// 63u -> ~91u, a life on top). The lane's water-spot record across faces:
+// arrivals ~0, one death - the recovery trade never paid.
+
+test('v0.854.0: the wet-spot fence refuses the walk the plan would otherwise arm', () => {
+  const dry = relootPlan({ spot: SPOT, deathAt: NOW - 60000, now: NOW, botPos: BOT })
+  assert.equal(dry.go, true, 'the same shape reads walkable while dry (the fence only owns the wet class)')
+  const wet = relootPlan({ spot: SPOT, deathAt: NOW - 60000, now: NOW, botPos: BOT, spotWet: true })
+  assert.deepEqual(wet, { go: false, why: 'wet-spot' }, 'a fluid spot is the death the bot cannot stand at')
+  // the spot's coordinates stay floored in the plan shape (the goal cell)
+  const dryGoal = relootPlan({ spot: SPOT, deathAt: NOW - 60000, now: NOW, botPos: BOT })
+  assert.deepEqual(dryGoal.goal, { x: -67, y: 59, z: 399 }, 'the dry plan keeps its goal shape (the fence changes nothing upstream)')
+})
+
+test('v0.854.0: the structural fences own first, the wet fence is the last gate', () => {
+  // the fence order is the diagnostic: only a walk that would otherwise go
+  // gets re-verdicted - a wet spot that also fails a structural fence reads
+  // the STRUCTURAL why (the loop's own story)
+  assert.equal(relootPlan({ spot: SPOT, deathAt: NOW - 60000, now: NOW, botPos: BOT, attempted: true, spotWet: true }).why, 'attempted', 'attempted owns before wet-spot')
+  assert.equal(relootPlan({ spot: SPOT, deathAt: NOW - 600000, now: NOW, botPos: BOT, spotWet: true }).why, 'expired', 'expired owns before wet-spot')
+  assert.equal(relootPlan({ spot: SPOT, deathAt: NOW - 60000, now: NOW, botPos: null, spotWet: true }).why, 'no-bot', 'no-bot owns before wet-spot')
+  assert.equal(relootPlan({ spot: SPOT, deathAt: NOW - 60000, now: NOW, botPos: { x: 5000, y: 64, z: 5000 }, spotWet: true }).why, 'too-far', 'too-far owns before wet-spot')
+})
+
+test('v0.854.0: the junk law - a junk wet read never invents a refusal', () => {
+  // the runner's live read may fail (a junk world) - the fence must stay
+  // silent unless the read EXPLICITLY says wet
+  assert.equal(relootPlan({ spot: SPOT, deathAt: NOW - 60000, now: NOW, botPos: BOT, spotWet: undefined }).go, true, 'an undefined read arms the walk (the old law)')
+  assert.equal(relootPlan({ spot: SPOT, deathAt: NOW - 60000, now: NOW, botPos: BOT, spotWet: null }).go, true, 'a null read arms the walk')
+  assert.equal(relootPlan({ spot: SPOT, deathAt: NOW - 60000, now: NOW, botPos: BOT, spotWet: 'yes' }).go, true, 'a junk read arms the walk (only the exact boolean owns the refusal)')
+  assert.equal(relootPlan({ spot: SPOT, deathAt: NOW - 60000, now: NOW, botPos: BOT, spotWet: false }).go, true, 'an explicit dry read arms the walk')
+})
+
+test('v0.854.0: the surface ladder is untouched by the fence (its own class)', () => {
+  // the wet fence owns the FIRST walk only - the surface retry and the rim
+  // dig serve the flooded-pit classes whose spots read dry and fail on the
+  // walk; their plan arithmetic inherits the default (not wet)
+  const rs = relootSurfaceRetry({
+    message: 'No path',
+    retries: 1,
+    surfaceY: 64,
+    surfaceWhy: 'surface',
+    spot: SPOT,
+    deathAt: NOW - 60000,
+    now: NOW,
+    botPos: BOT
+  })
+  assert.equal(rs.go, true, 'the surface retry still arms on the flooded-pit shape (the v0.208.0 protocol keeps its byte)')
+})

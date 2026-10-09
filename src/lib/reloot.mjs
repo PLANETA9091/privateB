@@ -87,6 +87,13 @@ const NO_PATH_VERDICT_RE = /no path|took to long|took too long/i
  * lily pad, a junk read) seals the column and the walk stays terminal. */
 const SURFACE_FLUID_RE = /water|kelp|seagrass|bubble_column/
 const SURFACE_AIR_RE = /^(air|cave_air|void_air)$/
+/** (v0.854.0) The WET-SPOT FENCE's own fluid class - the death spot's
+ * walkability read. Wider than the surface scanner's water column (lava is
+ * not a float medium but it is exactly as unwalkable): the same class the
+ * rim dig's stance guard reads (`!/water|lava|kelp|seagrass|
+ * bubble_column/.test(name)`), defined once - one read, two consumers,
+ * zero drift (the v0.221.0 coherence law). */
+export const RELOOT_SPOT_FLUID_RE = /water|lava|kelp|seagrass|bubble_column/
 /** (v0.208.0) The surface scan's rise cap: a flooded-pit death column reads
  * fluid-then-air within this many blocks of the spot; past that the column
  * is not a flooded-pit shape (an ocean-depth edge case) and the walk stays
@@ -107,6 +114,8 @@ export const RELOOT_SURFACE_RISE_MAX = 32
  * @param {number} [p.despawnMs] vanilla despawn window (default RELOOT_DESPAWN_MS)
  * @param {number} [p.maxDist] the walk-envelope radius (default RELOOT_MAX_DIST)
  * @param {number} [p.marginMs] the finish-before-despawn margin (default RELOOT_MARGIN_MS)
+ * @param {boolean} [p.spotWet] the death spot's own cell reads fluid at plan
+ *   time (the runner's LIVE world read - the fence the face-128 loop owns)
  * @returns {{go:boolean, why?:string, goal?:{x:number,y:number,z:number}, range?:number, dist?:number, budgetMs?:number, windowMs?:number}}
  *   a refusal reads { go:false, why }, a plan reads { go:true, goal, range, dist, budgetMs, windowMs }
  */
@@ -118,7 +127,8 @@ export function relootPlan ({
   attempted = false,
   despawnMs = RELOOT_DESPAWN_MS,
   maxDist = RELOOT_MAX_DIST,
-  marginMs = RELOOT_MARGIN_MS
+  marginMs = RELOOT_MARGIN_MS,
+  spotWet = false
 } = {}) {
   const fin = v => Number.isFinite(v)
   const spotOk = spot && fin(spot.x) && fin(spot.y) && fin(spot.z)
@@ -139,6 +149,21 @@ export function relootPlan ({
   const budgetMs = walkBudgetMs({ dist })
   const margin = fin(marginMs) && marginMs > 0 ? marginMs : RELOOT_MARGIN_MS
   if (budgetMs + margin > windowMs) return { go: false, why: 'no-time' }
+  // (v0.854.0) THE WET-SPOT FENCE - the last gate before the walk, because
+  // the structural fences' whys stay the loop's own story (a wet spot that
+  // is also too-far reads too-far; only a walk that would otherwise go gets
+  // re-verdicted). MEASURED (face 128 = 37867025314): F19 drowned at
+  // [-127,49,401], the hazard was memorized fleet-wide, and the reloot lane
+  // walked the respawned bot BACK INTO that water - the retry leg drowned
+  // the bot again at [-122,47,401] 135s after the first rescue (wet 12s,
+  // the loss deepened 63u -> ~91u, a life on top). The lane's water-spot
+  // record across faces: arrivals ~0, one death - the recovery trade never
+  // paid. The fence reads the spot's OWN cell at plan time (the runner's
+  // live world read, junk never invents a refusal): a fluid spot is the
+  // death the bot cannot stand at - the drops ride out their despawn
+  // honestly, the v0.847.0 refusal lens prices the stake, and the surface
+  // ladder keeps serving the spots that read dry and fail on the walk.
+  if (spotWet === true) return { go: false, why: 'wet-spot' }
   return {
     go: true,
     goal: { x: Math.floor(spot.x), y: Math.floor(spot.y), z: Math.floor(spot.z) },

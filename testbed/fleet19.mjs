@@ -44,7 +44,7 @@ import { withdrawFoodCommons, pocketFood, riderFoodAsk, MIDFIELD_HUNGRY_BAND, RI
 import { upgradeCheck, upgradeTools, keepForIron, PICK_TIERS, withdrawIronCommune, seedIronPool } from '../src/lib/toolupgrade.mjs'
 import { swordCheck, craftSword } from '../src/lib/arms.mjs'
 import { walkForbidden, surfaceHoldVerdict } from '../src/lib/nightsafety.mjs'
-import { relootPlan, relootPileVerdict, relootRetry, relootSurfaceY, relootSurfaceWhy, relootSurfaceRetry, relootRimDig, relootUnarmedVerdict, relootWriteoffLine, relootCarry, RELOOT_SURFACE_RISE_MAX, RELOOT_RETRY_RANGE, RELOOT_DESPAWN_MS } from '../src/lib/reloot.mjs'
+import { relootPlan, relootPileVerdict, relootRetry, relootSurfaceY, relootSurfaceWhy, relootSurfaceRetry, relootRimDig, relootUnarmedVerdict, relootWriteoffLine, relootCarry, RELOOT_SURFACE_RISE_MAX, RELOOT_RETRY_RANGE, RELOOT_DESPAWN_MS, RELOOT_SPOT_FLUID_RE } from '../src/lib/reloot.mjs'
 import { wetChurnPlan, churnSwap, WET_CHURN_WINDOW_MS, WET_CHURN_COOLDOWN_MS } from '../src/lib/wetchurn.mjs' // (v0.223.0) the after-storm evacuation: the plan reads the bot's OWN rescue log, the swap prices the dry pass
 import { dragonZoneAnchor, inDragonZone, dragonZoneExit, DRAGON_ZONE_EXIT_MS } from '../src/lib/dragonzone.mjs' // (v0.225.0) the kill zone: the anchor clusters the magic kills, the exit prices the walk out
 import { duskBankPlan } from '../src/lib/duskbank.mjs' // (v0.229.0) the heavy pocket's priced dusk delivery: the plan landed v0.226.0, the wiring rides this lane
@@ -1979,6 +1979,25 @@ async function runBot (name, target, index) {
           // big-pile floor turns the unarmed delay into the walk (the walk
           // IS the bootstrap - it fills the pocket the delay waits for).
           const relootPileArm = relootPileVerdict({ pileU: relootDeath.pocketU }).bypass
+          // (v0.854.0) THE WET-SPOT READ - the death spot's own cell, LIVE
+          // (the world may have drained or flowed since the death; the read
+          // at plan time is the truth, not the death context's memory). A
+          // fluid spot is the death the bot cannot stand at - the fence
+          // refuses the walk and the drops ride out their despawn honestly.
+          // MEASURED (face 128 = 37867025314): F19 drowned at [-127,49,401],
+          // the hazard was memorized fleet-wide, and THIS lane walked the
+          // respawned bot back into that water - the retry leg drowned the
+          // bot again at [-122,47,401] 135s after the first rescue (wet 12s,
+          // the loss deepened 63u -> ~91u, a life on top). Junk reads false -
+          // a junk world never invents a refusal.
+          const relootSpotWet = (() => {
+            try {
+              const s = relootDeath.spot
+              if (!s || !Number.isFinite(s.x) || !Number.isFinite(s.y) || !Number.isFinite(s.z)) return false
+              const b = miner.bot.blockAt(new Vec3(Math.floor(s.x), Math.floor(s.y), Math.floor(s.z)))
+              return !!(b && typeof b.name === 'string' && RELOOT_SPOT_FLUID_RE.test(b.name))
+            } catch { return false }
+          })()
           let rp = null
           try {
             rp = relootPlan({
@@ -1987,7 +2006,8 @@ async function runBot (name, target, index) {
               now: Date.now(),
               botPos: miner.bot.entity
                 ? { x: miner.bot.entity.position.x, y: miner.bot.entity.position.y, z: miner.bot.entity.position.z }
-                : null
+                : null,
+              spotWet: relootSpotWet
             })
           } catch { rp = { go: false, why: 'no-spot' } }
           if (!rp.go) {

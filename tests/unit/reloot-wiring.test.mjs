@@ -25,8 +25,8 @@ test('REGRESSION PIN: the miner death handler records the re-loot state', () => 
 })
 
 test('REGRESSION PIN: the fleet imports the pure plan, the retry classifier, the surface ladder and the rim dig', () => {
-  assert.match(fleetSrc, /import \{ relootPlan, relootPileVerdict, relootRetry, relootSurfaceY, relootSurfaceWhy, relootSurfaceRetry, relootRimDig, relootUnarmedVerdict, relootWriteoffLine, relootCarry, RELOOT_SURFACE_RISE_MAX, RELOOT_RETRY_RANGE, RELOOT_DESPAWN_MS \} from '\.\.\/src\/lib\/reloot\.mjs'/,
-    'the census rides the import (the runner reads the plan, the v0.484.0 pile verdict, the classifier, the scanner, the census, the surface ladder, the rim dig, the v0.261.0 unarmed verdict AND the v0.648.0 carry shape from the module; the v0.207.0 precedent: the import line grows with the wiring, the intent pin moves with it)')
+  assert.match(fleetSrc, /import \{ relootPlan, relootPileVerdict, relootRetry, relootSurfaceY, relootSurfaceWhy, relootSurfaceRetry, relootRimDig, relootUnarmedVerdict, relootWriteoffLine, relootCarry, RELOOT_SURFACE_RISE_MAX, RELOOT_RETRY_RANGE, RELOOT_DESPAWN_MS, RELOOT_SPOT_FLUID_RE \} from '\.\.\/src\/lib\/reloot\.mjs'/,
+    'the census rides the import (the runner reads the plan, the v0.484.0 pile verdict, the classifier, the scanner, the census, the surface ladder, the rim dig, the v0.261.0 unarmed verdict, the v0.648.0 carry shape AND the v0.854.0 wet-spot fluid class from the module; the v0.207.0 precedent: the import line grows with the wiring, the intent pin moves with it)')
 })
 
 test('REGRESSION PIN: the re-loot call carries every scalar (the run195 dead-wire class)', () => {
@@ -36,6 +36,23 @@ test('REGRESSION PIN: the re-loot call carries every scalar (the run195 dead-wir
   assert.match(call[0], /deathAt:\s*relootDeath\.at/, 'the death clock rides the call (the despawn window prices from it)')
   assert.match(call[0], /now:\s*Date\.now\(\)/, "the caller's clock rides the call (the plan never reads the wall clock)")
   assert.match(call[0], /botPos:\s*miner\.bot\.entity/, 'the respawned position rides the call (the distance needs it)')
+  assert.match(call[0], /spotWet:\s*relootSpotWet/, 'the live wet read rides the call (the v0.854.0 fence is only as real as its wire)')
+})
+
+test('REGRESSION PIN: the wet-spot read is the LIVE world read (the v0.854.0 fence)', () => {
+  // MEASURED (face 128 = 37867025314): the lane walked the respawned bot
+  // back into the water that killed it and the retry leg drowned it again.
+  // The fence is only as honest as its read: the spot's OWN cell at plan
+  // time, the module's fluid class, junk never invents a refusal.
+  const read = fleetSrc.match(/const relootSpotWet = \(\(\) => \{[\s\S]*?\}\)\(\)/)
+  assert.ok(read, 'the wet read exists at the lane top (before the plan call)')
+  assert.match(read[0], /miner\.bot\.blockAt\(new Vec3\(Math\.floor\(s\.x\), Math\.floor\(s\.y\), Math\.floor\(s\.z\)\)\)/, 'the read floors the spot and reads the LIVE cell (the world at plan time, not the death memory)')
+  assert.match(read[0], /RELOOT_SPOT_FLUID_RE\.test\(b\.name\)/, 'the fluid class rides the module export (one read, two consumers, zero drift)')
+  assert.match(read[0], /return false/, 'junk reads false - a junk world never invents a refusal')
+  // the fence order: the read fires BEFORE the plan call (the plan consumes it)
+  const readIdx = fleetSrc.indexOf('const relootSpotWet')
+  const callIdx = fleetSrc.indexOf('relootPlan({')
+  assert.ok(readIdx > -1 && callIdx > readIdx && callIdx - readIdx < 1200, 'the wet read precedes the plan call it feeds')
 })
 
 test('REGRESSION PIN: one evaluation per death, marked BEFORE the walk', () => {
