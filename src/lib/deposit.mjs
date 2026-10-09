@@ -2374,3 +2374,140 @@ export function bankFallback ({ deposited = 0, reason = '', yardDist = null, max
   if (yardDist >= maxWalkBlocks) return { action: 'none', why: `yard is ${Math.round(yardDist)} blocks away (walk cap ${maxWalkBlocks})` }
   return { action: 'walk', dist: Math.round(yardDist) }
 }
+
+// (v0.875.0) THE DEPOSIT RING'S OWN FOLD - the refusal voice's own book.
+//
+// The deposit chain's swap speaks ONE line when the nearest chest refuses
+// the walk (the v0.23.1 swap's own voice, the emitter above): 'deposit:
+// the nearest chest [x,y,z] refused (msg) - the next chest in the ring
+// takes the walk (the v0.23.1 swap's own voice)'. The line rides the
+// 'deposit' filter-key the fleet already carries - yet no lens folded it:
+// the crater's WHO+WHERE+WHY rode unnamed (the v0.866.0 lesson - bytes
+// visible, seats unowned). Face 142's read priced the crater at its
+// deepest (banked 0 of 1738u, the failed walks owning 83.7%) while the
+// swap's own voice rode nowhere; the chestdoor lenses fold the hop/bank
+// 'chest unreachable' lines and the preflight's scan-level lines, and the
+// no-path repeats book names the exclude candidates - the swap line is
+// the deposit side's OWN byte, and this book folds it.
+//
+// THE LAWS (the house's own, one lens at a time):
+// - one parser one truth: the SAME line shape the emitter writes, read
+//   back verbatim; the kernel is mid-line tolerant (any caller prefix),
+//   the body END-ANCHORED on the constant tail ('(the v0.23.1 swap's own
+//   voice)') so the msg keeps its own nested parens ('budget exhausted
+//   (walk floor)' rides whole - the v0.873.0 end-anchored lesson).
+// - the WHO rides the fleet tag (the doomledger perBot idiom); a botless
+//   line rides '?' (the honest seat, the count still lands).
+// - the repeats are PER CHEST across bots (the chestNoPathRepeats law -
+//   the swap list's own signal: one door refusing many bots): a chest
+//   cell with n>=2 joins the repeats list, n desc, coords lex.
+// - the why's own seat = the strict majority refusal msg; a tie reads
+//   null (THE SPREAD IS THE SHAPE - the tie law, the row still renders).
+// - junk-safe end to end: non-array reads nothing, non-string rows are
+//   skipped, a kernel-prefix line that fails the full parse counts in
+//   'truncated' (the honesty cell) and never in the refusals; a face
+//   with zero refusals prices nothing (the honest silence - the fold
+//   never invents).
+// Pure mining-surface: ZERO fleet wiring, zero new log lines - the line
+// already rides the filter; the field verdict belongs to the face's own
+// log.
+
+/** The bot tag the fleet log rides (the doomledger perBot idiom). */
+const RING_BOT_TAG_RE = /^(F\d+)\b/
+
+/** The deposit ring refusal's own kernel - the deposit.mjs emitter's line,
+ * verbatim template. The body is END-ANCHORED on the constant tail: the
+ * refusal msg nests its own parentheses, so the greedy body runs to the
+ * tail, never the first close. */
+export const DEPOSIT_RING_REFUSAL_RE = /deposit: the nearest chest \[(-?\d+),(-?\d+),(-?\d+)\] refused \((.+)\) - the next chest in the ring takes the walk \(the v0\.23\.1 swap's own voice\)\s*$/
+
+/**
+ * The deposit ring's own fold: every logged nearest-chest refusal folded
+ * across bots and chests, with the why's own majority seat and the
+ * per-chest repeats (the swap list's own signal).
+ * @param {string[]|string} [lines] the face log (array or raw blob)
+ * @returns {null | {n: number, truncated: number, byBot: Object<string, number>,
+ *   chests: Object<string, {n: number, bots: string[]}>, whys: Object<string, number>,
+ *   whySeat: string|null, repeats: {chest: string, n: number, bots: string[]}[]}}
+ */
+export function depositRingFold (lines) {
+  if (!Array.isArray(lines)) return null
+  const byBot = {}
+  const chests = {}
+  const whys = {}
+  let n = 0
+  let truncated = 0
+  for (const line of lines) {
+    if (typeof line !== 'string') continue
+    const t = line.trim()
+    if (!t.includes('deposit: the nearest chest')) continue
+    const m = DEPOSIT_RING_REFUSAL_RE.exec(t)
+    if (!m) { truncated += 1; continue }
+    const botM = RING_BOT_TAG_RE.exec(t)
+    const bot = botM ? botM[1] : '?'
+    const chest = `${m[1]},${m[2]},${m[3]}`
+    const why = m[4]
+    n += 1
+    byBot[bot] = (byBot[bot] || 0) + 1
+    if (!chests[chest]) chests[chest] = { n: 0, bots: [] }
+    const cell = chests[chest]
+    cell.n += 1
+    if (!cell.bots.includes(bot)) cell.bots.push(bot)
+    whys[why] = (whys[why] || 0) + 1
+  }
+  if (n === 0) return null
+  let whySeat = null
+  let best = 0
+  for (const [why, count] of Object.entries(whys)) {
+    if (count > best) { best = count; whySeat = why } else if (count === best) { whySeat = null }
+  }
+  const repeats = Object.entries(chests)
+    .filter(([, c]) => c.n >= 2)
+    .map(([chest, c]) => ({ chest, n: c.n, bots: [...c.bots].sort() }))
+    .sort((a, b) => b.n - a.n || (a.chest < b.chest ? -1 : a.chest > b.chest ? 1 : 0))
+  for (const cell of Object.values(chests)) cell.bots.sort()
+  return { n, truncated, byBot, chests, whys, whySeat, repeats }
+}
+
+/** The fold's own consistency fence: n>=1, >=1 bot, >=1 chest, every chest
+ * cell honest (n>=1, >=1 bot), the whys non-empty, the truncated cell
+ * finite. The tie (whySeat null) is the honest spread - the row still
+ * renders (the tie law). @returns {boolean} */
+export function depositRingFoldConsistent (book) {
+  if (!book || typeof book !== 'object') return false
+  if (!Number.isFinite(book.n) || book.n < 1) return false
+  if (!Number.isFinite(book.truncated) || book.truncated < 0) return false
+  const bots = Object.keys(book.byBot || {})
+  if (bots.length === 0) return false
+  const chestKeys = Object.keys(book.chests || {})
+  if (chestKeys.length === 0) return false
+  let minN = Infinity
+  let maxN = -Infinity
+  for (const key of chestKeys) {
+    const c = book.chests[key]
+    if (!c || !Number.isFinite(c.n) || c.n < 1) return false
+    if (!Array.isArray(c.bots) || c.bots.length === 0) return false
+    minN = Math.min(minN, c.n)
+    maxN = Math.max(maxN, c.n)
+  }
+  if (minN > maxN) return false
+  if (Object.keys(book.whys || {}).length === 0) return false
+  if (!Array.isArray(book.repeats)) return false
+  for (const r of book.repeats) {
+    if (!r || typeof r.chest !== 'string' || !Number.isFinite(r.n) || r.n < 2) return false
+    if (!Array.isArray(r.bots) || r.bots.length === 0) return false
+  }
+  return true
+}
+
+/** The fold's own row: 'the deposit ring's own fold (v0.875.0): N refusal(s)
+ * by K bot(s) (F9+F15), M chest(s), top [x,y,z] xC - the why's seat: "msg" -
+ * repeats R'. A tie reads the spread's own seat; a junk or inconsistent
+ * book renders nothing (the fence law, the honest silence). */
+export function depositRingFoldRow (book) {
+  if (!depositRingFoldConsistent(book)) return null
+  const botNames = Object.keys(book.byBot).sort()
+  const top = Object.entries(book.chests).sort((a, b) => b[1].n - a[1].n || (a[0] < b[0] ? -1 : 1))[0]
+  const seat = book.whySeat != null ? `"${book.whySeat}"` : 'THE SPREAD IS THE SHAPE (the tie law held)'
+  return `the deposit ring's own fold (v0.875.0): ${book.n} refusal(s) by ${botNames.length} bot(s) (${botNames.join('+')}), ${Object.keys(book.chests).length} chest(s), top [${top[0]}] x${top[1].n} - the why's seat: ${seat} - repeats ${book.repeats.length}`
+}
