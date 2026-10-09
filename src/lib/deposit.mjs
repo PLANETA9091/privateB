@@ -1293,20 +1293,46 @@ export const CHEST_WALK_SHORT_MS = 15000
 // returns 0 exactly as before, the grace is a separate, logged, bounded
 // decision the chain makes after the refusal.
 //
+// (v0.865.0) THE GRACE'S OWN DISTANCE LEVER - the far band's honest admission.
+// Face 136 (37894029206, the budget-floor book's first live read) named the
+// lever: 20 budget-floor rides F19=20 at d 23..29 avg 26, the FAR band 13 of
+// 20 - the floor dies on the longer approach, and the v0.303.0 pardon never
+// reached the class that owns the verdict now. The lever prices the far walk
+// by the hop's OWN ruler (chestWalkBudgetMs - the same curve the walk would
+// have received at entry, the one-ruler law) and admits it when the price
+// fits the borrow cap: at the face's band the ruler reads its 30s base floor
+// - a bounded, one-shot, logged borrow against the hard-kill margin, never a
+// new pin. Beyond the envelope (YARD_GRACE_FAR_DIST = 40, the approach-
+// threshold zone inside the pathfinder's radius 48) the doom guard stands
+// byte-identical; the short class keeps its flat 15s.
+export const YARD_GRACE_FAR_DIST = 40
+export const YARD_GRACE_FAR_CAP_MS = 30000
+
 // Pure. @param {object} [p]
 // @param {number} [p.dist] the live bot->chest distance (junk/null -> no proof)
 // @param {boolean} [p.graceUsed] the chain's grace already rode?
 // @param {number} [p.shortDist] the short-class boundary (default CHEST_WALK_SHORT_DIST)
 // @param {number} [p.graceMs] the granted budget (default CHEST_WALK_SHORT_MS)
+// @param {number} [p.farDist] the far-class envelope edge (default YARD_GRACE_FAR_DIST)
+// @param {number} [p.farCapMs] the far-class borrow cap (default YARD_GRACE_FAR_CAP_MS)
 // @returns {{grant: boolean, budgetMs: number, why: string}}
-export function yardGraceGate ({ dist = null, graceUsed = false, shortDist = CHEST_WALK_SHORT_DIST, graceMs = CHEST_WALK_SHORT_MS } = {}) {
+export function yardGraceGate ({ dist = null, graceUsed = false, shortDist = CHEST_WALK_SHORT_DIST, graceMs = CHEST_WALK_SHORT_MS, farDist = YARD_GRACE_FAR_DIST, farCapMs = YARD_GRACE_FAR_CAP_MS } = {}) {
   if (graceUsed) return { grant: false, budgetMs: 0, why: 'the grace already rode (one-shot per chain)' }
   const cap = Number.isFinite(shortDist) && shortDist > 0 ? shortDist : CHEST_WALK_SHORT_DIST
   const ms = Number.isFinite(graceMs) && graceMs > 0 ? graceMs : CHEST_WALK_SHORT_MS
+  const fCap = Number.isFinite(farCapMs) && farCapMs > 0 ? farCapMs : YARD_GRACE_FAR_CAP_MS
+  // the far class exists only BEYOND the short class - a junk or narrowing
+  // farDist falls back to the pinned default, the short class cannot be swallowed
+  const fDist = Number.isFinite(farDist) && farDist > cap ? farDist : YARD_GRACE_FAR_DIST
   const d = Number.isFinite(dist) && dist > 0 ? dist : null
   if (d == null) return { grant: false, budgetMs: 0, why: 'the distance reads junk - affordability unproven' }
-  if (d > cap) return { grant: false, budgetMs: 0, why: `d=${Math.round(d)} beyond the short class (${Math.round(cap)}) - the doom guard stands` }
-  return { grant: true, budgetMs: ms, why: 'the short walk is provably affordable' }
+  if (d <= cap) return { grant: true, budgetMs: ms, why: 'the short walk is provably affordable' }
+  if (d <= fDist) {
+    const farMs = chestWalkBudgetMs(d)
+    if (farMs > fCap) return { grant: false, budgetMs: 0, why: `d=${Math.round(d)} prices ${Math.round(farMs / 1000)}s beyond the grace cap (${Math.round(fCap / 1000)}s) - the doom guard stands` }
+    return { grant: true, budgetMs: farMs, why: `the far walk is priced by its own ruler (${Math.round(farMs / 1000)}s at d=${Math.round(d)}) - provably affordable` }
+  }
+  return { grant: false, budgetMs: 0, why: `d=${Math.round(d)} beyond the grace envelope (${Math.round(fDist)}) - the doom guard stands` }
 }
 
 // (v0.113.0) THE CHEST DOOM HALF-LIFE - a chest cell's walk-verdict lives 15s,
@@ -1509,6 +1535,11 @@ export async function depositToChest (bot, {
   // proven-affordable short walk (d<=16, the v0.56.0 class) may convert its
   // FIRST refusal into a bounded CHEST_WALK_SHORT_MS walk. A refused grace
   // logs the why and re-throws the byte-identical floor verdict.
+  // (v0.865.0) the gate's own distance lever: the FAR band (d<=40) prices its
+  // walk by the hop's own ruler - the same one-shot holder, the same floor
+  // arithmetic (effectiveWalkBudget returns 0 exactly as before), and the
+  // grant line prints the gate's own why (the short and the far classes read
+  // differently by design).
   const yardGrace = yardGraceHolder && typeof yardGraceHolder === 'object' ? yardGraceHolder : { used: false }
   const graceTopUp = (site) => {
     const dGrace = (() => { try { const d = bot.entity?.position?.distanceTo?.(chest.position); return Number.isFinite(d) ? d : null } catch { return null } })()
@@ -1518,7 +1549,7 @@ export async function depositToChest (bot, {
       return 0
     }
     yardGrace.used = true
-    log(`${tag} yard grace: the d=${Math.round(dGrace)} walk rides the one-shot ${Math.round(g.budgetMs / 1000)}s grace (${site}; the floor refused - the short walk is provably affordable)`)
+    log(`${tag} yard grace: the d=${Math.round(dGrace)} walk rides the one-shot ${Math.round(g.budgetMs / 1000)}s grace (${site}; the floor refused - ${g.why})`)
     return g.budgetMs
   }
   const walkOnce = async (label, { rearm = false } = {}) => {
