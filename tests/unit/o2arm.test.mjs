@@ -116,9 +116,11 @@ test('the join law whole - the latest start wins, the death resets, the order is
     death('F2', 'reset(-1)', 'active', 2)
   ]
   const b = o2ArmBook(o2Gap(lines), lines)
-  assert.deepEqual(b.perDeath.F2, { o2: 3, band: 'band' })
-  // an arm AFTER the death never joins it - the second death rides
-  // unarmed (the death reset: an arm never survives the death it joined)
+  // o2 3 rides the census's own critical edge (<=4, never forked)
+  assert.deepEqual(b.perDeath.F2, { o2: 3, band: 'critical' })
+  // the death reset: the arm never survives the death it joined - the
+  // first death joins its own latest start (o2 12, headroom), the arm
+  // is spent, and the second death joins only the NEW start (o2 9)
   const lines2 = [
     start('F2', 12),
     died('F2'),
@@ -130,7 +132,7 @@ test('the join law whole - the latest start wins, the death resets, the order is
   const b2 = o2ArmBook(o2Gap(lines2), lines2)
   assert.equal(b2.deaths, 2, 'the counts ride the death line - two deaths')
   assert.deepEqual(b2.perDeath.F2, { o2: 9, band: 'band' }, 'the map rides last-wins (the house wart)')
-  assert.deepEqual(b2.verdicts, { blind: 0, critical: 0, band: 1, headroom: 0, unarmed: 1 }, 'the first death rode no arm (the reset law), the second joined its own start')
+  assert.deepEqual(b2.verdicts, { blind: 0, critical: 0, band: 1, headroom: 1, unarmed: 0 }, 'the first death joined its own start (the latest start wins), the reset spent it, the second joined the new start')
 })
 
 test('the line-order law - a start after the death never joins it', () => {
