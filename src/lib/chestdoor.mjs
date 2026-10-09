@@ -687,3 +687,107 @@ export function chestBudgetFloorBookRow (book) {
   else seat = '- THE SPREAD IS THE SHAPE: no rider, no band owns the floor - the tie law held'
   return `${head} ${seat}`
 }
+
+// (v0.873.0) THE WALK FLOOR PREFLIGHT'S OWN BOOK - the gate's refusals own
+// WHO+WHERE fold. The v0.872.0 preflight (deposit.mjs) prices the visit's
+// own walk-floor verdict one gate earlier and refuses at the scan's own
+// level ('chest skip (walk floor preflight: d=NN prices NNs beyond the NNs
+// left - <the grace's own verdict>)') - the line rides the 'chest skip'
+// filter-key the fleet already carries, so the face logs will speak, but a
+// lens that cannot fold the class leaves the verdict unnamed (the
+// v0.866.0 lesson: bytes visible, seats unowned). The book folds the
+// preflight's own line shape: per bot (the WHO), the d/price/left bands
+// (the WHERE and the two sides of the affordability question), and the
+// clause's own majority (the grace's verdict names the seat). The seats:
+//   the grace already rode          -> THE ONE-SHOT'S OWN EXHAUST
+//   beyond the grace envelope (40)  -> THE ENVELOPE'S OWN DOOM GUARD
+//   beyond the grace cap            -> THE CAP'S OWN DOOM GUARD
+//   the distance reads junk         -> THE JUNK CELL'S OWN HONESTY
+// A tie or an unknown clause reads THE SPREAD IS THE SHAPE (the tie law).
+// Junk-safe: a non-matching line is not a refusal; a book with zero lines
+// prices nothing (the honest silence); the fence law stands (an
+// inconsistent book renders nothing).
+// @param {string[]} [lines] the fleet log's lines (junk tolerated)
+// @returns {null | {n: number, bots: object, d: object, priceS: object,
+//   leftS: object, clauses: object, seat: string|null, seatClause: string|null}}
+export function chestWalkPreflightBook (lines) {
+  if (!Array.isArray(lines)) return null
+  // the wrapper adds exactly ONE trailing ')' - the clause may or may not
+  // carry its own (the grace-rode clause ends '(one-shot per chain)' and
+  // rides the wrapper's paren as a second; the envelope's 'stands)' ends
+  // with the wrapper's alone) - so the fold strips exactly ONE tail paren.
+  const re = /\[([^\][]+)\] chest skip \(walk floor preflight: d=(-?\d+) prices (\d+)s beyond the (\d+)s left - (.+)$/
+  const bots = Object.create(null)
+  const clauses = Object.create(null)
+  const ds = []
+  const ps = []
+  const ls = []
+  for (const line of lines) {
+    if (typeof line !== 'string') continue
+    const m = re.exec(line.trim())
+    if (!m) continue
+    const bot = m[1]
+    const d = Number(m[2])
+    const p = Number(m[3])
+    const l = Number(m[4])
+    if (!bot || !Number.isFinite(d) || !Number.isFinite(p) || !Number.isFinite(l)) continue
+    bots[bot] = (bots[bot] || 0) + 1
+    ds.push(d)
+    ps.push(p)
+    ls.push(l)
+    const clause = m[5].replace(/\)$/, '').replace(/^\s*-\s*/, '')
+    clauses[clause] = (clauses[clause] || 0) + 1
+  }
+  const n = ds.length
+  if (n === 0) return null
+  const band = arr => ({ min: Math.min(...arr), max: Math.max(...arr), avg: Math.round(arr.reduce((a, b) => a + b, 0) / arr.length * 10) / 10 })
+  let seat = null
+  let seatClause = null
+  let best = 0
+  for (const [clause, count] of Object.entries(clauses)) {
+    if (count > best) { best = count; seatClause = clause } else if (count === best) { seatClause = null }
+  }
+  if (seatClause != null) {
+    if (/grace already rode/.test(seatClause)) seat = "THE ONE-SHOT'S OWN EXHAUST"
+    else if (/beyond the grace envelope/.test(seatClause)) seat = "THE ENVELOPE'S OWN DOOM GUARD"
+    else if (/beyond the grace cap/.test(seatClause)) seat = "THE CAP'S OWN DOOM GUARD"
+    else if (/distance reads junk/.test(seatClause)) seat = "THE JUNK CELL'S OWN HONESTY"
+    else seat = 'THE UNNAMED CLAUSE'
+  }
+  return { n, bots, d: band(ds), priceS: band(ps), leftS: band(ls), clauses, seat, seatClause }
+}
+
+/** The book's own consistency fence: n>=1, finite bands, >=1 bot, a clause
+ * majority named. A tie (seatClause null) is the honest spread - the row
+ * still renders with the tie's own seat. @returns {boolean} */
+export function chestWalkPreflightBookConsistent (book) {
+  if (!book || typeof book !== 'object') return false
+  if (!Number.isFinite(book.n) || book.n < 1) return false
+  for (const key of ['d', 'priceS', 'leftS']) {
+    const b = book[key]
+    if (!b || !Number.isFinite(b.min) || !Number.isFinite(b.max) || !Number.isFinite(b.avg)) return false
+    if (b.min > b.max) return false
+  }
+  const bots = Object.keys(book.bots || {})
+  if (bots.length === 0) return false
+  const clauses = Object.keys(book.clauses || {})
+  if (clauses.length === 0) return false
+  return true
+}
+
+/** The book's own row: 'the walk floor preflight's own book (v0.873.0):
+ * 5 refusal(s) by 2 bot(s), d 9..40 avg 26 - prices 30..30 s vs 1..4 s
+ * left - THE ONE-SHOT'S OWN EXHAUST: the clause's own majority'. Junk-safe:
+ * a junk candidate, an inconsistent book or a zero-refusal face renders
+ * nothing (the fence law, the honest silence). */
+export function chestWalkPreflightBookRow (book) {
+  if (!chestWalkPreflightBookConsistent(book)) return null
+  const botNames = Object.keys(book.bots || {}).sort()
+  const d = book.d
+  const ps = book.priceS
+  const ls = book.leftS
+  const seat = book.seatClause != null
+    ? `${book.seat}: ${book.seatClause}`
+    : 'THE SPREAD IS THE SHAPE: no clause owns the book - the tie law held'
+  return `the walk floor preflight's own book (v0.873.0): ${book.n} refusal(s) by ${botNames.length} bot(s) (${botNames.join('+')}), d ${d.min}..${d.max} avg ${d.avg} - prices ${ps.min}..${ps.max} s vs ${ls.min}..${ls.max} s left - ${seat}`
+}

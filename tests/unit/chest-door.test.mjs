@@ -191,7 +191,7 @@ test('THE CHEST DOOR BILL: the fence never renders a self-inconsistent shape', (
 
 test('WIRING: the decompose prints the chest door\'s own bot bill beside the bank docket', () => {
   const src = fs.readFileSync(new URL('../../scripts/fleet-mining/decompose.mjs', import.meta.url), 'utf8')
-  assert.match(src, /import \{ chestDoorBill, chestDoorBillRow, chestDoorDistance, chestDoorDistanceRow, chestNoPathRing, chestNoPathRingRow, chestNoPathRepeats, chestNoPathRepeatsRow, chestExcludeCandidate, chestExcludeCandidateRow, chestBudgetFloorBook, chestBudgetFloorBookRow \} from '\.\.\/\.\.\/src\/lib\/chestdoor\.mjs'/, 'the lens rides the import band (the v0.856.0 distance read + the v0.860.0 ring read + the v0.862.0 repeat book + the v0.864.0 budget-floor book join the same import)')
+  assert.match(src, /import \{ chestDoorBill, chestDoorBillRow, chestDoorDistance, chestDoorDistanceRow, chestNoPathRing, chestNoPathRingRow, chestNoPathRepeats, chestNoPathRepeatsRow, chestExcludeCandidate, chestExcludeCandidateRow, chestBudgetFloorBook, chestBudgetFloorBookRow, chestWalkPreflightBook, chestWalkPreflightBookRow \} from '\.\.\/\.\.\/src\/lib\/chestdoor\.mjs'/, 'the lens rides the import band (the v0.856.0 distance read + the v0.860.0 ring read + the v0.862.0 repeat book + the v0.864.0 budget-floor book join the same import)')
   assert.match(src, /const cdb = chestDoorBill\(lines\)/, 'the lens folds the face\'s own lines')
   assert.match(src, /if \(cdbRow\) console\.log\(`  \$\{cdbRow\}`\)/, "the door's own crowd prints beside the docket's own door rows")
   const lib = fs.readFileSync(new URL('../../src/lib/chestdoor.mjs', import.meta.url), 'utf8')
