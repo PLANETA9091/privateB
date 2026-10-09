@@ -22439,3 +22439,19 @@ Stage Summary:
 - Face 153 READ: wrong-door 42% (the anatomy split is DUE - THE LANE'S front per their fire-0440 NEXT, no same-file-same-front), head clause arm-silent (rides face 154 = 37992526192), no-crossing drown 1 watched.
 - v0.896.0 stands; 0.897.0 next free slot.
 - Next fire: (1) verdicts BY RUN ID: face 154 = 37992526192 (the head clause's first live face - 'head dry'/predatorO2 on the artifacts, re-mine decompose exit 0) + 37989960860 closeout. (2) SANDBOX FIX FIRST: the smelting.test.mjs hang (node 24.21.0) - the unit battery green BEFORE any push. (3) MY code-front candidates (the wrong-door split stays the lane's): the no-crossing drown watch byte, or the melee clock's third data point if a face delivers it. (4) 0.897.0 at bump time with origin re-verify MANDATORY. (5) dispatch law on clear (x2 poll BEFORE the POST). NO force-push, NO history rewrite. Identity: PLANETA9091
+
+---
+Task ID: cron30-20261010-0530
+Agent: PLANETA9091 (fire-0530)
+Task: ONE atomic improvement from OPEN FRONTS + version bump + tests + green run + commit/push + CI verdicts by run id + dispatch law + both worklogs.
+
+Work Log:
+- A: rebase clean at open (local == origin == 2ce7c59, zero lane pushes since fire-0500). Verdicts BY RUN ID at open: face 154 = 37992526192 (4d7869f, MY dispatch) QUEUED (an ACTIVE dispatch - no duplicate possible); 37992685645 (2ce7c59 worklog push) in_progress.
+- B: THE SANDBOX FLAKE ANATOMY (the fire-0500 hang named): tests/unit/smelting.test.mjs = 64/69 PASS, exactly FOUR walk-ladder tests hang ('dead-geometry pays 3 honest walks', 'a zero records WHY per machine', 'the nudge is ONE shot per visit', 'machines in reach never trigger the seek') - ALL await the multi-walk ladder (20s slices when visitDeadline == null); --test-timeout=5000 proves the other 65 tests clean. NO code delta (tree == CI-green), NO node delta (/usr/bin/node mtime 2026-09-07, v24.21.0 unchanged) - SANDBOX DRIFT, cause unnamed; root-cause hunt exceeded the time-box. Honest consequence: syntax 589/0 GREEN, local unit battery NOT green -> NO CODE FRONT this fire either, 0.897.0 NOT consumed (the version law holds; two fires now stand on this discipline).
+- C: face 154 POLLED (2 rounds, t+0..t+180s): unit 22 SUCCESS, unit 24 SUCCESS, integration SUCCESS, Big fleet run IN PROGRESS (600s) at poll close - THE HEAD CLAUSE'S FIRST LIVE FACE still riding; the verdict + the artifact read ('head dry'/predatorO2 + the re-mine decompose) ride NEXT FIRE BY RUN ID.
+- D: dispatch law: face 154 active -> NO dispatch (the max-one-active law held; no duplicate).
+
+Stage Summary:
+- The sandbox flake is now a NAMED shape: 4 walk-ladder tests, 65 clean, zero code/node delta - next fire's first probe: run-tests.mjs flags diff (force-exit?), then the walk-slice/deadline hypothesis (the four tests' maxSeconds absence), then bisect via bun runtime.
+- v0.896.0 stands (origin re-verified 2ce7c59 tip); 0.897.0 next free.
+- Next fire: (1) verdicts BY RUN ID: face 154 = 37992526192 MUST be terminal -> artifacts -> re-mine (decompose exit 0) -> the head clause's first live row (a DRY predator seat names the shore's own quiet; a WET seat the in-water quiet) + 37992685645 closeout. (2) the sandbox 4-test walk hang probe (above). (3) the wrong-door split stays THE LANE'S front; my candidates unchanged (the no-crossing drown watch, the melee clock's third point). (4) 0.897.0 at bump time with origin re-verify MANDATORY. (5) dispatch law on clear (x2 poll BEFORE the POST). NO force-push, NO history rewrite. Identity: PLANETA9091
