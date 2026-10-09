@@ -27,17 +27,26 @@ const FACE128 = [
 ]
 
 assert.deepEqual(
-  (() => { const b = thirdKindSplit(FACE128); return { n: b.n, timed: b.timed, unplaced: b.unplaced, unparsed: b.unparsed, clockEnd: b.clockEnd, lateShare: b.lateShare, early: b.thirds.early.n, mid: b.thirds.mid.n, late: b.thirds.late.n, midKinds: b.thirds.mid.kinds, lateKinds: b.thirds.late.kinds, earlyKinds: b.thirds.early.kinds } })(),
-  { n: 9, timed: 9, unplaced: 0, unparsed: 0, clockEnd: 961, lateShare: 56, early: 0, mid: 4, late: 5, midKinds: { drown: 3, mob: 1 }, lateKinds: { mob: 5 }, earlyKinds: {} },
+  (() => { const b = thirdKindSplit(FACE128); return { n: b.n, timed: b.timed, unplaced: b.unplaced, unparsed: b.unparsed, clockEnd: b.clockEnd, lateShare: b.lateShare, early: b.thirds.early.n, mid: b.thirds.mid.n, late: b.thirds.late.n, midKinds: b.thirds.mid.kinds, lateKinds: b.thirds.late.kinds, earlyKinds: b.thirds.early.kinds, midAtk: b.thirds.mid.attackers, lateAtk: b.thirds.late.attackers } })(),
+  { n: 9, timed: 9, unplaced: 0, unparsed: 0, clockEnd: 961, lateShare: 56, early: 0, mid: 4, late: 5, midKinds: { drown: 3, mob: 1 }, lateKinds: { mob: 5 }, earlyKinds: {}, midAtk: { Zombie: 1 }, lateAtk: { Drowned: 4, Skeleton: 1 } },
   'face-128 verbatim fold'
 )
 
-// The row renders the verbatim seat: mob owns the face's end.
+// The row renders the verbatim seat: mob owns the face's end, the family
+// fully named - the attacker's own word prices the water-edge storm.
 assert.match(
   thirdKindRow(thirdKindSplit(FACE128)),
-  /^the late third's own kind \(v0\.854\.0\): early 0 \(none\) \/ mid 4 \(drown 3, mob 1\) \/ late 5 \(mob 5\) - the late third owns 56% of 9 timed death\(s\) - THE LATE KIND'S OWN SEAT: mob owns the face's end \(5 of 5\)$/,
+  /^the late third's own kind \(v0\.855\.0\): early 0 \(none\) \/ mid 4 \(drown 3, mob 1 \(Zombie 1\)\) \/ late 5 \(mob 5 \(Drowned 4, Skeleton 1\)\) - the late third owns 56% of 9 timed death\(s\) - THE LATE KIND'S OWN SEAT: mob owns the face's end \(5 of 5\) - the attacker's own word: Drowned 4 of 5$/,
   'face-128 verbatim row'
 )
+
+// (v0.855.0) The unnamed mob rides the bare kind honestly: no attacker
+// detail in the parens, no attacker word in the seat, the fence holds.
+const unnamed = [HB(900), 'F1 [F1] died - respawning (cause: server: was slain [kind=mob] | inferred: unknown)']
+const ub = thirdKindSplit(unnamed)
+assert.equal(ub.thirds.late.kinds.mob, 1)
+assert.equal(Object.keys(ub.thirds.late.attackers).length, 0, 'the missing attacker word never invents a name')
+assert.match(thirdKindRow(ub), /late 1 \(mob 1\) - the late third owns 100% of 1 timed death\(s\) - THE LATE KIND'S OWN SEAT: mob owns the face's end \(1 of 1\)$/, 'the unnamed mob row')
 
 // The boundary second belongs to the LATER third (t < thirdS strict):
 // clockEnd 961 -> 2*thirdS = 640.67 - ts 640 -> mid, ts 961 -> late.
@@ -95,6 +104,8 @@ assert.equal(thirdKindRowConsistent(good), true, 'the face shape is consistent')
 assert.equal(thirdKindRowConsistent({ ...good, timed: 8 }), false, 'thirds sum break')
 assert.equal(thirdKindRowConsistent({ ...good, n: 10 }), false, 'n vs timed+unplaced break')
 assert.equal(thirdKindRowConsistent({ ...good, thirds: { ...good.thirds, late: { ...good.thirds.late, kinds: { mob: 4 } } } }), false, 'kinds sum break')
+assert.equal(thirdKindRowConsistent({ ...good, thirds: { ...good.thirds, late: { ...good.thirds.late, attackers: { Drowned: 6 } } } }), false, 'attackers exceed the mob count')
+assert.equal(thirdKindRowConsistent({ ...good, thirds: { ...good.thirds, late: { ...good.thirds.late, attackers: { Drowned: 4, Skeleton: 1 } } } }), true, 'the face attackers pass')
 assert.equal(thirdKindRowConsistent({ ...good, lateShare: 55 }), false, 'share break')
 assert.equal(thirdKindRowConsistent({ ...good, timed: 0 }), false, 'zero timed break')
 assert.equal(thirdKindRowConsistent({ ...good, thirds: null }), false, 'missing thirds break')
