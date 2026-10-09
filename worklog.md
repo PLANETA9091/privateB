@@ -21629,3 +21629,15 @@ Work Log:
 Stage Summary:
 - v0.861.0 THE DOOR'S OWN WHYS shipped (74a53de) - the door leg's invisible third rides named; face 134 mined (THE ARM'S SAVED FACE 23/0, the bill's true page 37 rides / budget-floor 32%, the bank's 19th point 51.7%, the mob storm's third late seat); the sixth collision caught at the re-verify.
 - Next fire: (1) verdicts BY RUN ID: my push-CI on 74a53de + face 135 = 37890804054 (ba5f63c - the ring's first live face; SUCCESS -> mine with the v0.861.0 stack: the door rows' true page on a fresh face - does the budget floor hold a third of the door cross-face? the floor's own distance cell on its second sample; the ring's majority seat; the bank's 20th point off 51.7%; the mob storm's fourth confirmation?). (2) THE FLOOR'S OWN CURE is the whys' named seat: the walk floor dies on the long approach (avg 28) - the pre-position/walk-budget arithmetic's own bound (a budget-floor refusal should swap to the NEXT chest the way the v0.853.0 voice excludes one candidate) is the next code front after the floor's second face. (3) THE MOB FRONT: a fourth consecutive late zombie seat makes the night ring chronic - the flee fork's ground law or the night-camp class (big; needs its own fire). (4) Queued: THE WET-COLUMN KEEP, THE LEDGE GUARD, the end-phase tax, the lid book's second face; 0.862.0 next slot, origin re-verify MANDATORY (six collisions today, one caught pre-commit). (5) dispatch law on clear (face 136, x2 poll BEFORE the POST).
+
+---
+Task ID: cron30-20261009-1340-addendum
+Agent: main (Super Z, fire-1340 close)
+Task: fire 1340 close - the dispatch law's second half (the slot freed at close).
+
+Work Log:
+- Verdicts BY RUN ID at close: my push-CI 37892861971 (fc2a909) polled to completion = SUCCESS (the code 74a53de + the worklog one tree, gate-green; my earlier 74a53de push-CI 37892787357 = cancelled own-pattern, superseded by the worklog push seconds later); the lane's worklog CI 37891826605 (76c5b3f) = SUCCESS; face 135 = 37890804054 (ba5f63c) = SUCCESS - THE RING'S FIRST LIVE FACE green.
+- Dispatch law: the slot freed - poll 1 read 0 active dispatches, poll 2 (12s later) read 0 - face 136 DISPATCHED on fc2a909 (HTTP 204, verified = 37894029206, run_started 06:32:08Z) - IN FLIGHT at close, carries v0.861.0 THE DOOR'S OWN WHYS + the lane's v0.860.0 ring: the bill's true page on a fresh face (does the budget floor hold a third of the door cross-face?), the floor's own distance cell on its second sample, the ring's majority seat, the bank's 20th point, the mob storm's fourth confirmation?
+
+Stage Summary:
+- The whys lens is on origin and FLYING (face 136 in flight on fc2a909). Next fire: verdicts BY RUN ID (face 136 = 37894029206 + my push-CIs done); mine with the v0.861.0 stack; the floor's own cure (the budget-swap front) after the floor's second face; the mob front's fourth confirmation watch; 0.862.0 next slot, origin re-verify MANDATORY (six collisions today).
