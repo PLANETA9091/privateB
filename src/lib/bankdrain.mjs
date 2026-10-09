@@ -36,6 +36,7 @@
 // nothing; non-array/string input reads the empty book.
 
 import { classifyBankReason } from './bankfail.mjs'
+import { NIGHT_WALK_START } from './nightsafety.mjs'
 
 // The stagger arm: 'F2 final bank: staggered +56s'
 const STAGGER_RE = /^(F\d+) final bank: staggered \+(\d+)s$/
@@ -265,4 +266,110 @@ export function finalBankDrainRow (book) {
   if (book.cut > 0) parts.push(`cut ${book.cut}`)
   if (parts.length === 0) return null
   return `the final bank's own drain (v0.882.0): ${parts.join(', ')} - the cut prices the chains the clock ended first`
+}
+
+// (v0.886.0) THE FINAL BANK'S OWN HOLD CLOCK - the night-held seats' own
+// tod join (the drain's own NEXT BYTE the face-146 crater named:
+// night-held 7 - the hold's own clock unread since the v0.140.1 gate
+// shipped). Every hold line rides the gate's own tod (NIGHT_RE, the
+// family's own emitter above - never re-spelled); the gate's own edge
+// is nightsafety's own NIGHT_WALK_START (the reuse law - the
+// walk-forbidden clock's own constant, imported, never forked). THE
+// GAP: tod - NIGHT_WALK_START = the ticks the chain turned PAST the
+// walk gate - the bank-before-night lever's own price (the stagger's
+// +Ns arithmetic rides the same budget: the chains must turn that much
+// earlier to beat the gate). The emitter's tod=-1 skin (the bot's own
+// clock missing at the hold) is the blind skin: the seat counts, the
+// gap judges nothing (the v0.884.0 blind-skin idiom - the sensor's own
+// absence never invents a number). The fence law: the seats must be
+// exactly the perHold fold's own image - every held line lands a row,
+// every gap reads tod against the gate's own constant, the sums agree;
+// an inconsistent book prices nothing (the row stays silent).
+
+const emptyHoldBook = () => ({
+  held: 0,
+  blind: 0,
+  gap: { count: 0, min: null, max: null, sum: 0 },
+  perHold: []
+})
+
+/**
+ * Fold the night-held seats' own hold clock. Returns the totals book
+ * (perHold riding the bot, the tod, the gate gap in ticks or null) -
+ * never null, never invented.
+ */
+export function finalBankHoldBook (lines) {
+  const book = emptyHoldBook()
+  if (!Array.isArray(lines)) return book
+  for (const line of lines) {
+    if (typeof line !== 'string') continue
+    const m = NIGHT_RE.exec(line)
+    if (!m) continue
+    const tod = Number(m[2])
+    book.held++
+    if (tod < 0) {
+      book.blind++
+      book.perHold.push({ bot: m[1], tod, gap: null })
+      continue
+    }
+    const gap = tod - NIGHT_WALK_START
+    book.gap.count++
+    book.gap.sum += gap
+    if (book.gap.min === null || gap < book.gap.min) book.gap.min = gap
+    if (book.gap.max === null || gap > book.gap.max) book.gap.max = gap
+    book.perHold.push({ bot: m[1], tod, gap })
+  }
+  return book
+}
+
+/**
+ * The hold clock's own fence: the totals must be exactly the perHold
+ * fold's own image; every non-blind gap must read tod against the
+ * gate's own constant. An inconsistent book prices nothing.
+ */
+export function finalBankHoldConsistent (book) {
+  if (!book || typeof book !== 'object' || !Array.isArray(book.perHold)) return false
+  const nonNeg = (v) => Number.isInteger(v) && v >= 0
+  if (!nonNeg(book.held) || !nonNeg(book.blind)) return false
+  if (!nonNeg(book.gap.count) || !nonNeg(book.gap.sum)) return false
+  if (book.gap.count > 0 && (book.gap.min === null || book.gap.max === null)) return false
+  if (book.gap.count === 0 && (book.gap.min !== null || book.gap.max !== null || book.gap.sum !== 0)) return false
+  if (book.held !== book.perHold.length) return false
+  let held = 0, blind = 0, count = 0, sum = 0
+  let min = null, max = null
+  for (const h of book.perHold) {
+    if (!h || typeof h !== 'object' || typeof h.bot !== 'string') return false
+    if (!Number.isInteger(h.tod)) return false
+    held++
+    if (h.tod < 0) {
+      if (h.gap !== null) return false
+      blind++
+      continue
+    }
+    if (!Number.isInteger(h.gap) || h.gap !== h.tod - NIGHT_WALK_START) return false
+    count++
+    sum += h.gap
+    if (min === null || h.gap < min) min = h.gap
+    if (max === null || h.gap > max) max = h.gap
+  }
+  return held === book.held && blind === book.blind && count === book.gap.count &&
+    sum === book.gap.sum && min === book.gap.min && max === book.gap.max
+}
+
+/**
+ * The hold clock's own row (the v0.881.0 single-seat idiom): the held
+ * mass, the gate gap's own spread, the blind class rides its own
+ * count. An inconsistent book prices nothing; a face with no holds
+ * reads the honest silence.
+ */
+export function finalBankHoldRow (book) {
+  if (!finalBankHoldConsistent(book)) return null
+  if (book.held === 0) return null
+  const parts = [`held ${book.held}`]
+  if (book.gap.count > 0) {
+    const avg = Math.round(book.gap.sum / book.gap.count)
+    parts.push(`gate gap ${book.gap.min}..${book.gap.max} ticks (avg ${avg})`)
+  }
+  if (book.blind > 0) parts.push(`blind ${book.blind}`)
+  return `the final bank's own hold clock (v0.886.0): ${parts.join(', ')} - the bank-before-night lever prices the walk gate's own edge (${NIGHT_WALK_START})`
 }

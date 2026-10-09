@@ -31,6 +31,7 @@ import { walkFailCensus, walkFailBotBill, walkFailBotBillRow, walkFailRiders, wa
 import { decideWeather } from '../../src/lib/decideweather.mjs' // (v0.689.0) THE DECIDE WEATHER - the A* starvation's own sky read (the starve's ents/rss at its own anchor)
 import { hotspotCensus, hotspotBands, hotSpotSeat, hotSpotSeatRow, hotSpotRiders, hotSpotRidersRow } from '../../src/lib/hotspot.mjs' // (v0.419.0 + the v0.421.0 band read) the failure geometry's cross-lane read; (v0.794.0) WHICH spot owns the starvation book
 import { climbOutCensus, climbFailVerdict, climbFailVerdictRow, climbFailRiders, climbFailRidersRow, climbStageBill, climbStageBillRow, climbStageRiders, climbStageRidersRow } from '../../src/lib/climbout.mjs' // (v0.420.0) the vertical doom's verdict read; (v0.779.0) WHICH fail-why owns the climb book; (v0.781.0) WHICH rung owns the ladder
+import { finalBankHoldBook, finalBankHoldRow } from '../../src/lib/bankdrain.mjs' // (v0.886.0) THE FINAL BANK'S OWN HOLD CLOCK - the night-held seats' own tod join (the face-146 crater's own NEXT BYTE: night-held 7, the hold's own clock unread since v0.140.1): every hold line rides the family's own NIGHT_RE, the gate's own edge is nightsafety's own NIGHT_WALK_START (the reuse law, never forked), the gap = the ticks the chain turned past the walk gate - the bank-before-night lever's own price; the emitter's tod=-1 skin is the blind class (the seat counts, the gap judges nothing); the fence law: an inconsistent book prices nothing
 import { finalBankDrainBook, finalBankDrainRow } from '../../src/lib/bankdrain.mjs' // (v0.882.0) THE FINAL BANK'S OWN DRAIN - the late-third drain's own book: the end-phase's pieces (endphase's stagger maths, bankfail's zero-why ledger, nightsafety's hold gate) priced, the DRAIN as one fold never - the per-bot verdict join (the last verdict wins whole, the hold releases, the cut prices the chains the clock ended first; the reuse law: the zero reasons ride bankfail's own classifyBankReason)
 import { bankFailCensus, bankZeroWhySeat, bankZeroWhySeatRow, bankZeroWhyRiders, bankZeroWhyRidersRow } from '../../src/lib/bankfail.mjs' // (v0.411.0) the bank lane's own decide/no-path ledger; (v0.807.0) WHICH why owns the zero-delivery book
 import { chestDoorBill, chestDoorBillRow, chestDoorDistance, chestDoorDistanceRow, chestNoPathRing, chestNoPathRingRow, chestNoPathRepeats, chestNoPathRepeatsRow, chestExcludeCandidate, chestExcludeCandidateRow, chestBudgetFloorBook, chestBudgetFloorBookRow, chestWalkPreflightBook, chestWalkPreflightBookRow } from '../../src/lib/chestdoor.mjs' // (v0.852.0) the chest door's own bot bill - the unreachable rides folded per bot per chest (the WHO+WHERE the docket's aggregates rode unnamed); (v0.856.0) + the decide rides' own distance (the walk-budget front's read); (v0.860.0) + the no-path ring's own reach (the refusals' d bands - the ring's edge or the geometry); (v0.861.0) + the no-path refusals' own per-chest repeat fold (the stuck chest's own book - the exclude machinery's own candidates); (v0.864.0) + the budget-floor rides' own per-bot per-chest fold (the budget floor's own book - the floor's WHO+WHERE); (v0.869.0) + the exclude's own candidate (the repeats book's own top repeat priced - the swap list vs the memory hole, the exclude-one-candidate bound)
@@ -2662,6 +2663,12 @@ if (openDeaf.openDeaf.length > 0) {
   const dbk = finalBankDrainBook(lines)
   const dbkRow = finalBankDrainRow(dbk)
   if (dbkRow) console.log(`  ${dbkRow}`)
+  // (v0.886.0) the hold clock's own site - beside the drain's own row
+  // (the night-held seats' tod join, the bank-before-night lever's
+  // own price; the fence law: an inconsistent book prices nothing)
+  const hbk = finalBankHoldBook(lines)
+  const hbkRow = finalBankHoldRow(hbk)
+  if (hbkRow) console.log(`  ${hbkRow}`)
 }
 
 // (v0.413.0) THE DROP-WALK LENS - the vein sweep's per-fail drop-walk line.

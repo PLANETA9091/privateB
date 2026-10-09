@@ -13,7 +13,9 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { BANK_ZERO_RE, classifyBankReason } from '../../src/lib/bankfail.mjs'
+import { NIGHT_WALK_START } from '../../src/lib/nightsafety.mjs'
 import { finalBankDrainBook, finalBankDrainConsistent, finalBankDrainRow } from '../../src/lib/bankdrain.mjs'
+import { finalBankHoldBook, finalBankHoldConsistent, finalBankHoldRow } from '../../src/lib/bankdrain.mjs'
 
 // the emitters' own grammar, byte for byte (testbed/fleet19.mjs lines
 // 3346, 3233, 3753, 3766, 3710, 3209, 3755)
@@ -179,4 +181,106 @@ test('the decompose WIRING pins - the import band + the print site ride the byte
   // the print site rides beside the bank-fail census's own block
   assert.ok(src.includes("const dbk = finalBankDrainBook(lines)"), 'the book call rides the print site')
   assert.ok(src.includes("finalBankDrainRow(dbk)"), 'the row renders at the site')
+  // (v0.886.0) the hold clock rides its own band line + its own site
+  assert.ok(src.includes("import { finalBankHoldBook, finalBankHoldRow } from '../../src/lib/bankdrain.mjs'"), 'the hold clock rides its own band line')
+  assert.ok(src.includes('const hbk = finalBankHoldBook(lines)'), 'the hold book call rides the print site')
+  assert.ok(src.includes('finalBankHoldRow(hbk)'), 'the hold row renders at the site')
+})
+
+// (v0.886.0) THE HOLD CLOCK - the night-held seats' own tod join. The
+// synthetic lines ride the emitter's own grammar byte for byte; the
+// face-146 battery rides the artifact's own hold lines verbatim.
+
+test('the hold clock grammar pin - the gate\'s own edge by import, the reuse law', () => {
+  // the gate's own edge is nightsafety's own constant (never forked)
+  assert.equal(NIGHT_WALK_START, 12400)
+  // the hold line rides the family's own emitter shape
+  const b = finalBankHoldBook([night('F1', 12500)])
+  assert.equal(b.held, 1)
+  assert.deepEqual(b.perHold[0], { bot: 'F1', tod: 12500, gap: 100 })
+})
+
+test('the gap law - the ticks past the walk gate, the spread\'s own image', () => {
+  const b = finalBankHoldBook([
+    night('F1', 12420), // gap 20
+    night('F2', 12410), // gap 10 - the min
+    night('F3', 12700) // gap 300 - the max
+  ])
+  assert.equal(b.held, 3)
+  assert.equal(b.gap.min, 10)
+  assert.equal(b.gap.max, 300)
+  assert.equal(b.gap.sum, 330)
+  assert.equal(b.gap.count, 3)
+  assert.ok(finalBankHoldConsistent(b))
+  const row = finalBankHoldRow(b)
+  assert.ok(row.includes('the final bank\'s own hold clock (v0.886.0)'))
+  assert.ok(row.includes('held 3, gate gap 10..300 ticks (avg 110)'))
+  assert.ok(row.includes("the walk gate's own edge (12400)"))
+})
+
+test('the blind skin - the emitter\'s tod=-1 judges nothing, the seat counts', () => {
+  const b = finalBankHoldBook([
+    night('F1', -1), // the bot's own clock missing at the hold
+    night('F2', 12434)
+  ])
+  assert.equal(b.held, 2)
+  assert.equal(b.blind, 1, 'the blind seat counts, the gap judges nothing')
+  assert.equal(b.gap.count, 1)
+  assert.deepEqual(b.perHold[0], { bot: 'F1', tod: -1, gap: null })
+  assert.ok(finalBankHoldConsistent(b))
+  const row = finalBankHoldRow(b)
+  assert.ok(row.includes('blind 1'))
+  assert.ok(row.includes('gate gap 34..34 ticks (avg 34)'))
+})
+
+test('the face-146 battery - the artifact\'s own hold lines, byte for byte', () => {
+  const lines = [
+    'F12 final bank deferred: night (tod=12434) - the pocket rides out the dark alive (the v0.140.1 night hold)',
+    'F14 final bank deferred: night (tod=12452) - the pocket rides out the dark alive (the v0.140.1 night hold)',
+    'F1 final bank deferred: night (tod=12451) - the pocket rides out the dark alive (the v0.140.1 night hold)',
+    'F18 final bank deferred: night (tod=12448) - the pocket rides out the dark alive (the v0.140.1 night hold)',
+    'F7 final bank deferred: night (tod=12534) - the pocket rides out the dark alive (the v0.140.1 night hold)',
+    'F5 final bank deferred: night (tod=12538) - the pocket rides out the dark alive (the v0.140.1 night hold)',
+    'F6 final bank deferred: night (tod=12676) - the pocket rides out the dark alive (the v0.140.1 night hold)'
+  ]
+  const b = finalBankHoldBook(lines)
+  assert.ok(finalBankHoldConsistent(b))
+  assert.equal(b.held, 7)
+  assert.equal(b.blind, 0)
+  assert.equal(b.gap.min, 34, 'F12\'s chain turned 34 ticks past the gate')
+  assert.equal(b.gap.max, 276, 'F6\'s chain rode 276 ticks (13.8s) into the dark')
+  assert.equal(b.gap.sum, 733)
+  const row = finalBankHoldRow(b)
+  assert.ok(row.includes('held 7, gate gap 34..276 ticks (avg 105)'))
+  assert.ok(row.includes("the bank-before-night lever prices the walk gate's own edge (12400)"))
+})
+
+test('the hold clock fence battery - the tampered books price nothing', () => {
+  const b = finalBankHoldBook([night('F1', 12500), night('F2', -1)])
+  assert.equal(finalBankHoldConsistent(b), true)
+  assert.equal(finalBankHoldConsistent({ ...b, held: 5 }), false)
+  assert.equal(finalBankHoldConsistent({ ...b, blind: 2 }), false)
+  assert.equal(finalBankHoldConsistent({ ...b, gap: { ...b.gap, sum: 99 } }), false)
+  assert.equal(finalBankHoldConsistent({ ...b, gap: { ...b.gap, count: 2 } }), false)
+  assert.equal(finalBankHoldConsistent({ ...b, perHold: [...b.perHold, { bot: 'F9', tod: 12500, gap: 100 }] }), false)
+  assert.equal(finalBankHoldConsistent({ ...b, perHold: [{ ...b.perHold[0], gap: 999 }, b.perHold[1]] }), false, 'a gap that lies against the gate\'s own constant breaks the fence')
+  assert.equal(finalBankHoldConsistent({ ...b, perHold: [{ ...b.perHold[0], tod: -1 }, b.perHold[1]] }), false, 'a blind tod carrying a gap breaks the fence')
+  assert.equal(finalBankHoldConsistent(null), false)
+  assert.equal(finalBankHoldConsistent({}), false)
+  assert.equal(finalBankHoldRow({ ...b, held: 5 }), null)
+})
+
+test('the hold row\'s honest silence - no holds, the junk, the empty book', () => {
+  assert.equal(finalBankHoldRow(finalBankHoldBook([])), null)
+  assert.equal(finalBankHoldBook('not an array').held, 0)
+  assert.equal(finalBankHoldBook(null).held, 0)
+  assert.equal(finalBankHoldRow(null), null)
+  assert.equal(finalBankHoldRow(undefined), null)
+  assert.equal(finalBankHoldRow({}), null)
+  const junk = finalBankHoldBook([null, 42, 'final bank deferred: night', 'F1 died - respawning', undefined, {}])
+  assert.equal(junk.held, 0)
+  // junk between the holds rides nothing
+  const b = finalBankHoldBook([null, night('F1', 12434), 42, 'junk line', night('F2', 12676)])
+  assert.equal(b.held, 2)
+  assert.ok(finalBankHoldConsistent(b))
 })
