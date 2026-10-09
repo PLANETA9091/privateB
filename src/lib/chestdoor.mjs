@@ -16,9 +16,30 @@
 // ride carries no position (the walk-back verdict, the WHERE honestly absent).
 //
 // The verdict split rides the message's own words (no new grammar): 'No path'
-// -> noPath, 'Took to long' -> decide, else other.
+// -> noPath, 'Took to long' -> decide, 'budget exhausted (walk floor)' ->
+// budgetFloor (v0.861.0 - the door's own second seat), else other.
 //
 // A chest-door-free face reads the honest silence (null).
+//
+// (v0.861.0) THE DOOR'S OWN WHYS - the bill's own blind spot repaired (the
+// v0.851.0 lesson's own shape: the lens's filter hid the class it priced).
+// Face 134 (run 37886112038): the docket's door leg read chest unreachable
+// 39 of 43 (90.7%, the class's third face owning the leg) while the bill
+// read only 24 rides with verdicts no-path 23 / other 1 - the hop regex's
+// own '\([^)]+\)$' capture REJECTED the nested-paren why bytes (the budget
+// floor's own message carries a second paren: 'chest unreachable (budget
+// exhausted (walk floor))' - 10 hop rides + the bank zero's 2 + the bank
+// fallback's 2 never parsed), and the verdict grammar lumped the survivors
+// in 'other'. The repair: the hop capture reads greedy ('(.+)'), the bank
+// capture reads non-greedy (the yard cell survives), the bank ZERO shape
+// ('F1 bank: 0 (chest unreachable (...))' - the deposit family's own
+// unreachable byte) joins the fold, and the verdict split names the budget
+// floor (the door's own second seat). The bill's true face-134 page: 37
+// rides - no-path 23 (62%) / budget-floor 12 (32%) - the class the 'other
+// 1' byte rode unnamed owns a THIRD of the door. The fallback family's own
+// bytes ('bank fallback: none (...)') stay with the docket's fallback leg
+// (the bill reads the walk rides, the docket counts the visit-line
+// outcomes - the join is named in the worklog, not forced here).
 //
 // Pure: reads, never mutates. Zero fleet wiring (mining-surface only, the
 // v0.379/.../v0.851.0 precedent).
@@ -26,15 +47,27 @@
 
 // The hop ride's own byte: the bot token, the chest's position, the distance,
 // the unreachable verdict with its message.
-const CHEST_DOOR_HOP_RE = /^(F\d+) \[F\d+\] hop: chest at \[(-?\d+),(-?\d+),(-?\d+)\] d=(\d+) zero: chest unreachable \(([^)]+)\)$/
+// (v0.861.0) the hop capture reads GREEDY - the why bytes carry nested
+// parens ('budget exhausted (walk floor)', 'walk to chest (retry): timeout
+// after Nms') and the old '[^)]+' capture rejected every one of them (the
+// lens's own blind spot - face 134's 11 invisible rides).
+const CHEST_DOOR_HOP_RE = /^(F\d+) \[F\d+\] hop: chest at \[(-?\d+),(-?\d+),(-?\d+)\] d=(\d+) zero: chest unreachable \((.+)\)$/
 
 // The bank ride's own byte: no position (the WHERE absent), the optional
-// blocks-from-yard cell and the walk-back tail.
-const CHEST_DOOR_BANK_RE = /^(F\d+) bank: chest unreachable \(([^)]+)\)(?: \((\d+) blocks from yard\))?(?: - walking back)?$/
+// blocks-from-yard cell and the walk-back tail. The message capture reads
+// NON-GREEDY so the yard cell survives a nested-paren message.
+const CHEST_DOOR_BANK_RE = /^(F\d+) bank: chest unreachable \((.+?)\)(?: \((\d+) blocks from yard\))?(?: - walking back)?$/
+
+// The bank ZERO ride's own byte (v0.861.0): the deposit family's own
+// unreachable verdict - the walk died inside the deposit attempt and the
+// zero line names the why. No position, no yard cell (the bank family's
+// own shape). Greedy capture: the message's own nested parens stay whole.
+const CHEST_DOOR_BANK_ZERO_RE = /^(F\d+) bank: 0 \(chest unreachable \((.+)\)\)$/
 
 function verdictOf (msg) {
   if (/No path/.test(msg)) return 'noPath'
   if (/Took to long/.test(msg)) return 'decide'
+  if (/budget exhausted \(walk floor\)/.test(msg)) return 'budgetFloor'
   return 'other'
 }
 
@@ -51,7 +84,7 @@ function verdictOf (msg) {
  *   chests: Object<string, {n: number, bots: Object<string, number>}>,
  *   distinctChests: number,
  *   sharedChests: number,
- *   verdicts: {noPath: number, decide: number, other: number}}}
+ *   verdicts: {noPath: number, decide: number, budgetFloor: number, other: number}}}
  *   null when the face rode no chest-unreachable verdict (the honest silence).
  */
 export function chestDoorBill (lines) {
@@ -63,7 +96,7 @@ export function chestDoorBill (lines) {
     n: 0, hop: { n: 0 }, bank: { n: 0 },
     byBot: {}, repeats: {},
     chests: {}, distinctChests: 0, sharedChests: 0,
-    verdicts: { noPath: 0, decide: 0, other: 0 }
+    verdicts: { noPath: 0, decide: 0, budgetFloor: 0, other: 0 }
   }
   for (const line of list) {
     if (typeof line !== 'string') continue
@@ -87,6 +120,15 @@ export function chestDoorBill (lines) {
       const bot = bank[1]
       bill.byBot[bot] = (bill.byBot[bot] || 0) + 1
       bill.verdicts[verdictOf(bank[2])]++
+      continue
+    }
+    const bankZero = line.match(CHEST_DOOR_BANK_ZERO_RE)
+    if (bankZero) {
+      bill.n++
+      bill.bank.n++
+      const bot = bankZero[1]
+      bill.byBot[bot] = (bill.byBot[bot] || 0) + 1
+      bill.verdicts[verdictOf(bankZero[2])]++
     }
   }
   if (bill.n === 0) return null
@@ -121,8 +163,8 @@ export function chestDoorBillRow (bill) {
   const byBotSum = Object.values(bill.byBot || {}).reduce((a, b) => a + b, 0)
   if (byBotSum !== bill.n) return null
   const v = bill.verdicts || {}
-  if (!finite(v.noPath) || !finite(v.decide) || !finite(v.other)) return null
-  if (v.noPath + v.decide + v.other !== bill.n) return null
+  if (!finite(v.noPath) || !finite(v.decide) || !finite(v.budgetFloor) || !finite(v.other)) return null
+  if (v.noPath + v.decide + v.budgetFloor + v.other !== bill.n) return null
   let chestSum = 0
   for (const chest of Object.values(bill.chests || {})) {
     if (!finite(chest.n) || chest.n <= 0) return null
@@ -139,8 +181,8 @@ export function chestDoorBillRow (bill) {
   const chestCell = bill.distinctChests > 0
     ? `chests ${bill.distinctChests} distinct${shared.length > 0 ? ` (shared ${shared.length}: ${shared.map(([pos, c]) => `[${pos}] x${c.n} ${Object.keys(c.bots).sort().join('+')}`).join(', ')})` : ', none shared'}`
     : 'chests none (the hop rides absent)'
-  const verdictCell = `verdicts no-path ${v.noPath} / decide ${v.decide}${v.other > 0 ? ` / other ${v.other}` : ''}`
-  return `the chest door's own bot bill (v0.852.0): ${bill.n} ride(s) - hop ${bill.hop.n} / bank ${bill.bank.n} - ${botCell} - ${chestCell} - ${verdictCell} - THE DOOR'S OWN CROWD: the repeats name the riders, the shared column names the dead chest`
+  const verdictCell = `verdicts no-path ${v.noPath} / decide ${v.decide}${v.budgetFloor > 0 ? ` / budget-floor ${v.budgetFloor}` : ''}${v.other > 0 ? ` / other ${v.other}` : ''}`
+  return `the chest door's own bot bill (v0.861.0): ${bill.n} ride(s) - hop ${bill.hop.n} / bank ${bill.bank.n} - ${botCell} - ${chestCell} - ${verdictCell} - THE DOOR'S OWN CROWD: the repeats name the riders, the shared column names the dead chest`
 }
 
 // (v0.856.0) THE DECIDE DOOR'S OWN DISTANCE - the walk-budget front's own
@@ -163,7 +205,7 @@ export function chestDoorDistance (lines) {
     ? lines
     : (typeof lines === 'string' ? lines.split('\n') : [])
   if (!Array.isArray(rows)) return null
-  const ds = { noPath: [], decide: [], other: [] }
+  const ds = { noPath: [], decide: [], budgetFloor: [], other: [] }
   for (const l of rows) {
     if (typeof l !== 'string') continue
     const hop = l.match(CHEST_DOOR_HOP_RE)
@@ -178,8 +220,8 @@ export function chestDoorDistance (lines) {
         max: Math.max(...list),
         avg: Math.round((list.reduce((a, b) => a + b, 0) / list.length) * 10) / 10
       }
-  const shape = { decide: mk(ds.decide), noPath: mk(ds.noPath), other: mk(ds.other) }
-  if (shape.decide === null && shape.noPath === null && shape.other === null) return null
+  const shape = { decide: mk(ds.decide), noPath: mk(ds.noPath), budgetFloor: mk(ds.budgetFloor), other: mk(ds.other) }
+  if (shape.decide === null && shape.noPath === null && shape.budgetFloor === null && shape.other === null) return null
   return shape
 }
 
@@ -193,8 +235,8 @@ export function chestDoorDistanceRowConsistent (shape) {
   const ok = (b) => b === null || (Number.isFinite(b.n) && b.n >= 1 &&
     Number.isFinite(b.min) && Number.isFinite(b.max) && Number.isFinite(b.avg) &&
     b.min <= b.avg && b.avg <= b.max)
-  if (!ok(shape.decide) || !ok(shape.noPath) || !ok(shape.other)) return false
-  return shape.decide !== null || shape.noPath !== null || shape.other !== null
+  if (!ok(shape.decide) || !ok(shape.noPath) || !ok(shape.budgetFloor) || !ok(shape.other)) return false
+  return shape.decide !== null || shape.noPath !== null || shape.budgetFloor !== null || shape.other !== null
 }
 
 /** The row: 'the decide door's own distance (v0.858.0): decide rides d
@@ -209,7 +251,7 @@ export function chestDoorDistanceRowConsistent (shape) {
 export function chestDoorDistanceRow (shape) {
   if (!chestDoorDistanceRowConsistent(shape)) return null
   const cell = (b, name) => b === null ? `${name} rides none` : `${name} rides d ${b.min}..${b.max} (avg ${b.avg} of ${b.n})`
-  const head = `the decide door's own distance (v0.858.0): ${cell(shape.decide, 'decide')} vs ${cell(shape.noPath, 'no-path')}${shape.other !== null ? ` vs other rides d ${shape.other.min}..${shape.other.max} (avg ${shape.other.avg} of ${shape.other.n})` : ''}`
+  const head = `the decide door's own distance (v0.861.0): ${cell(shape.decide, 'decide')} vs ${cell(shape.noPath, 'no-path')}${shape.budgetFloor !== null ? ` vs budget-floor rides d ${shape.budgetFloor.min}..${shape.budgetFloor.max} (avg ${shape.budgetFloor.avg} of ${shape.budgetFloor.n})` : ''}${shape.other !== null ? ` vs other rides d ${shape.other.min}..${shape.other.max} (avg ${shape.other.avg} of ${shape.other.n})` : ''}`
   let seat
   if (shape.decide === null || shape.noPath === null) seat = '- THE DISTANCE READ: one class rode alone - the comparison waits'
   else if (shape.decide.n < 2 || shape.noPath.n < 2) seat = `- THE SEAT'S OWN SAMPLE: decide n=${shape.decide.n} vs no-path n=${shape.noPath.n} - the thin side waits for its second ride`

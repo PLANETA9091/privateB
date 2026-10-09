@@ -9,6 +9,13 @@ import { chestDoorDistance, chestDoorDistanceRow, chestDoorDistanceRowConsistent
 // The v0.858.0 guard: face 131 named the seat off n=1 vs n=1 and the
 // seat contradicted face 129's fuller page - a seat needs both sides at
 // n>=2 (the thin side waits for its second ride).
+// The (v0.861.0) DOOR'S OWN WHYS: the bill's own blind spot repaired -
+// the hop capture reads greedy (the nested-paren why bytes parse), the
+// bank zero shape joins the fold, and the verdict split names the budget
+// floor - so the distance shape gains the budget-floor bucket (the
+// floor's own d rides the row: does the walk floor die on the long
+// approach?). Face 134's own page: budget-floor d 20..40 (avg 28 of 10)
+// vs no-path avg 22.3 - the floor dies on the LONGER approach.
 
 const HOP = (bot, x, y, z, d, msg) => `${bot} [${bot}] hop: chest at [${x},${y},${z}] d=${d} zero: chest unreachable (${msg})`
 const BANK = (bot, msg) => `${bot} bank: chest unreachable (${msg})`
@@ -46,7 +53,7 @@ assert.deepEqual(
 // long approach.
 assert.match(
   chestDoorDistanceRow(s),
-  /^the decide door's own distance \(v0\.858\.0\): decide rides d 12\.\.30 \(avg 20\.8 of 5\) vs no-path rides d 8\.\.16 \(avg 11 of 5\) - THE DECIDE'S OWN SEAT: the decide chests walk farther - the walk budget dies on the long approach$/,
+  /^the decide door's own distance \(v0\.861\.0\): decide rides d 12\.\.30 \(avg 20\.8 of 5\) vs no-path rides d 8\.\.16 \(avg 11 of 5\) - THE DECIDE'S OWN SEAT: the decide chests walk farther - the walk budget dies on the long approach$/,
   'the far-decide seat'
 )
 
@@ -141,8 +148,52 @@ assert.equal(chestDoorDistanceRowConsistent(good), true, 'the face shape is cons
 assert.equal(chestDoorDistanceRowConsistent({ ...good, decide: { ...good.decide, avg: 99 } }), false, 'avg > max break')
 assert.equal(chestDoorDistanceRowConsistent({ ...good, decide: { ...good.decide, n: 0 } }), false, 'zero n break')
 assert.equal(chestDoorDistanceRowConsistent({ ...good, noPath: { ...good.noPath, min: 99 } }), false, 'min > avg break')
-assert.equal(chestDoorDistanceRowConsistent({ decide: null, noPath: null, other: null }), false, 'the empty shape break')
-assert.equal(chestDoorDistanceRowConsistent({ decide: good.decide, noPath: null, other: null }), true, 'the solo shape passes')
+assert.equal(chestDoorDistanceRowConsistent({ decide: null, noPath: null, budgetFloor: null, other: null }), false, 'the empty shape break')
+assert.equal(chestDoorDistanceRowConsistent({ decide: good.decide, noPath: null, budgetFloor: null, other: null }), true, 'the solo shape passes')
+
+// (v0.861.0) THE BUDGET FLOOR'S OWN CELL - the nested-paren rides' own d.
+// The face-134 verbatim d set (the ten real budget-floor rides: F1's
+// four d=20 approaches, F3's d=35/36, the d=40 pair, the d=25/24 pair):
+// avg 28.0 vs the no-path 22.3 - the floor dies on the LONGER approach.
+const bf = chestDoorDistance([
+  HOP('F1', -122, 70, 410, 20, 'budget exhausted (walk floor)'),
+  HOP('F1', -122, 70, 408, 20, 'budget exhausted (walk floor)'),
+  HOP('F1', -122, 70, 412, 20, 'budget exhausted (walk floor)'),
+  HOP('F1', -122, 70, 414, 20, 'budget exhausted (walk floor)'),
+  HOP('F3', -122, 70, 418, 35, 'budget exhausted (walk floor)'),
+  HOP('F3', -122, 70, 416, 36, 'budget exhausted (walk floor)'),
+  HOP('F3', -127, 70, 418, 40, 'budget exhausted (walk floor)'),
+  HOP('F3', -127, 70, 416, 40, 'budget exhausted (walk floor)'),
+  HOP('F15', -152, 70, 418, 25, 'budget exhausted (walk floor)'),
+  HOP('F3', -127, 70, 418, 24, 'budget exhausted (walk floor)'),
+  HOP('F2', -150, 70, 406, 12, 'No path to the goal!'),
+  HOP('F4', -153, 69, 407, 16, 'No path to the goal!')
+])
+assert.deepEqual(bf.budgetFloor, { n: 10, min: 20, max: 40, avg: 28 }, 'the floor bucket folds the nested-paren rides')
+assert.deepEqual(bf.noPath, { n: 2, min: 12, max: 16, avg: 14 }, 'the no-path bucket still folds')
+assert.match(
+  chestDoorDistanceRow(bf),
+  /vs budget-floor rides d 20\.\.40 \(avg 28 of 10\) - THE DISTANCE READ: one class rode alone - the comparison waits$/,
+  'the floor cell rides the row before the seat tail (decide absent = the comparison waits)'
+)
+assert.match(
+  chestDoorDistanceRow(bf),
+  /no-path rides d 12\.\.16 \(avg 14 of 2\) vs budget-floor rides d 20\.\.40 \(avg 28 of 10\)/,
+  'the floor cell sits between the no-path and other cells'
+)
+
+// The bank zero and the bank walking-back rides stay out (no d on the
+// bank family's own bytes).
+assert.equal(chestDoorDistance([
+  'F1 bank: 0 (chest unreachable (budget exhausted (walk floor)))',
+  BANK('F9', 'No path to the goal! (14 blocks from yard) - walking back')
+]), null, 'a bank-only face = the honest silence (no d on the bank bytes)')
+
+// The floor's cell is absent when the class is absent (the old faces'
+// row byte rides unchanged).
+const noBf = chestDoorDistance([HOP('F1', 0, 64, 0, 7, 'No path to the goal!')])
+assert.equal(noBf.budgetFloor, null, 'the honest absence')
+assert.doesNotMatch(chestDoorDistanceRow(noBf), /budget-floor/, 'no floor cell when the class is absent')
 
 // The junk rows judge nothing; a mixed log still folds.
 const mixed = chestDoorDistance([42, null, HOP('F1', 0, 64, 0, 7, 'No path to the goal!'), 'junk'])
