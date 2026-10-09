@@ -218,3 +218,84 @@ export function chestDoorDistanceRow (shape) {
   else seat = '- THE DISTANCES AGREE: the budget dies everywhere, not on the approach'
   return `${head} ${seat}`
 }
+
+// (v0.860.0) THE NO-PATH'S OWN RING - the door's no-path refusals' own
+// distance-band read. The no-path class INVERTED the door two faces
+// running (face 133: decide 0, face 134: no-path 23 of 24 rides = 96% -
+// the decide-majority faces 128/129 named) - and the front's own question
+// rode unnamed: are the refused chests OUTSIDE the ring's honest reach
+// (the walk cannot arrive - the v0.823.0 preflight's own law: the walk
+// that cannot arrive should never rent the clock), or INSIDE it (the
+// geometry - water, terrain - owns the door, not the distance)? The
+// refusal's own d rides the answer through the SAME hop regex the bill
+// reads (the one-parser law - no new grammar), banded by the kill-dist
+// ruler's own shape: close d<=10, mid 11..25, far 26+.
+//
+// Pure: reads, never mutates. Zero fleet wiring (mining-surface only).
+export function chestNoPathRing (lines) {
+  const rows = Array.isArray(lines)
+    ? lines
+    : (typeof lines === 'string' ? lines.split('\n') : [])
+  if (!Array.isArray(rows)) return null
+  const ds = { close: [], mid: [], far: [] }
+  for (const l of rows) {
+    if (typeof l !== 'string') continue
+    const hop = l.match(CHEST_DOOR_HOP_RE)
+    if (!hop) continue
+    if (verdictOf(hop[6]) !== 'noPath') continue
+    const d = Number(hop[5])
+    if (!Number.isFinite(d)) continue
+    if (d <= 10) ds.close.push(d)
+    else if (d <= 25) ds.mid.push(d)
+    else ds.far.push(d)
+  }
+  const n = ds.close.length + ds.mid.length + ds.far.length
+  if (n === 0) return null
+  const mk = (list) => list.length === 0
+    ? null
+    : {
+        n: list.length,
+        min: Math.min(...list),
+        max: Math.max(...list),
+        avg: Math.round((list.reduce((a, b) => a + b, 0) / list.length) * 10) / 10
+      }
+  return { n, close: mk(ds.close), mid: mk(ds.mid), far: mk(ds.far) }
+}
+
+/** THE CONSISTENCY FENCE (the v0.852.0 fence law): the bands' n sum to
+ * the ring's n, every present band obeys min <= avg <= max with n >= 1.
+ * A self-inconsistent ring never renders. */
+export function chestNoPathRingConsistent (ring) {
+  if (!ring || typeof ring !== 'object') return false
+  if (!Number.isFinite(ring.n) || ring.n < 1) return false
+  let sum = 0
+  for (const b of [ring.close, ring.mid, ring.far]) {
+    if (b === null || b === undefined) continue
+    if (!Number.isFinite(b.n) || b.n < 1) return false
+    if (!Number.isFinite(b.min) || !Number.isFinite(b.max) ||
+      !Number.isFinite(b.avg)) return false
+    if (b.min > b.avg || b.avg > b.max) return false
+    sum += b.n
+  }
+  return sum === ring.n
+}
+
+/** The row: 'the no-path ring's own reach (v0.860.0): 18 refusal(s) -
+ * close 0 / mid 14 (d 13..25 avg 16.9) / far 4 (d 32..40 avg 36.3) - THE
+ * MID'S OWN RING: the refusals ride inside the reach - the geometry
+ * (water, terrain), not the distance, owns the door'. The seat needs a
+ * MAJORITY band (> n/2) - a spread reads the tie law honestly. */
+export function chestNoPathRingRow (ring) {
+  if (!chestNoPathRingConsistent(ring)) return null
+  const cell = (b, name) => b === null
+    ? `${name} 0`
+    : `${name} ${b.n} (d ${b.min}..${b.max} avg ${b.avg})`
+  const head = `the no-path ring's own reach (v0.860.0): ${ring.n} refusal(s) - ${cell(ring.close, 'close')} / ${cell(ring.mid, 'mid')} / ${cell(ring.far, 'far')}`
+  const half = ring.n / 2
+  let seat
+  if (ring.far !== null && ring.far.n > half) seat = "- THE FAR'S OWN SEAT: the refusals ride the ring's edge - the walk that cannot arrive should never rent (the v0.823.0 preflight's own law)"
+  else if (ring.mid !== null && ring.mid.n > half) seat = "- THE MID'S OWN RING: the refusals ride inside the reach - the geometry (water, terrain), not the distance, owns the door"
+  else if (ring.close !== null && ring.close.n > half) seat = "- THE CLOSE'S OWN RING: the refusals ride the home ring - the doorstep owns the door"
+  else seat = '- THE SPREAD IS THE SHAPE: no band owns the refusals - the tie law held'
+  return `${head} ${seat}`
+}
