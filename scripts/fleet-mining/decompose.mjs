@@ -27,6 +27,7 @@ import { hotspotCensus, hotspotBands, hotSpotSeat, hotSpotSeatRow, hotSpotRiders
 import { climbOutCensus, climbFailVerdict, climbFailVerdictRow, climbFailRiders, climbFailRidersRow, climbStageBill, climbStageBillRow, climbStageRiders, climbStageRidersRow } from '../../src/lib/climbout.mjs' // (v0.420.0) the vertical doom's verdict read; (v0.779.0) WHICH fail-why owns the climb book; (v0.781.0) WHICH rung owns the ladder
 import { bankFailCensus, bankZeroWhySeat, bankZeroWhySeatRow, bankZeroWhyRiders, bankZeroWhyRidersRow } from '../../src/lib/bankfail.mjs' // (v0.411.0) the bank lane's own decide/no-path ledger; (v0.807.0) WHICH why owns the zero-delivery book
 import { chestDoorBill, chestDoorBillRow, chestDoorDistance, chestDoorDistanceRow } from '../../src/lib/chestdoor.mjs' // (v0.852.0) the chest door's own bot bill - the unreachable rides folded per bot per chest (the WHO+WHERE the docket's aggregates rode unnamed); (v0.856.0) + the decide rides' own distance (the walk-budget front's read)
+import { chestLidBook, chestLidBookRow } from '../../src/lib/chestlid.mjs' // (v0.859.0) the chest lid's own book - the lid-timeout rides folded per bot per chest (the walk arrived, the lid died - the WHO+WHERE the open-timeout aggregates rode unnamed)
 import { thirdKindSplit, thirdKindRow } from '../../src/lib/thirdkind.mjs' // (v0.854.0) the late third's own kind - the thirds join the server's kind (which KIND owns the deadline's third)
 import { nopathBill } from '../../src/lib/nopathbill.mjs' // (v0.716.0) the no-path spike's own WHO read - the door family's no-path rides folded per bot per lane (the column's repeats vs the crowd's spread)
 import { decideBook } from '../../src/lib/decidebook.mjs' // (v0.720.0) the decide door's own book - the door leg's decide rides per bot AND per goal (the shared dead chest's cross-bot column vs the bot's rider repeats)
@@ -2050,6 +2051,16 @@ if (cdb) {
     const cddRow = chestDoorDistanceRow(cdd)
     if (cddRow) console.log(`  ${cddRow}`)
   }
+}
+// (v0.859.0) THE CHEST LID'S OWN BOOK - the lid-timeout rides' own WHO+WHERE
+// fold (the bill's regex reads the chest-unreachable family only - the
+// 'cannot open chest' rides rode outside it: the walk ARRIVED (the d rides
+// the approach), the LID died (the open timeout)). The self-inconsistent
+// book never renders (the fence law).
+const clb = chestLidBook(lines)
+if (clb) {
+  const clbRow = chestLidBookRow(clb)
+  if (clbRow) console.log(`  ${clbRow}`)
 }
 // (v0.716.0) THE NOPATH DOOR'S OWN BOT BILL - the spike's WHO read (the
 // door family's no-path rides folded per bot per lane): a lane's repeats
