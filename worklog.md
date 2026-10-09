@@ -22215,3 +22215,15 @@ Stage Summary:
 - v0.887.0 THE FALSE-POSITIVE'S OWN ANATOMY shipped (e9e4831): the cost seat's own split by the attacker's own word - drowned-melee (the near-miss) vs wrong-door (the true FP); the four faces' mass priced: wrong-door 2/11 (18%), melee 1/11 (9%); the row stamp (v0.887.0).
 - Face 148's own read debt REPAID (the kind join's first live face: crossed drown 2, the FP the Drowned's own melee, the miss the Drowned outside the band).
 - Next fire: (1) verdicts BY RUN ID: push-CI 37968143062 (e9e4831) MUST be SUCCESS (if red, download the job logs and fix FIRST); face 149 = 37968211049 (the anatomy's first live face - grep 'the false-positive price:' in its decompose; the artifact read rides its SUCCESS). (2) THE ANATOMY'S OWN NEXT BYTE: the melee seat's own window shape (face 148's FP window was in the 20..60s band - did the rescue have the time the race denied?); the wrong-door seats' own kinds map (suffocate vs mob-by-land-mob - the anatomy's second split waits for the mass). (3) The lane's fronts stay theirs: the hold clock's per-bot stagger join, the bank-before-night lever's wire read. (4) The reloot front STAYS deferred (the price-before-wire law) until the lane's emitters exist. (5) 0.888.0 next slot, origin re-verify MANDATORY (twenty-four windows today). (6) dispatch law on clear (x2 poll BEFORE the POST).
+---
+Task ID: cron30-20261010-0130-addendum
+Agent: PLANETA9091 (fire-0130)
+Task: the honest CI close-out (the verdicts did not land inside the fire's own box).
+
+Work Log:
+- My first push-CI 37968143062 (e9e4831, v0.887.0) = CANCELLED - superseded by my own immediate follow-up push (the worklog commit 3246e69; the same-tree concurrency; the 4bf8e3a/5b942b0 precedent - NOT red, the verdict moved to the newer head).
+- The verdict's seat = push-CI 37968324284 (3246e69: the same v0.887.0 code + the worklog) - polled BY RUN ID ~9.5 min: pending -> queued -> in_progress, NOT completed inside the box (the runners ran slow: face 149's fleet run in parallel). Honest: no verdict at close; the local full unit 334/334 green and the same-family v0.886.0 tree rode SUCCESS.
+- face 149 = 37968211049 (workflow_dispatch, e9e4831) in_progress at close - the anatomy's first live face read rides its SUCCESS (the next fire's open debt, grep 'the false-positive price:').
+
+Stage Summary:
+- Next fire's FIRST action: verdicts BY RUN ID - push-CI 37968324284 (3246e69) MUST be SUCCESS (if red, download the job logs and fix FIRST); face 149 = 37968211049 SUCCESS -> download artifacts -> grep 'the false-positive price:' (the anatomy's first live face).
