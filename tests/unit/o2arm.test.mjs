@@ -1,4 +1,4 @@
-// THE ARM-O2'S OWN BOOK - the o2arm tests (v0.878.0).
+// THE ARM-O2'S OWN BOOK - the o2arm tests (v0.880.0).
 //
 // The rescue start's own oxygen byte ('drowning rescue start (drowning,
 // oxygen N)') - unread since v0.368.0 counted the start classes and the
@@ -98,7 +98,7 @@ test('the row byte verbatim - face 143\'s own read', () => {
   const b = o2ArmBook(o2Gap(FACE143), FACE143)
   assert.equal(
     o2ArmBookRow(b),
-    'the rescue arm\'s own o2 book (v0.878.0): 41 arm(s) - o2 2..20 avg 8.6 (38 numeric arm(s), blind 3) - arm seat: the spread is the shape (no strict majority) - the fatal arm(s): blind 1 / critical 0 / band 0 / headroom 0 / unarmed 0 - the blind arm prices nothing - the sensor\'s own seat owns the lane (the sensor\'s health is the front, the trigger\'s constant is moot while the arm rides blind)'
+    'the rescue arm\'s own o2 book (v0.880.0): 41 arm(s) - o2 2..20 avg 8.6 (38 numeric arm(s), blind 3) - arm seat: the spread is the shape (no strict majority) - the fatal arm(s): blind 1 / critical 0 / band 0 / headroom 0 / unarmed 0 - the blind arm prices nothing - the sensor\'s own seat owns the lane (the sensor\'s health is the front, the trigger\'s constant is moot while the arm rides blind)'
   )
 })
 
@@ -133,6 +133,17 @@ test('the join law whole - the latest start wins, the death resets, the order is
   assert.equal(b2.deaths, 2, 'the counts ride the death line - two deaths')
   assert.deepEqual(b2.perDeath.F2, { o2: 9, band: 'band' }, 'the map rides last-wins (the house wart)')
   assert.deepEqual(b2.verdicts, { blind: 0, critical: 0, band: 1, headroom: 1, unarmed: 0 }, 'the first death joined its own start (the latest start wins), the reset spent it, the second joined the new start')
+  // THE DEATH RESET'S OWN PIN: an arm never survives the death it
+  // joined - a later death with NO new start rides unarmed (the lane's
+  // own reset owns the gap, the honest null)
+  const lines3 = [
+    start('F2', 12),
+    death('F2', 'reset(-1)', 'active', 2),
+    death('F2', 'reset(-1)', 'active', 3)
+  ]
+  const b3 = o2ArmBook(o2Gap(lines3), lines3)
+  assert.equal(b3.deaths, 2, 'the counts ride the death line - two deaths, one arm')
+  assert.deepEqual(b3.verdicts, { blind: 0, critical: 0, band: 0, headroom: 1, unarmed: 1 }, 'the first death joined its arm (headroom), the second rode unarmed - the reset held')
 })
 
 test('the line-order law - a start after the death never joins it', () => {
