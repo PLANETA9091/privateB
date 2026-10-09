@@ -46,6 +46,20 @@
  * inference + its verdict bracket. */
 const DEATH_KIND_RE = /^F\d+ \[F\d+\] died - respawning \(cause: server: (.+) \[kind=([a-z]+)(?: by ([^\]]+))?\](?: \| inferred: (.*))?\)\s*$/
 
+/** (v0.885.0) THE O2-TRIGGER KIND JOIN'S OWN READ - the death row's kind
+ * parsed by the census's own RE (the one-parser law: the grammar lives
+ * HERE once, the readers import - never re-spelled). Returns
+ * { bot, kind, attacker } for a server-verdict row; the honest null for
+ * everything else (the inferred-only family stays unkinded - the server
+ * verdict is the authority, its absence is never adjudicated here). */
+export function parseDeathKind (line) {
+  if (typeof line !== 'string') return null
+  const m = DEATH_KIND_RE.exec(line)
+  if (!m) return null
+  const bot = (line.match(/^(F\d+)\b/) || [])[1] || null
+  return { bot, kind: m[2], attacker: m[3] || null }
+}
+
 /** The death cell read out of the inference tail ('0s before death at
  * [x,y,z]'). Junk tails (no position, the empty-pocket announce) read null -
  * the row still counts, only the cell stays unprinted. */

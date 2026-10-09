@@ -162,4 +162,167 @@ test('the decompose WIRING pins - the import band + the print site ride the byte
   assert.ok(src.includes("import { o2TriggerBook, o2TriggerRow } from '../../src/lib/o2trigger.mjs'"), 'the import rides the band')
   assert.ok(src.includes('const o2t = o2TriggerBook(lines)'), 'the book call rides the print site')
   assert.ok(src.includes('o2TriggerRow(o2t)'), 'the row renders at the site')
+  assert.ok(src.includes("import { o2TriggerKindBook, o2TriggerKindRow } from '../../src/lib/o2trigger.mjs'"), 'the kind join rides its own band line (the band-grows law)')
+  assert.ok(src.includes('const o2tk = o2TriggerKindBook(lines)'), 'the kind book call rides the print site')
+  assert.ok(src.includes('o2TriggerKindRow(o2tk)'), 'the kind row renders at the site')
+})
+
+// (v0.885.0) THE TRIGGER'S OWN KIND JOIN - the false-positive split the
+// fire-0000 fold's own row named. The same emitters' grammar byte for
+// byte; the death lines ride the artifact's own shapes (the server's
+// own kind= vocabulary, never re-adjudicated).
+import { parseDeathKind } from '../../src/lib/deathkinds.mjs'
+import { O2_DEATH_KIND, o2TriggerKindBook, o2TriggerKindConsistent, o2TriggerKindRow } from '../../src/lib/o2trigger.mjs'
+
+const diedKind = (bot, verb, kind, attacker) =>
+  `${bot} [${bot}] died - respawning (cause: server: ${verb} [kind=${kind}${attacker ? ` by ${attacker}` : ''}] | inferred: none)`
+
+test('the kind grammar pin - the census\'s own RE by import, the one-parser law', () => {
+  assert.equal(O2_DEATH_KIND, 'drown', 'the trigger\'s own death word is the server\'s own bucket')
+  // the byte-verbatim face-145 shapes: the mob kind carries the attacker,
+  // the plain kinds ride bare
+  assert.deepEqual(
+    parseDeathKind('F3 [F3] died - respawning (cause: server: was slain by Drowned [kind=mob by Drowned] | inferred: drowned@1.0 (0s before death at [-143,61,387]) [the inference corroborates the server verdict])'),
+    { bot: 'F3', kind: 'mob', attacker: 'Drowned' })
+  assert.deepEqual(
+    parseDeathKind('F9 [F9] died - respawning (cause: server: suffocated in a wall [kind=suffocate] | inferred: fall/env (0s before death at [-141,58,397]) [the inference is blind to this kind - the hint is noise by construction (the server kind stays the authority)])'),
+    { bot: 'F9', kind: 'suffocate', attacker: null })
+  assert.deepEqual(
+    parseDeathKind('F12 [F12] died - respawning (cause: server: drowned [kind=drown] | inferred: fall/env (0s before death at [-151,43,401]) [the inference is blind to this kind - the hint is noise by construction (the server kind stays the authority)])'),
+    { bot: 'F12', kind: 'drown', attacker: null })
+  // the inferred-only family stays unkinded - the honest null
+  assert.equal(parseDeathKind('F16 [F16] died - respawning (cause: drowning (0s before death at [-122,48,403]))'), null)
+  assert.equal(parseDeathKind('junk'), null)
+  assert.equal(parseDeathKind(42), null)
+})
+
+test('the false-positive split - the crossed deaths\' own kinds', () => {
+  const lines = [
+    hb(1, 20),
+    pass('F12', 0, 5), // the crossing
+    hb(2, 45),
+    died('F12', 'drowned'), // the trigger's own death - the o2 seat
+    hb(3, 60),
+    pass('F9', 0, 4), // the crossing
+    hb(4, 90),
+    diedKind('F9', 'suffocated in a wall', 'suffocate') // the cost seat
+  ]
+  const b = o2TriggerKindBook(lines)
+  assert.equal(b.deaths, 2)
+  assert.equal(b.crossed, 2)
+  assert.equal(b.kinds.o2, 1, 'drown on a crossing = the trigger\'s own class')
+  assert.equal(b.kinds.falsePositive, 1, 'suffocate on a crossing = the false-positive price')
+  assert.equal(b.kinds.crossedUnknown, 0)
+  assert.equal(b.perDeath[0].kind, 'drown')
+  assert.equal(b.perDeath[1].kind, 'suffocate')
+  assert.ok(o2TriggerKindConsistent(b))
+  const row = o2TriggerKindRow(b)
+  assert.ok(row.includes("the o2-low trigger's own kind join (v0.885.0)"))
+  assert.ok(row.includes('crossed drown 1 (the trigger\'s own)'))
+  assert.ok(row.includes('crossed non-o2 1 (the false-positive price)'))
+})
+
+test('the no-crossing deaths\' own kinds - the misses\' own families', () => {
+  const lines = [
+    hb(1, 20),
+    diedKind('F3', 'was slain by Drowned', 'mob', 'Drowned'), // never dipped
+    hb(2, 40),
+    diedKind('F18', 'fell from a high place', 'fall') // no water at all
+  ]
+  const b = o2TriggerKindBook(lines)
+  assert.equal(b.deaths, 2)
+  assert.equal(b.noCrossing, 2)
+  assert.deepEqual(b.kinds.noCrossing, { mob: 1, fall: 1 })
+  assert.equal(b.kinds.o2, 0)
+  assert.equal(b.kinds.falsePositive, 0)
+  assert.ok(o2TriggerKindConsistent(b))
+  const row = o2TriggerKindRow(b)
+  assert.ok(row.includes('no-crossing mob 1/fall 1'))
+})
+
+test('the trigger\'s own kind in the misses - the blind spot names itself', () => {
+  const lines = [
+    hb(1, 20),
+    died('F7', 'drowned') // a drown death with NO crossing - the sensor's blind seat
+  ]
+  const b = o2TriggerKindBook(lines)
+  assert.deepEqual(b.kinds.noCrossing, { drown: 1 })
+  const row = o2TriggerKindRow(b)
+  assert.ok(row.includes('no-crossing drown 1'))
+})
+
+test('the unkinded honesty - the inferred-only family counts unkinded', () => {
+  const lines = [
+    hb(1, 20),
+    pass('F1', 0, 5),
+    hb(2, 45),
+    'F1 [F1] died - respawning (cause: drowning (0s before death at [-122,48,403]))', // no server verdict
+    hb(3, 60),
+    'F2 [F2] died - respawning (cause: unknown (no hp drop in the last 6s at [-122,48,403]))'
+  ]
+  const b = o2TriggerKindBook(lines)
+  assert.equal(b.deaths, 2)
+  assert.equal(b.kinds.crossedUnknown, 1, 'the crossed death without a verdict stays unkinded, counted')
+  assert.equal(b.kinds.noCrossingUnknown, 1)
+  assert.ok(o2TriggerKindConsistent(b))
+  const row = o2TriggerKindRow(b)
+  assert.ok(row.includes('crossed unkinded 1'))
+  assert.ok(row.includes('no-crossing unkinded 1'))
+})
+
+test('the face-145 kind join - the artifact\'s own death lines, byte for byte', () => {
+  const lines = [
+    'fleet [fleet] n=12 ts=241s rss=383M late=57ms mainLate=385ms',
+    'F12 [F12] water: pass 0 head=wet shore=none land=n/a y=54.0 o2=8 probes=0 at=[-162,54,401]', // the crossing
+    'F12 [F12] died - respawning (cause: server: drowned [kind=drown] | inferred: fall/env (0s before death at [-151,43,401]) [the inference is blind to this kind - the hint is noise by construction (the server kind stays the authority)])',
+    'F9 [F9] water: pass 0 head=wet shore=none land=n/a y=58.0 o2=4 probes=0 at=[-141,58,397]', // the crossing
+    'F9 [F9] died - respawning (cause: server: suffocated in a wall [kind=suffocate] | inferred: fall/env (0s before death at [-141,58,397]) [the inference is blind to this kind - the hint is noise by construction (the server kind stays the authority)])',
+    'F3 [F3] died - respawning (cause: server: was slain by Drowned [kind=mob by Drowned] | inferred: drowned@1.0 (0s before death at [-143,61,387]) [the inference corroborates the server verdict])',
+    'F18 [F18] died - respawning (cause: server: fell from a high place [kind=fall] | inferred: fall/env (0s before death at [-114,43,411]) [the inference corroborates the server verdict])'
+  ]
+  const b = o2TriggerKindBook(lines)
+  assert.ok(o2TriggerKindConsistent(b))
+  assert.equal(b.deaths, 4)
+  assert.equal(b.crossed, 2)
+  assert.equal(b.kinds.o2, 1, 'F12\'s drown = the trigger\'s own')
+  assert.equal(b.kinds.falsePositive, 1, 'F9\'s suffocate = the cost the window book left unnamed')
+  assert.deepEqual(b.kinds.noCrossing, { mob: 1, fall: 1 })
+  const row = o2TriggerKindRow(b)
+  assert.ok(row.includes("the o2-low trigger's own kind join (v0.885.0)"))
+  assert.ok(row.includes('crossed drown 1 (the trigger\'s own), crossed non-o2 1 (the false-positive price), no-crossing mob 1/fall 1'))
+  assert.ok(row.includes('the kind join prices the trigger\'s own cost'))
+})
+
+test('the kind fence battery - the tampered books price nothing', () => {
+  const lines = [
+    hb(1, 20),
+    pass('F1', 0, 5),
+    hb(2, 45),
+    died('F1', 'drowned')
+  ]
+  const b = o2TriggerKindBook(lines)
+  assert.equal(o2TriggerKindConsistent(b), true)
+  assert.equal(o2TriggerKindConsistent({ ...b, kinds: { ...b.kinds, o2: 5 } }), false, 'the seat must be the fold\'s own image')
+  assert.equal(o2TriggerKindConsistent({ ...b, kinds: { ...b.kinds, falsePositive: 1 } }), false)
+  assert.equal(o2TriggerKindConsistent({ ...b, kinds: { ...b.kinds, noCrossing: { mob: 1 } } }), false, 'a named cell the fold never rode breaks the fence')
+  assert.equal(o2TriggerKindConsistent({ ...b, kinds: { ...b.kinds, noCrossingUnknown: 1 } }), false)
+  assert.equal(o2TriggerKindConsistent({ ...b, kinds: null }), false)
+  assert.equal(o2TriggerKindConsistent(o2TriggerBook(lines)), false, 'the unkinded window book fails the kind fence')
+  assert.equal(o2TriggerKindRow({ ...b, kinds: { ...b.kinds, o2: 9 } }), null)
+  // the negative seat
+  assert.equal(o2TriggerKindConsistent({ ...b, kinds: { ...b.kinds, crossedUnknown: -1 } }), false)
+})
+
+test('the kind row\'s honest silence - the zero deaths, the junk input', () => {
+  assert.equal(o2TriggerKindRow(o2TriggerKindBook([])), null)
+  assert.equal(o2TriggerKindBook('not an array').deaths, 0)
+  assert.equal(o2TriggerKindBook(null).kinds.o2, 0, 'the empty book still carries the kind cells')
+  assert.equal(o2TriggerKindRow(null), null)
+  assert.equal(o2TriggerKindRow(undefined), null)
+  assert.equal(o2TriggerKindRow({}), null)
+  // the junk between the deaths rides nothing - the alignment holds
+  const b = o2TriggerKindBook([null, 42, hb(1, 20), pass('F1', 0, 5), {}, 'died - respawning', hb(2, 45), died('F1', 'drowned')])
+  assert.equal(b.deaths, 1)
+  assert.equal(b.kinds.o2, 1)
+  assert.ok(o2TriggerKindConsistent(b))
 })

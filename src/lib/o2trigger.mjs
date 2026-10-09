@@ -38,6 +38,7 @@
 import { HB_RE } from './sealdeath.mjs'
 import { SENTRY_PASS_RE, parseSentryPass } from './sentry.mjs'
 import { ARM_HEADROOM_MIN } from './o2arm.mjs'
+import { parseDeathKind } from './deathkinds.mjs'
 
 // The death announce's own anchored token (deathkinds.mjs's family
 // shape - the bot rides the line's own prefix; the cause stays the
@@ -162,4 +163,125 @@ export function o2TriggerRow (book) {
   if (book.noCrossing > 0) parts.push(`no-crossing ${book.noCrossing}`)
   if (book.untimed > 0) parts.push(`untimed ${book.untimed}`)
   return `the o2-low trigger's own window (v0.884.0): ${parts.join(', ')} - the span the trigger would have owned from the census's own band edge (<=${TRIGGER_O2_MAX})`
+}
+
+// (v0.885.0) THE TRIGGER'S OWN KIND JOIN - the false-positive split the
+// fire-0000 fold's own row named (the trigger's own NEXT BYTE): the
+// windows priced WHOSE deaths owned a crossing - the kind join prices
+// WHAT the trigger would have paid for. A crossing whose death rode a
+// non-o2 kind is THE FALSE-POSITIVE PRICE (the trigger would have fired
+// the rescue for a death the oxygen never owned - face 145's suffocate
+// rode a real band crossing, the cost seat the window book left
+// unnamed); a no-crossing death's kind names THE MISSES' OWN FAMILIES
+// (the trigger's own kind here = the blind spot's loudest read). The
+// trigger's own death word is the server's own kind= vocabulary
+// (deathcause.mjs parseDeathMessage: the oxygen death = drown) - never
+// re-adjudicated here, the server verdict stays the authority (the
+// v0.117.0 doctrine). THE JOIN LAW: the kind ride comes from
+// deathkinds.mjs's own parseDeathKind (the one-parser law - the census's
+// own RE re-used by export, never re-spelled); the rows that carry no
+// server verdict (the inferred-only family) stay UNKINDED - the honest
+// null counts in its own class, never judged. The alignment law: the
+// kind walk tests the SAME anchored death token in the SAME line order
+// the window fold walked - the seats join index for index (both walks
+// count exactly the DEATH_RE matches; the junk between rides nothing).
+// The fence law: the kind seats must be exactly the perDeath fold's own
+// image - every crossed death lands in o2 / falsePositive /
+// crossedUnknown, every no-crossing kind rides its own named map cell,
+// the unkinded ones count unkinded. An inconsistent book prices nothing
+// (the row stays silent).
+
+// The trigger's own death word - the server's own kind= vocabulary's
+// oxygen death (deathcause.mjs's own bucket, never invented here).
+export const O2_DEATH_KIND = 'drown'
+
+const emptyKindJoin = () => ({
+  o2: 0,
+  falsePositive: 0,
+  crossedUnknown: 0,
+  noCrossing: {},
+  noCrossingUnknown: 0
+})
+
+/**
+ * The window book's own kind join: the same fold's deaths, each seat
+ * named by the server's own kind word. Returns the enriched book (the
+ * window cells byte-stable, the kinds riding their own cells) - never
+ * null, never invented.
+ */
+export function o2TriggerKindBook (lines) {
+  const book = o2TriggerBook(lines)
+  book.kinds = emptyKindJoin()
+  if (!Array.isArray(lines)) return book
+  let di = 0
+  for (const line of lines) {
+    if (typeof line !== 'string') continue
+    if (!DEATH_RE.test(line)) continue
+    const seat = book.perDeath[di]
+    di++
+    if (!seat) break // the fence catches the misalignment - never invent
+    const parsed = parseDeathKind(line)
+    seat.kind = parsed ? parsed.kind : null
+    if (!seat.crossed) {
+      if (seat.kind === null) book.kinds.noCrossingUnknown++
+      else book.kinds.noCrossing[seat.kind] = (book.kinds.noCrossing[seat.kind] || 0) + 1
+    } else if (seat.kind === null) book.kinds.crossedUnknown++
+    else if (seat.kind === O2_DEATH_KIND) book.kinds.o2++
+    else book.kinds.falsePositive++
+  }
+  return book
+}
+
+/**
+ * The kind join's own fence: the window fence rides whole (the same
+ * sums), the kind seats must be exactly the perDeath fold's own image.
+ */
+export function o2TriggerKindConsistent (book) {
+  if (!o2TriggerConsistent(book)) return false
+  const k = book && book.kinds
+  if (!k || typeof k !== 'object' || Array.isArray(k)) return false
+  if (![k.o2, k.falsePositive, k.crossedUnknown, k.noCrossingUnknown]
+    .every((v) => Number.isInteger(v) && v >= 0)) return false
+  if (!k.noCrossing || typeof k.noCrossing !== 'object' || Array.isArray(k.noCrossing)) return false
+  let ncSum = 0
+  for (const key of Object.keys(k.noCrossing)) {
+    const v = k.noCrossing[key]
+    if (typeof key !== 'string' || !key.length || !Number.isInteger(v) || v <= 0) return false
+    ncSum += v
+  }
+  if (ncSum + k.noCrossingUnknown !== book.noCrossing) return false
+  let o2 = 0, fp = 0, cu = 0, ncu = 0
+  for (const d of book.perDeath) {
+    if (!d || typeof d !== 'object') return false
+    if (d.kind !== null && typeof d.kind !== 'string') return false
+    if (!d.crossed) {
+      if (d.kind === null) { ncu++; continue }
+      if (!(Object.prototype.hasOwnProperty.call(k.noCrossing, d.kind))) return false
+      continue
+    }
+    if (d.kind === null) cu++
+    else if (d.kind === O2_DEATH_KIND) o2++
+    else fp++
+  }
+  return o2 === k.o2 && fp === k.falsePositive && cu === k.crossedUnknown && ncu === k.noCrossingUnknown
+}
+
+/**
+ * The kind join's own row: the false-positive split named by its own
+ * seats. An inconsistent book prices nothing; a book with no deaths
+ * reads the honest silence; a join with no kind cells (all unkinded)
+ * names the honest unkinded seat.
+ */
+export function o2TriggerKindRow (book) {
+  if (!o2TriggerKindConsistent(book)) return null
+  if (!book || book.deaths === 0) return null
+  const parts = []
+  if (book.kinds.o2 > 0) parts.push(`crossed ${O2_DEATH_KIND} ${book.kinds.o2} (the trigger's own)`)
+  if (book.kinds.falsePositive > 0) parts.push(`crossed non-o2 ${book.kinds.falsePositive} (the false-positive price)`)
+  if (book.kinds.crossedUnknown > 0) parts.push(`crossed unkinded ${book.kinds.crossedUnknown}`)
+  const nc = Object.keys(book.kinds.noCrossing)
+  if (nc.length) parts.push(`no-crossing ${nc.map((key) => `${key} ${book.kinds.noCrossing[key]}`).join('/')}`)
+  if (book.kinds.noCrossingUnknown > 0) parts.push(`no-crossing unkinded ${book.kinds.noCrossingUnknown}`)
+  if (!parts.length) return null
+  return `the o2-low trigger's own kind join (v0.885.0): ${parts.join(', ')} - the kind join prices the trigger's own cost`
 }
