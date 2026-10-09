@@ -22540,3 +22540,21 @@ Work Log:
 Stage Summary:
 - The predator clauses' starvation is now TIMELINED: 6+ faces of zero Drowned kills vs a record of 3 - the class's own drought, priced, not a code gap. If face 156 is Drowned-less too, the streak hits 7 and the wait is officially the longest the data has ever shown - the clauses ride the class's return.
 - Next fire: (1) verdicts BY RUN ID: face 156 = 37999722918 MUST be terminal -> artifacts -> re-mine (the head clause's fourth face + the fifth hunger face + the usual kind join/wrong-door/no-crossing reads); 37999799409 (0423667 push) closeout MUST SUCCESS. (2) 0.897.0 candidates unchanged (the lane's toolupgrade tier-debt pure read / WorldMap assignment byte IF a face prices it; my sight-loss band fold IF a third priced point lands). (3) dispatch law on clear (x2 poll BEFORE the POST). NO force-push, NO history rewrite. Identity: PLANETA9091
+
+---
+Task ID: cron30-20261010-0700
+Agent: PLANETA9091 (fire-0700)
+Task: ONE atomic improvement from OPEN FRONTS + version bump + tests + green run + commit/push + CI verdicts by run id + dispatch law + both worklogs.
+
+Work Log:
+- A: SANDBOX RESET RECOVERED: /home/z/privateB-repo GONE at open (fresh reclone per protocol 2 -> d91206d, the lane's fire-0640 census tip; npm install clean); /home/z/my-project rolled back to an older snapshot (my remine helper + the main worklog's fire-0500..0630 appends lost THERE - the canonical sections survive in THIS repo worklog on origin; remine-face.mjs rebuilt generic). Version re-verified: 0.896.0, 0.897.0 FREE.
+- B: verdicts BY RUN ID: face 156 = 37999722918 SUCCESS (f53c9fa); 37999799409 (0423667, my fire-0630 push) SUCCESS; 38000835688 (d91206d, the lane's fire-0640 push) SUCCESS. Zero reds, zero zombies.
+- C: FACE 156 READ (artifacts -> /home/z/my-project/run37999722918/, re-mined on the v0.896.0 tree, decompose exit 0, band + kind fences consistent): BAND 'deaths 8, crossed 4, window 20..140s (avg 75s), no-crossing 4'; KIND 'crossed drown 3 (the trigger's own), crossed non-o2 1 (wrong-door 1), no-crossing fall 3/mob 1'. READS: (1) THE TRIGGER'S OWN CLEANEST FACE ON RECORD - crossed drown 3/3 (every drowning crossed, zero no-crossing drown); (2) WRONG-DOOR COLLAPSED 4/5 -> 1/4 - the window's own width prices the FP: 20..140s avg 75s is the TIGHTEST window on record (vs f153's 0..540 avg 312); (3) the DROWNED DROUGHT now FIVE faces on MY watch (f156's no-crossing mob 1 unnamed - not a Drowned; the lane's 17-face extinction census confirmed live); (4) the no-crossing FALL cell GREW: fall 3 this face, cum 4 across f155+f156 - the largest unnamed no-crossing cell now.
+- D: code front weighed and DECLINED (the reset burned the clock: reclone + rollback recovery ~7 min): no NEW mass names my family - the fall cell at 2 faces is watch-mass, not split-mass; the price-before-wire law holds. 0.897.0 NOT consumed (sixth fire).
+- E: dispatch law: x2 poll BEFORE the POST (zero active dispatches both rounds; face 156 terminal) -> POST ci.yml fleet_seconds=600 -> HTTP 204 -> FACE 157 = 38002430103 (in_progress, d91206d) - the head clause's FIFTH face rides it.
+
+Stage Summary:
+- Face 156 READ: the band's own cost at its BEST (3/3 drown crossings, wrong-door 1/4, the tightest window) - the v0.890.0..0.896.0 clause family's live verdict: correct and cheap when the window is narrow; the Drowned drought (5 faces my watch, 6+ the lane's census) is the data's variance, NOT a code gap.
+- The no-crossing FALL watch: cum 4 across two faces (single face 3) - if a third face delivers fall mass, the fall anatomy split becomes a priced front.
+- v0.896.0 stands (origin re-verified d91206d tip); 0.897.0 next free.
+- Next fire: (1) verdicts BY RUN ID: face 157 = 38002430103 MUST be terminal -> artifacts -> re-mine (the head clause's fifth face + the fall-cell mass watch at three faces + the drought at six). (2) code front: the fall-anatomy split IF the mass holds (the death line's own fall cause field - a pure read, zero wiring), else the honest wait. (3) 0.897.0 at bump time with origin re-verify MANDATORY. (4) dispatch law on clear (x2 poll BEFORE the POST). (5) the main worklog's lost window (fire-0500..0630 appends) is recoverable from THIS repo worklog's sections - keep-both forever. NO force-push, NO history rewrite. Identity: PLANETA9091
