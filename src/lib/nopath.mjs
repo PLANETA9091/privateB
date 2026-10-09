@@ -55,6 +55,20 @@ export const NOPATH_CAP = 24
  * load-flaked verdict expires before it starves a real delivery. */
 export const NOPATH_TIMEOUT_TTL_MS = 45000
 
+/** (v0.863.0) THE REPEAT'S OWN HALF-LIFE. MEASURED (the v0.862.0 book, face
+ * 134 = 37886112038): the no-path refusals fold per chest - [-117,70,414]
+ * refused FOUR times across bots F1+F19+F3 (d 14..32 avg 21.3) and 8 of 18
+ * no-path walks (44%) rented onto chests that had already refused - every
+ * repeat paid a full walk AND a full A* exhaustion because the 15s machine
+ * ttl expired between the attempts (the v0.113.0 cure for run100's blanket
+ * 90s). A FIRST failure keeps the 15s machine half-life (run100's lesson
+ * intact); a cell whose prior verdict EXPIRED and that refuses AGAIN carries
+ * two independent geometry proofs - the strongest shape the ledger has seen
+ * - and rides this 90s strong-evidence window. The window still expires: a
+ * genuinely re-routable chest is back inside two (the v0.62.0 ruler), and
+ * the ledger never immortalizes itself (the v0.96.0 law). */
+export const NOPATH_REPEAT_TTL_MS = 90000
+
 /**
  * (v0.70.0) Parse a chest-walk failure message into a dead-chest verdict.
  * Pure, junk-safe. Two dead shapes exist:
@@ -99,24 +113,43 @@ function distXZ (a, b) {
  * @param {object} [p]
  * @param {number} [p.ttl] entry lifetime ms (default NOPATH_TTL_MS)
  * @param {number} [p.cap] max live entries (default NOPATH_CAP)
+ * @param {number} [p.repeatTtl] (v0.863.0) the lifetime a REPEAT failure
+ *   rides - a cell with >= 1 EXPIRED prior verdict of its own escalates to
+ *   this window (two independent refusals = the strongest evidence); null
+ *   disables the escalation and every failure rides ttl.
  * @returns {Array} the new ledger
  */
-export function recordNoPath (entries, cell, now, { ttl = NOPATH_TTL_MS, cap = NOPATH_CAP, absorbStats = null } = {}) {
+export function recordNoPath (entries, cell, now, { ttl = NOPATH_TTL_MS, cap = NOPATH_CAP, absorbStats = null, repeatTtl = null } = {}) {
   const prev = Array.isArray(entries) ? entries : []
   const t = Number.isFinite(now) ? now : 0
-  const life = Number.isFinite(ttl) && ttl >= 0 ? ttl : NOPATH_TTL_MS
+  const base = Number.isFinite(ttl) && ttl >= 0 ? ttl : NOPATH_TTL_MS
   const keep = Number.isFinite(cap) && cap > 0 ? Math.floor(cap) : NOPATH_CAP
+  const f = floorCell(cell)
   // (v0.70.0) per-entry lifetime: each entry carries the ttl IT was recorded
   // with (a 45s timeout verdict expires on its own clock while a 90s 'No
   // path' verdict beside it stays live); entries without one (pre-v0.70.0
   // shapes, junk) fall back to the caller's ttl.
+  // (v0.863.0) the prune counts the cell's own EXPIRED verdicts - the
+  // repeat's own prior refusals (a junk cell matches nothing, counts zero).
+  let priorExpired = 0
   const fresh = prev.filter(e => {
     if (!e || !Number.isFinite(e.at)) return false
-    const eLife = Number.isFinite(e.ttl) && e.ttl >= 0 ? e.ttl : life
-    return t - e.at < eLife
+    const eLife = Number.isFinite(e.ttl) && e.ttl >= 0 ? e.ttl : base
+    const live = t - e.at < eLife
+    if (!live && f && e.x === f.x && e.y === f.y && e.z === f.z) priorExpired++
+    return live
   })
-  const f = floorCell(cell)
   if (!f) return fresh
+  // (v0.863.0) THE REPEAT'S OWN HALF-LIFE: a cell whose prior verdict already
+  // EXPIRED and that refuses AGAIN rides repeatTtl (the 90s strong-evidence
+  // window) instead of the 15s machine ttl - the first failure keeps the
+  // machine half-life (run100's lesson), the window still expires (re-terrain
+  // recovery), and a LIVE cell re-record stays absorbed below (the v0.96.0
+  // law: the ledger never immortalizes itself).
+  const life = priorExpired >= 1 && Number.isFinite(repeatTtl) && repeatTtl >= 0 ? repeatTtl : base
+  if (absorbStats && typeof absorbStats === 'object' && Number.isFinite(absorbStats.priorExpired)) {
+    absorbStats.priorExpired = priorExpired
+  }
   // (v0.96.0) THE RE-DOOM BACKOFF: a fresh failure for a cell that ALREADY
   // holds a LIVE verdict is ABSORBED - the verdict keeps its ORIGINAL clock.
   // MEASURED (run85, dispatch 35806079822): F5/F14/F16 refused yard machines

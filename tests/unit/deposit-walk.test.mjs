@@ -6,6 +6,7 @@
 // detours - and 'chest unreachable (water rescue in progress (walk to chest refused))'
 // - the fail-fast rescue gate burned the attempt while the bot was still swimming.
 import { test, beforeEach } from 'node:test'
+import { readFileSync } from 'node:fs'
 import { resetDoomedGoalLedger, recordDoomedGoal, doomedGoalStats } from '../../src/lib/jobqueue.mjs'
 import assert from 'node:assert/strict'
 import { Vec3 } from 'vec3'
@@ -391,4 +392,12 @@ test('the re-doom backoff keeps the FIRST failure\'s clock - a retry storm canno
   const fresh3 = recordNoPath(fresh2, cell, t0 + 10000, { ttl: CHEST_DOOM_TTL_MS })
   assert.equal(nearNoPath(fresh3, cell, t0 + 14000).hit, true, 'absorbed retries never refresh the clock')
   assert.equal(nearNoPath(fresh3, cell, t0 + 16000).hit, false, 'the verdict dies at 15s DESPITE three failures - the cell recovers on schedule')
+})
+
+test("v0.863.0 WIRING: the deposit chain's ledger record rides the repeat's own half-life (the import, the call site, the honest byte)", async () => {
+  const src = readFileSync(new URL('../../src/lib/deposit.mjs', import.meta.url), 'utf8')
+  assert.match(src, /import \{ recordNoPath, nearNoPath, isDeadChestVerdict, NOPATH_REPEAT_TTL_MS \} from '\.\/nopath\.mjs'/, 'the import grows with the repeat half-life')
+  assert.match(src, /recordNoPath\(noPathLedger, deadCell, Date\.now\(\), \{ ttl: CHEST_DOOM_TTL_MS, repeatTtl: NOPATH_REPEAT_TTL_MS, absorbStats: sink \}\)/, 'the call site: the first failure rides the machine ttl, the repeat rides NOPATH_REPEAT_TTL_MS')
+  assert.match(src, /const repeatCell = sink\.priorExpired >= 1/, 'the sink reads the escalation for the byte')
+  assert.match(src, /ttl \$\{repeatCell \? "90s \(the repeat's own half-life\)" : '15s'\}/, 'the honest byte: the first failure reads 15s, the repeat names its own half-life')
 })

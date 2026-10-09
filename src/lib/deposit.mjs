@@ -7,7 +7,7 @@ import { gotoSafe, withTimeout, waitForWaterRescueClear, walkRetryPlan, nearDoom
 import { PATH_PRIO_BANK } from './pathsemaphore.mjs'
 import { walkBudgetMs } from './tripplan.mjs'
 import { approachWalk, APPROACH_THRESHOLD, APPROACH_SEGMENT_MS } from './approach.mjs'
-import { recordNoPath, nearNoPath, isDeadChestVerdict } from './nopath.mjs' // (v0.62.0) the fleet no-path ledger (v0.65.0: reused for the full-chest ledger; v0.70.0: the timeout verdict joins the ledger; v0.113.0: every chest verdict rides the 15s CHEST_DOOM_TTL_MS)
+import { recordNoPath, nearNoPath, isDeadChestVerdict, NOPATH_REPEAT_TTL_MS } from './nopath.mjs' // (v0.62.0) the fleet no-path ledger (v0.65.0: reused for the full-chest ledger; v0.70.0: the timeout verdict joins the ledger; v0.113.0: every chest verdict rides the 15s CHEST_DOOM_TTL_MS; v0.863.0: the repeat's own half-life - a twice-refused cell rides NOPATH_REPEAT_TTL_MS)
 import { chestVerticalDoom } from './surface.mjs' // (v0.188.0) the hop vertical doom gate - the strict arithmetic the bank climbs (v0.158.0), the yard chest walks (v0.159.0) and the machine walks (v0.170.0) already ride
 import { NIGHT_WALK_START, TICKS_PER_SEC, forecastForbidden } from './nightsafety.mjs' // (v0.193.0) the dusk-forecast bank escalation reads the vanilla clock the night hold enforces
 import { finalBankDelayMs } from './endphase.mjs' // (v0.193.0) the forecast prices the bot's OWN end-phase stagger slot
@@ -1678,10 +1678,19 @@ export async function depositToChest (bot, {
           // absorption keeps the first failure's clock, and one truth about a
           // chest cell serves the whole scan (a 90s skip outlived every bank
           // chain that recorded it - run100's row-wide starvation).
-          const fresh = recordNoPath(noPathLedger, deadCell, Date.now(), { ttl: CHEST_DOOM_TTL_MS })
+          // (v0.863.0) THE REPEAT'S OWN HALF-LIFE: the first failure rides the
+          // 15s machine ttl (run100's lesson intact); a cell whose prior
+          // verdict expired and that refused AGAIN rides NOPATH_REPEAT_TTL_MS
+          // (90s - the v0.862.0 book priced the repeats: face 134 rented 8 of
+          // 18 no-path walks onto chests that had already refused, every
+          // repeat a full walk AND a full A* exhaustion). The sink reads the
+          // escalation for the honest byte.
+          const sink = { priorExpired: 0, absorbed: 0 }
+          const fresh = recordNoPath(noPathLedger, deadCell, Date.now(), { ttl: CHEST_DOOM_TTL_MS, repeatTtl: NOPATH_REPEAT_TTL_MS, absorbStats: sink })
           noPathLedger.length = 0
           for (const e of fresh) noPathLedger.push(e)
-          log(`${tag} no-path ledger: chest at [${deadCell.x ?? '?'},${deadCell.y ?? '?'},${deadCell.z ?? '?'}] cached for the fleet (${noPathLedger.length} live, ttl 15s${verdict.timeout ? ', timeout verdict' : ''})`)
+          const repeatCell = sink.priorExpired >= 1
+          log(`${tag} no-path ledger: chest at [${deadCell.x ?? '?'},${deadCell.y ?? '?'},${deadCell.z ?? '?'}] cached for the fleet (${noPathLedger.length} live, ttl ${repeatCell ? "90s (the repeat's own half-life)" : '15s'}${verdict.timeout ? ', timeout verdict' : ''})`)
         }
       }
     }

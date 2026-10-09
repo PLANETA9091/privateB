@@ -10,7 +10,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
-  NOPATH_TTL_MS, NOPATH_RADIUS, NOPATH_DY, NOPATH_CAP, NOPATH_TIMEOUT_TTL_MS,
+  NOPATH_TTL_MS, NOPATH_RADIUS, NOPATH_DY, NOPATH_CAP, NOPATH_TIMEOUT_TTL_MS, NOPATH_REPEAT_TTL_MS,
   recordNoPath, nearNoPath, isDeadChestVerdict
 } from '../../src/lib/nopath.mjs'
 
@@ -236,4 +236,89 @@ test('the run67 regression shape: the FIRST timeout verdict ledgered means bot #
   assert.equal(nearNoPath(led, chest, t0 + 30000).hit, true, 'the hop is skipped, the A* never runs')
   // at t+50s the chest is live again (a load-flaked verdict recovers)
   assert.equal(nearNoPath(led, chest, t0 + 50000).hit, false)
+})
+
+// (v0.863.0) THE REPEAT'S OWN HALF-LIFE - the v0.862.0 book priced the
+// repeats (face 134 = 37886112038: [-117,70,414] refused x4 across F1+F19+F3,
+// 8 of 18 no-path walks rented onto chests that had already refused - every
+// repeat a full walk AND a full A* exhaustion because the 15s machine ttl
+// expired between the attempts). A twice-proven-dead cell earns the 90s
+// strong-evidence window; the first failure keeps the machine half-life.
+test('policy constant: NOPATH_REPEAT_TTL_MS rides the 90s strong-evidence window', () => {
+  assert.equal(NOPATH_REPEAT_TTL_MS, 90000, 'the repeat rides the v0.62.0 ruler - a whole chain attempt, recovery inside two')
+  assert.ok(NOPATH_REPEAT_TTL_MS > NOPATH_TIMEOUT_TTL_MS, 'a repeated dead proof is stronger evidence than a single load-flaked timeout')
+})
+
+test("v0.863.0 the repeat's own half-life: a cell whose prior verdict expired and that refuses AGAIN rides NOPATH_REPEAT_TTL_MS", () => {
+  const cell = { x: -117, y: 70, z: 414 } // the v0.862.0 book's own first candidate
+  const t0 = 6000000
+  // the first refusal rides the machine ttl
+  let led = recordNoPath([], cell, t0, { ttl: 15000, repeatTtl: NOPATH_REPEAT_TTL_MS })
+  assert.equal(led.length, 1)
+  assert.equal(led[0].ttl, 15000, 'the FIRST failure keeps the machine half-life (run100\'s lesson)')
+  const before = led.slice()
+  // 16s later the verdict expired and the chest refuses again - THE REPEAT
+  led = recordNoPath(before, cell, t0 + 16000, { ttl: 15000, repeatTtl: NOPATH_REPEAT_TTL_MS })
+  assert.equal(led.length, 1)
+  assert.equal(led[0].ttl, NOPATH_REPEAT_TTL_MS, 'the repeat rides the 90s strong-evidence window')
+  assert.equal(led[0].at, t0 + 16000, 'the repeat verdict owns its own clock')
+  assert.deepEqual(before, [{ x: -117, y: 70, z: 414, at: t0, ttl: 15000 }], 'the input ledger is NEVER mutated (the purity law holds on the repeat path)')
+  assert.equal(nearNoPath(led, cell, t0 + 16000 + 89000).hit, true, 'live at 89s of age')
+  assert.equal(nearNoPath(led, cell, t0 + 16000 + 91000).hit, false, 'gone at 91s - the window still expires (re-terrain recovery intact)')
+})
+
+test("v0.863.0 the FIRST failure NEVER escalates - run100's blanket-90s lesson stays intact", () => {
+  const sink = { priorExpired: 0, absorbed: 0 }
+  const led = recordNoPath([], { x: 3, y: 64, z: 3 }, 6000000, { ttl: 15000, repeatTtl: NOPATH_REPEAT_TTL_MS, absorbStats: sink })
+  assert.equal(led[0].ttl, 15000)
+  assert.equal(sink.priorExpired, 0, 'no priors, no escalation - the honest count')
+})
+
+test("v0.863.0 a LIVE cell re-record stays absorbed - the repeat half-life never fires on absorption (the v0.96.0 law)", () => {
+  const cell = { x: 8, y: 64, z: 8 }
+  const t0 = 6000000
+  let led = recordNoPath([], cell, t0, { ttl: 15000, repeatTtl: NOPATH_REPEAT_TTL_MS })
+  const sink = { priorExpired: 0, absorbed: 0 }
+  led = recordNoPath(led, cell, t0 + 5000, { ttl: 15000, repeatTtl: NOPATH_REPEAT_TTL_MS, absorbStats: sink })
+  assert.equal(led.length, 1)
+  assert.equal(led[0].ttl, 15000, 'the ORIGINAL clock survives the absorption')
+  assert.equal(led[0].at, t0, 'the original timestamp survives')
+  assert.equal(sink.absorbed, 1, 'the absorb counter still speaks')
+})
+
+test("v0.863.0 a DIFFERENT cell's expired verdict never escalates this cell", () => {
+  const a = { x: 1, y: 64, z: 1 }
+  const b = { x: 50, y: 64, z: 50 }
+  const t0 = 6000000
+  let led = recordNoPath([], a, t0, { ttl: 15000 })
+  led = recordNoPath(led, b, t0 + 16000, { ttl: 15000, repeatTtl: NOPATH_REPEAT_TTL_MS })
+  assert.equal(led.find(e => e.x === 50).ttl, 15000, "b's first failure is not a repeat - the priors are per-cell")
+})
+
+test('v0.863.0 the repeat chain: the third refusal after the 90s window re-escalates', () => {
+  const cell = { x: 5, y: 70, z: 5 }
+  const t0 = 6000000
+  let led = recordNoPath([], cell, t0, { ttl: 15000, repeatTtl: NOPATH_REPEAT_TTL_MS })
+  led = recordNoPath(led, cell, t0 + 16000, { ttl: 15000, repeatTtl: NOPATH_REPEAT_TTL_MS }) // repeat #1 -> 90s
+  assert.equal(led[0].ttl, NOPATH_REPEAT_TTL_MS)
+  led = recordNoPath(led, cell, t0 + 16000 + 91000, { ttl: 15000, repeatTtl: NOPATH_REPEAT_TTL_MS }) // repeat #2 after the window
+  assert.equal(led.length, 1)
+  assert.equal(led[0].ttl, NOPATH_REPEAT_TTL_MS, 'the twice-repeated cell keeps the strong-evidence window')
+})
+
+test('v0.863.0 the junk battery: null/negative repeatTtl never escalates and a junk sink never breaks the record', () => {
+  const cell = { x: 9, y: 64, z: 9 }
+  const t0 = 6000000
+  let led = recordNoPath([], cell, t0, { ttl: 15000 })
+  led = recordNoPath(led, cell, t0 + 16000, { ttl: 15000, repeatTtl: null })
+  assert.equal(led[0].ttl, 15000, 'null repeatTtl reads the base (escalation disabled)')
+  led = recordNoPath(led, cell, t0 + 32000, { ttl: 15000, repeatTtl: -1 })
+  assert.equal(led[0].ttl, 15000, 'negative repeatTtl reads the base')
+  led = recordNoPath(led, cell, t0 + 48000, { ttl: 15000, repeatTtl: NaN })
+  assert.equal(led[0].ttl, 15000, 'NaN repeatTtl reads the base')
+  const led2 = recordNoPath([], cell, t0, { ttl: 15000, repeatTtl: NOPATH_REPEAT_TTL_MS, absorbStats: 'junk' })
+  assert.equal(led2.length, 1, 'a junk sink never breaks the record')
+  const sinkNaN = { priorExpired: NaN }
+  recordNoPath([], cell, t0, { ttl: 15000, repeatTtl: NOPATH_REPEAT_TTL_MS, absorbStats: sinkNaN })
+  assert.ok(true, 'a NaN sink field never throws (the guard reads finite)')
 })
