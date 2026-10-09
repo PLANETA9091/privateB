@@ -66,10 +66,10 @@ const emptyBook = () => ({
 export function o2TriggerBook (lines) {
   const book = emptyBook()
   if (!Array.isArray(lines)) return book
-  const state = {} // per bot: { crossingTs, hasCrossing, inBand }
+  const state = {} // per bot: { crossingTs, hasCrossing, inBand, lastO2 }
   let lastTs = null
   const seatFor = (bot) => {
-    if (!state[bot]) state[bot] = { crossingTs: null, hasCrossing: false, inBand: false }
+    if (!state[bot]) state[bot] = { crossingTs: null, hasCrossing: false, inBand: false, lastO2: null }
     return state[bot]
   }
   for (const line of lines) {
@@ -81,6 +81,10 @@ export function o2TriggerBook (lines) {
       if (!p) continue
       const seat = seatFor(p.bot)
       if (p.o2.kind === 'value') {
+        // the miss seat's own proximity (the v0.892.0 byte): the last
+        // numeric o2 read rides the seat - the parse's own field,
+        // never re-computed (the reuse law)
+        seat.lastO2 = p.o2.value
         if (p.o2.value <= TRIGGER_O2_MAX) {
           if (!seat.inBand) { seat.crossingTs = lastTs; seat.hasCrossing = true; seat.inBand = true }
         } else {
@@ -105,11 +109,12 @@ export function o2TriggerBook (lines) {
         if (book.window.min === null || window < book.window.min) book.window.min = window
         if (book.window.max === null || window > book.window.max) book.window.max = window
       }
-      book.perDeath.push({ bot, ts: lastTs, crossed, window })
+      book.perDeath.push({ bot, ts: lastTs, crossed, window, lastO2: seat.lastO2 })
       // the death reset's own law: the state never survives the death
       seat.crossingTs = null
       seat.hasCrossing = false
       seat.inBand = false
+      seat.lastO2 = null
       continue
     }
   }
@@ -132,6 +137,7 @@ export function o2TriggerConsistent (book) {
   let min = null, max = null
   for (const d of book.perDeath) {
     if (!d || typeof d !== 'object' || typeof d.bot !== 'string') return false
+    if (d.lastO2 !== null && d.lastO2 !== undefined && !Number.isInteger(d.lastO2)) return false
     deaths++
     if (!d.crossed) noCrossing++
     else if (d.window === null) untimed++
@@ -263,6 +269,27 @@ export function o2TriggerRow (book) {
 // silent beside the clock (the blind-skin idiom); the wrong-door
 // windows stay unjoined (the honest defer stands - their question is
 // the wasted rent, not the winnable race).
+//
+// (v0.892.0) THE MISS SEAT'S OWN PROXIMITY - the predator seat's own
+// air (the faces' own reads named it: face 148's F17 died to the
+// Drowned with the LAST water pass reading o2=20 head=dry shore=hit,
+// 178 log lines before the death - the bot was DRY AT FULL AIR at its
+// last read; face 149's F17 rode NO water pass at all). The no-crossing
+// predator seats join their own last o2 read (the perDeath fold's own
+// cell - seat.lastO2, the sentry parse's own field, never
+// re-computed): kinds.miss.predatorO2 {count, min, max} - the band
+// edge's own innocence or its own guilt named by the seat's own air (a
+// seat dying at o2 near the edge prices the threshold's own lever; a
+// seat dying at o2=20 or readless prices the READ cadence + the grab
+// speed - the band edge innocent, the trigger's own blind spot is the
+// sensor's own sight, not the threshold's height). The readless seats
+// count in miss.drowned and ride the honest silence on the clock (the
+// blind-skin idiom); the other misses' proximity stays unjoined - the
+// second split waits for the mass (the honest defer). THE PROXIMITY'S
+// OWN FENCE: predatorO2 must be exactly the predator seats' own
+// last-o2 fold - count + the readless seats = the predator seat
+// itself, min/max byte-verified against the perDeath image; a lying
+// cell prices nothing.
 
 // The trigger's own death word - the server's own kind= vocabulary's
 // oxygen death (deathcause.mjs's own bucket, never invented here).
@@ -273,7 +300,7 @@ const emptyKindJoin = () => ({
   falsePositive: 0,
   crossedUnknown: 0,
   fp: { melee: 0, wrongDoor: 0, meleeWindow: { count: 0, min: null, max: null, sum: 0 } },
-  miss: { drowned: 0 },
+  miss: { drowned: 0, predatorO2: { count: 0, min: null, max: null } },
   noCrossing: {},
   noCrossingUnknown: 0
 })
@@ -314,6 +341,16 @@ export function o2TriggerKindBook (lines) {
         // own blind spot, the predator's own read
         seat.missClass = 'drowned'
         book.kinds.miss.drowned++
+        // the miss seat's own proximity (the v0.892.0 byte): the
+        // predator seats' own last o2 read (the perDeath fold's own
+        // cell, never re-computed) - the band edge's own innocence or
+        // its own guilt named by the seat's own air
+        if (typeof seat.lastO2 === 'number') {
+          const po = book.kinds.miss.predatorO2
+          po.count++
+          if (po.min === null || seat.lastO2 < po.min) po.min = seat.lastO2
+          if (po.max === null || seat.lastO2 > po.max) po.max = seat.lastO2
+        }
       }
     } else if (seat.kind === null) book.kinds.crossedUnknown++
     else if (seat.kind === O2_DEATH_KIND) book.kinds.o2++
@@ -364,6 +401,14 @@ export function o2TriggerKindConsistent (book) {
   // Drowned fold (the v0.890.0 anatomy's own shape)
   if (!k.miss || typeof k.miss !== 'object' || Array.isArray(k.miss)) return false
   if (!Number.isInteger(k.miss.drowned) || k.miss.drowned < 0) return false
+  // the proximity's own cells (the v0.892.0 byte): the predator
+  // seats' own last-o2 fold (count 0 rides the empty cell - the
+  // readless seats' honest silence)
+  const po = k.miss.predatorO2
+  if (!po || typeof po !== 'object' || Array.isArray(po)) return false
+  if (!Number.isInteger(po.count) || po.count < 0) return false
+  if (po.count > 0 && (po.min === null || po.max === null)) return false
+  if (po.count === 0 && (po.min !== null || po.max !== null)) return false
   if (!k.noCrossing || typeof k.noCrossing !== 'object' || Array.isArray(k.noCrossing)) return false
   let ncSum = 0
   for (const key of Object.keys(k.noCrossing)) {
@@ -374,6 +419,7 @@ export function o2TriggerKindConsistent (book) {
   if (ncSum + k.noCrossingUnknown !== book.noCrossing) return false
   let o2 = 0, fp = 0, cu = 0, ncu = 0, melee = 0, wrongDoor = 0, missedDrowned = 0
   let mwc = 0, mws = 0, mwm = null, mwM = null
+  let poCount = 0, poMin = null, poMax = null
   for (const d of book.perDeath) {
     if (!d || typeof d !== 'object') return false
     if (d.kind !== null && typeof d.kind !== 'string') return false
@@ -385,7 +431,17 @@ export function o2TriggerKindConsistent (book) {
     const predatorMiss = !d.crossed && d.kind === 'mob' && d.attacker === DROWNED_ATTACKER
     if (mc === 'drowned' && !predatorMiss) return false // the marker never leaks off the predator's own seat
     if (predatorMiss && mc !== 'drowned') return false // the omission lies like the leak
-    if (predatorMiss) missedDrowned++
+    if (predatorMiss) {
+      missedDrowned++
+      // the proximity's own fold: the seats' own last-o2 cells (the
+      // readless seats ride the honest silence)
+      if (d.lastO2 !== null && d.lastO2 !== undefined) {
+        if (!Number.isInteger(d.lastO2)) return false
+        poCount++
+        if (poMin === null || d.lastO2 < poMin) poMin = d.lastO2
+        if (poMax === null || d.lastO2 > poMax) poMax = d.lastO2
+      }
+    }
     if (!d.crossed) {
       if (fc !== null) return false // the price's class never leaks off the price
       if (d.kind === null) { ncu++; continue }
@@ -414,6 +470,7 @@ export function o2TriggerKindConsistent (book) {
   }
   return o2 === k.o2 && fp === k.falsePositive && cu === k.crossedUnknown && ncu === k.noCrossingUnknown &&
     melee === k.fp.melee && wrongDoor === k.fp.wrongDoor && missedDrowned === k.miss.drowned &&
+    poCount === po.count && poMin === po.min && poMax === po.max &&
     mwc === mw.count && mws === mw.sum && mwm === mw.min && mwM === mw.max
 }
 
@@ -450,9 +507,15 @@ export function o2TriggerKindRow (book) {
   const nc = Object.keys(book.kinds.noCrossing)
   if (nc.length) parts.push(`no-crossing ${nc.map((key) => `${key} ${book.kinds.noCrossing[key]}`).join('/')}`)
   // the miss's own anatomy: only the live predator seat rides (the
-  // zero-class silence idiom)
-  if (book.kinds.miss.drowned > 0) parts.push(`the miss's own predator: drowned ${book.kinds.miss.drowned}`)
+  // zero-class silence idiom); the proximity joins the seat's own air
+  // (the v0.892.0 byte - the readless seats ride the honest silence)
+  if (book.kinds.miss.drowned > 0) {
+    const po = book.kinds.miss.predatorO2
+    let seat = `the miss's own predator: drowned ${book.kinds.miss.drowned}`
+    if (po.count > 0) seat += ` (last o2 ${po.min}..${po.max})`
+    parts.push(seat)
+  }
   if (book.kinds.noCrossingUnknown > 0) parts.push(`no-crossing unkinded ${book.kinds.noCrossingUnknown}`)
   if (!parts.length) return null
-  return `the o2-low trigger's own kind join (v0.891.0): ${parts.join(', ')} - the kind join prices the trigger's own cost`
+  return `the o2-low trigger's own kind join (v0.892.0): ${parts.join(', ')} - the kind join prices the trigger's own cost`
 }
