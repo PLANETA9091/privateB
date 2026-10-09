@@ -142,3 +142,73 @@ export function chestDoorBillRow (bill) {
   const verdictCell = `verdicts no-path ${v.noPath} / decide ${v.decide}${v.other > 0 ? ` / other ${v.other}` : ''}`
   return `the chest door's own bot bill (v0.852.0): ${bill.n} ride(s) - hop ${bill.hop.n} / bank ${bill.bank.n} - ${botCell} - ${chestCell} - ${verdictCell} - THE DOOR'S OWN CROWD: the repeats name the riders, the shared column names the dead chest`
 }
+
+// (v0.856.0) THE DECIDE DOOR'S OWN DISTANCE - the walk-budget front's own
+// read. The bot bill priced WHO rode the door's refusals and WHICH chest
+// refused them two faces running (face 128: decide 6/11, face 129: decide
+// 11/15 - the 'Took to long' class is the door's own seat now) - but the
+// decide rides' own DISTANCE rode unnamed: are the decide chests the
+// FARTHER chests (the walk budget dies on the long approach), or the same
+// range as the no-path rides (the budget dies everywhere)? The hop ride's
+// own byte carries the answer ('d=N' - the same regex the bill reads, the
+// one-parser law: no new grammar, no re-lexing); the bank byte carries no
+// distance and stays honestly out (the bank family's own shape).
+//
+// Pure helper over the same hop ride regex - reads the lines once, keeps
+// the per-verdict distance lists, never mutates, junk-safe (a hop line
+// that fails the ride grammar judges nothing - the escape hatch is the
+// bill's own unparsed law).
+export function chestDoorDistance (lines) {
+  const rows = Array.isArray(lines)
+    ? lines
+    : (typeof lines === 'string' ? lines.split('\n') : [])
+  if (!Array.isArray(rows)) return null
+  const ds = { noPath: [], decide: [], other: [] }
+  for (const l of rows) {
+    if (typeof l !== 'string') continue
+    const hop = l.match(CHEST_DOOR_HOP_RE)
+    if (!hop) continue
+    ds[verdictOf(hop[6])].push(Number(hop[5]))
+  }
+  const mk = (list) => list.length === 0
+    ? null
+    : {
+        n: list.length,
+        min: Math.min(...list),
+        max: Math.max(...list),
+        avg: Math.round((list.reduce((a, b) => a + b, 0) / list.length) * 10) / 10
+      }
+  const shape = { decide: mk(ds.decide), noPath: mk(ds.noPath), other: mk(ds.other) }
+  if (shape.decide === null && shape.noPath === null && shape.other === null) return null
+  return shape
+}
+
+/** THE CONSISTENCY FENCE - the row renders only when the shape agrees with
+ * itself: every bucket's n matches its list length... the shape carries
+ * the folded stats, so the fence re-checks the arithmetic the fold
+ * promised: min <= avg <= max, n >= 1, and at least one side present. A
+ * self-inconsistent shape never renders (the v0.852.0 fence law). */
+export function chestDoorDistanceRowConsistent (shape) {
+  if (!shape || typeof shape !== 'object') return false
+  const ok = (b) => b === null || (Number.isFinite(b.n) && b.n >= 1 &&
+    Number.isFinite(b.min) && Number.isFinite(b.max) && Number.isFinite(b.avg) &&
+    b.min <= b.avg && b.avg <= b.max)
+  if (!ok(shape.decide) || !ok(shape.noPath) || !ok(shape.other)) return false
+  return shape.decide !== null || shape.noPath !== null || shape.other !== null
+}
+
+/** The row: 'the decide door's own distance (v0.856.0): decide rides d
+ * 10..28 (avg 17.4 of 6) vs no-path rides d 10..12 (avg 11.0 of 4) - THE
+ * DECIDE'S OWN SEAT: the decide chests walk farther'. Both sides needed
+ * for the seat comparison; a solo class reads its own honest row. */
+export function chestDoorDistanceRow (shape) {
+  if (!chestDoorDistanceRowConsistent(shape)) return null
+  const cell = (b, name) => b === null ? `${name} rides none` : `${name} rides d ${b.min}..${b.max} (avg ${b.avg} of ${b.n})`
+  const head = `the decide door's own distance (v0.856.0): ${cell(shape.decide, 'decide')} vs ${cell(shape.noPath, 'no-path')}${shape.other !== null ? ` vs other rides d ${shape.other.min}..${shape.other.max} (avg ${shape.other.avg} of ${shape.other.n})` : ''}`
+  let seat
+  if (shape.decide === null || shape.noPath === null) seat = '- THE DISTANCE READ: one class rode alone - the comparison waits'
+  else if (shape.decide.avg > shape.noPath.avg) seat = "- THE DECIDE'S OWN SEAT: the decide chests walk farther - the walk budget dies on the long approach"
+  else if (shape.decide.avg < shape.noPath.avg) seat = "- THE NO-PATH'S OWN SEAT: the no-path chests walk farther - the geometry owns the door, not the clock"
+  else seat = '- THE DISTANCES AGREE: the budget dies everywhere, not on the approach'
+  return `${head} ${seat}`
+}
