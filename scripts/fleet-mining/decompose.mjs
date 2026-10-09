@@ -26,6 +26,7 @@ import { decideWeather } from '../../src/lib/decideweather.mjs' // (v0.689.0) TH
 import { hotspotCensus, hotspotBands, hotSpotSeat, hotSpotSeatRow, hotSpotRiders, hotSpotRidersRow } from '../../src/lib/hotspot.mjs' // (v0.419.0 + the v0.421.0 band read) the failure geometry's cross-lane read; (v0.794.0) WHICH spot owns the starvation book
 import { climbOutCensus, climbFailVerdict, climbFailVerdictRow, climbFailRiders, climbFailRidersRow, climbStageBill, climbStageBillRow, climbStageRiders, climbStageRidersRow } from '../../src/lib/climbout.mjs' // (v0.420.0) the vertical doom's verdict read; (v0.779.0) WHICH fail-why owns the climb book; (v0.781.0) WHICH rung owns the ladder
 import { bankFailCensus, bankZeroWhySeat, bankZeroWhySeatRow, bankZeroWhyRiders, bankZeroWhyRidersRow } from '../../src/lib/bankfail.mjs' // (v0.411.0) the bank lane's own decide/no-path ledger; (v0.807.0) WHICH why owns the zero-delivery book
+import { chestDoorBill, chestDoorBillRow } from '../../src/lib/chestdoor.mjs' // (v0.852.0) the chest door's own bot bill - the unreachable rides folded per bot per chest (the WHO+WHERE the docket's aggregates rode unnamed)
 import { nopathBill } from '../../src/lib/nopathbill.mjs' // (v0.716.0) the no-path spike's own WHO read - the door family's no-path rides folded per bot per lane (the column's repeats vs the crowd's spread)
 import { decideBook } from '../../src/lib/decidebook.mjs' // (v0.720.0) the decide door's own book - the door leg's decide rides per bot AND per goal (the shared dead chest's cross-bot column vs the bot's rider repeats)
 import { dropWalkCensus, dropWalkVerdict, dropWalkVerdictRow, dropWalkRiders, dropWalkRidersRow } from '../../src/lib/dropwalk.mjs' // (v0.413.0) the vein sweep's per-fail drop-walk line; (v0.777.0) WHICH class owns the book; (v0.785.0) the verdict's silence's own companion
@@ -2022,6 +2023,15 @@ if (bd && (bd.door.total > 0 || bd.pocket.total > 0)) {
 // when the lane walked clean.
 if (bd && bd.fuel.total > 0) console.log(`  the fuel lane's own door (v0.704.0): ${bd.fuel.total} walk failure(s) after the nudge (decide ${bd.fuel.decide}, no path ${bd.fuel.noPath}, retry timeouts ${bd.fuel.retryTimeout}${bd.fuel.other > 0 ? `, other ${bd.fuel.other}${bd.fuel.goalBrake > 0 || bd.fuel.rescueRefused > 0 ? ` - the other's skins: the goal brake ${bd.fuel.goalBrake}, the water rescue's refusals ${bd.fuel.rescueRefused}` : ''}` : ''})`)
 if (bd && bd.iron.total > 0) console.log(`  the iron commune's own door (v0.705.0): ${bd.iron.total} walk failure(s) (decide ${bd.iron.decide}, no path ${bd.iron.noPath}, retry timeouts ${bd.iron.retryTimeout}${bd.iron.other > 0 ? `, other ${bd.iron.other}${bd.iron.goalBrake > 0 || bd.iron.rescueRefused > 0 ? ` - the other's skins: the goal brake ${bd.iron.goalBrake}, the water rescue's refusals ${bd.iron.rescueRefused}` : ''}` : ''})`)
+// (v0.852.0) THE CHEST DOOR'S OWN BOT BILL - the unreachable rides' WHO+WHERE
+// read (the docket's door leg priced the aggregates; the repeats name the
+// riders, the shared column names the dead chest - the fix's own inputs).
+// The honest silence when the face rode no chest-unreachable verdict.
+const cdb = chestDoorBill(lines)
+if (cdb) {
+  const cdbRow = chestDoorBillRow(cdb)
+  if (cdbRow) console.log(`  ${cdbRow}`)
+}
 // (v0.716.0) THE NOPATH DOOR'S OWN BOT BILL - the spike's WHO read (the
 // door family's no-path rides folded per bot per lane): a lane's repeats
 // name the column reproducing (the relog lane's v0.715.0 law's door-side
