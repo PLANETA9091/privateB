@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import { ledgerRecordBook, ledgerRecordBookRow, ledgerRecordBookConsistent } from '../../src/lib/ledgerbook.mjs'
 
-// The v0.867.0 lens: the ledger families' own economy fold. The motive:
+// The v0.868.0 lens: the ledger families' own economy fold. The motive:
 // the no-path ledger's record byte ('no-path ledger: chest at [...]
 // cached for the fleet (N live, ttl 15s|90s...)') has been FILTER-
 // INVISIBLE since v0.62.0 - face 138 priced 18 'No path' hop refusals
@@ -46,7 +46,7 @@ assert.deepEqual(np.saveAge, { n: 8, min: 0, max: 16, avg: 5.3 }, 'the save ages
 assert.equal(blind.families['full-chest'].saves, 0, 'the full-chest family stayed silent on face 138')
 assert.match(
   ledgerRecordBookRow(blind),
-  /^the ledger families' own book \(v0\.867\.0\): no-path 0 record\(s\) bought 8 skip\(s\) \(bots 5 \(F14=3 F2=2 F11=1 F16=1 F18=1\), age 0\.\.16s avg 5\.3\) - the writes rode blind - THE RECORDS RODE BLIND: the log carried the skips but never the writes - the v0\.866\.0 un-blinding reads them from the next face$/,
+  /^the ledger families' own book \(v0\.868\.0\): no-path 0 record\(s\) bought 8 skip\(s\) \(bots 5 \(F14=3 F2=2 F11=1 F16=1 F18=1\), age 0\.\.16s avg 5\.3\) - the writes rode blind - THE RECORDS RODE BLIND: the log carried the skips but never the writes - the v0\.866\.0 un-blinding reads them from the next face$/,
   'the face-138 row verbatim'
 )
 
@@ -138,7 +138,7 @@ assert.match(
 
 // A silent family never rides the row: the full-chest leg stays home.
 assert.doesNotMatch(ledgerRecordBookRow(rent), /full-chest/, 'the silent family stays off the row')
-assert.match(ledgerRecordBookRow(rent), /^the ledger families' own book \(v0\.867\.0\): no-path /, 'the row opens with the speaking family')
+assert.match(ledgerRecordBookRow(rent), /^the ledger families' own book \(v0\.868\.0\): no-path /, 'the row opens with the speaking family')
 
 // ---- the honest silences and the out-of-scope families ----
 
@@ -222,6 +222,6 @@ assert.match(src, /if \(lrbRow\) console\.log\(`  \$\{lrbRow\}`\)/, "the book's 
 
 // The row's own byte lives in the lib.
 const lib = fs.readFileSync(new URL('../../src/lib/ledgerbook.mjs', import.meta.url), 'utf8')
-assert.match(lib, /the ledger families' own book \(v0\.867\.0\)/, "the row's own byte lives in the lib")
+assert.match(lib, /the ledger families' own book \(v0\.868\.0\)/, "the row's own byte lives in the lib")
 
 console.log('ledgerbook.test.mjs: all green')

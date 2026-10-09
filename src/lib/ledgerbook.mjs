@@ -1,4 +1,4 @@
-// (v0.867.0) THE LEDGER FAMILIES' OWN BOOK - the fleet ledger's own
+// (v0.868.0) THE LEDGER FAMILIES' OWN BOOK - the fleet ledger's own
 // economy fold. The motive: the no-path ledger's record byte ('no-path
 // ledger: chest at [...] cached for the fleet (N live, ttl 15s|90s...)')
 // has been FILTER-INVISIBLE since v0.62.0 - face 138 priced 18 'No path'
@@ -213,7 +213,7 @@ export function ledgerRecordBookConsistent (book) {
   return book.leverage === ratio(saves, records)
 }
 
-/** The row: 'the ledger families' own book (v0.867.0): no-path 12
+/** The row: 'the ledger families' own book (v0.868.0): no-path 12
  * record(s) on 7 chest(s) (live 1..8 avg 3.4 - fresh 9 / escalated 3 /
  * timeout 2) bought 25 skip(s) (bots 6 (F1=7 ...), age 0..16s avg 1.2)
  * - leverage 2.1 skips/record; full-chest ... - THE LEDGER PAYS ITS
@@ -244,7 +244,7 @@ export function ledgerRecordBookRow (book) {
     cells.push(cell)
   }
   if (cells.length === 0) return null
-  const head = `the ledger families' own book (v0.867.0): ${cells.join('; ')}`
+  const head = `the ledger families' own book (v0.868.0): ${cells.join('; ')}`
   const np = book.families['no-path']
   let seat
   if (book.records > 0 && np.escalated > book.families['no-path'].records / 2) seat = "- THE HALF-LIFE'S OWN FACE: the repeats own the writes - the 90s window rides live (the v0.863.0 cure confirmed in the field)"
