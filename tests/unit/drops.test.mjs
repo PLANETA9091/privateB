@@ -149,7 +149,12 @@ test('REGRESSION PIN: the fleet log filter carries the sweep key (the v0.176.0 f
   // (v0.839.0) 'banked' joins beside 'bank ' - the per-chest receipt's own verb
   // (the receipts rode and the filter dropped them; the two face-104 survivors
   // only passed via 'craft' matching inside a kept name) - the pin tolerates it.
-  assert.ok(/combat\|died\|(death drop\|)?(reloot\|)?KICKED\|error\|climb\|water\|scan:\|hop\|(chest skip\|)?approach\|swallowed\|bank \|banked\|deposit\|torch\|craft\|smelt\|fuel\|vein sweep/.test(fleetSrc),
+  // (v0.866.0) the LEDGER FAMILIES join beside deposit - the no-path ledger's
+  // record byte was filter-invisible since v0.62.0 (face 138: 18 'No path' hop
+  // refusals priced 44% of walks rented on repeats while the record byte rode
+  // nowhere; the half-life's own escalation byte unverifiable) - the pin
+  // tolerates them beside deposit while still pinning the sweep key.
+  assert.ok(/combat\|died\|(death drop\|)?(reloot\|)?KICKED\|error\|climb\|water\|scan:\|hop\|(chest skip\|)?approach\|swallowed\|bank \|banked\|deposit\|(no-path ledger\|)?(full-chest ledger\|)?torch\|craft\|smelt\|fuel\|vein sweep/.test(fleetSrc),
     'the miner log filter includes the vein sweep prefix - the instrument lines must reach the artifact (the v0.56.0 hop-failed lesson, struck again by the v0.175.0 instrument: the count line matched NOTHING and the failure lines only rode the luck of water inside one refusal message)')
   // (v0.839.0) THE RECEIPT'S OWN PIN - the real face-104 receipt line (the
   // crafting_table survivor) and the generic shape (a kept-list with NO filter
