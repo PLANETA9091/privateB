@@ -10,7 +10,7 @@
 // every later refusal stays byte-identical; junk distance = no affordability
 // proof = the floor verdict stands; the floor arithmetic itself is UNTOUCHED.
 //
-// (v0.866.0) THE GRACE'S OWN DISTANCE LEVER - face 136 (37894029206) read
+// (v0.867.0) THE GRACE'S OWN DISTANCE LEVER - face 136 (37894029206) read
 // the budget-floor's first live majority at d 23..29 avg 26 (the FAR band
 // 13 of 20, F19=20): the v0.303.0 pardon never reached the class that owns
 // the verdict now. The far walk is priced by the hop's OWN ruler
@@ -31,7 +31,7 @@ test('the F10 datum: a d<=16 floor refusal grants the 15s grace (byte-intact)', 
     assert.match(g.why, /provably affordable/)
     assert.equal(g.why, 'the short walk is provably affordable', 'the short why stays byte-identical')
   }
-  // the boundary: 16 is the short class, past it the FAR class answers (v0.866.0)
+  // the boundary: 16 is the short class, past it the FAR class answers (v0.867.0)
   assert.equal(yardGraceGate({ dist: 16 }).grant, true)
   assert.equal(yardGraceGate({ dist: 16.5 }).grant, true, 'past 16 the far lever answers')
   assert.equal(yardGraceGate({ dist: 17 }).grant, true)
@@ -93,7 +93,7 @@ test('junk-safe: no affordability proof, no grace', () => {
 
 test('junk params fall back to the pinned class, never widen it', () => {
   // junk shortDist -> the 16 default; junk graceMs -> the 15000 default
-  // (v0.866.0) d=30 now rides the FAR lever, so the fallback reads at the
+  // (v0.867.0) d=30 now rides the FAR lever, so the fallback reads at the
   // envelope edge: junk or not, past 40 the doom guard stands
   assert.equal(yardGraceGate({ dist: 41, shortDist: NaN }).grant, false, 'the junk cap falls back to 16, 41 stays beyond the envelope')
   assert.equal(yardGraceGate({ dist: 12, shortDist: NaN }).budgetMs, CHEST_WALK_SHORT_MS)
@@ -130,7 +130,7 @@ test('WIRING PIN: the grace rides the walk floor refusal sites, the verdict stay
   // a refused grace re-throws the BYTE-IDENTICAL floor verdict (the filter keys hold)
   assert.match(src, /yard grace: not granted \(\$\{g\.why\}\) - the floor verdict stands/)
   assert.match(src, /yard grace: the d=\$\{Math\.round\(dGrace\)\} walk rides the one-shot/)
-  // (v0.866.0) the grant line prints the GATE'S OWN why - the short and the far
+  // (v0.867.0) the grant line prints the GATE'S OWN why - the short and the far
   // classes read differently by design, the log never lies about the class
   assert.match(src, /the floor refused - \$\{g\.why\}/)
   assert.doesNotMatch(src, /the floor refused - the short walk is provably affordable/, 'the hardcoded short why retired with the flat class')
