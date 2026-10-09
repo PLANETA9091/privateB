@@ -98,13 +98,129 @@ test('the row byte verbatim - face 143\'s own read', () => {
   const b = o2ArmBook(o2Gap(FACE143), FACE143)
   assert.equal(
     o2ArmBookRow(b),
-    'the rescue arm\'s own o2 book (v0.880.0): 41 arm(s) - o2 2..20 avg 8.6 (38 numeric arm(s), blind 3) - arm seat: the spread is the shape (no strict majority) - the fatal arm(s): blind 1 / critical 0 / band 0 / headroom 0 / unarmed 0 - the blind arm prices nothing - the sensor\'s own seat owns the lane (the sensor\'s health is the front, the trigger\'s constant is moot while the arm rides blind)'
+    'the rescue arm\'s own o2 book (v0.893.0): 41 arm(s) - o2 2..20 avg 8.6 (38 numeric arm(s), blind 3) - arm seat: the spread is the shape (no strict majority) - the fatal arm(s): blind 1 / critical 0 / band 0 / headroom 0 / unarmed 0 - the blind arm prices nothing - the sensor\'s own seat owns the lane (the sensor\'s health is the front, the trigger\'s constant is moot while the arm rides blind)'
   )
 })
 
 test('the riders byte verbatim - the blind arm\'s own bracket', () => {
   const b = o2ArmBook(o2Gap(FACE143), FACE143)
   assert.equal(o2ArmBookRidersRow(b), 'F1 [arm o2 -1 - blind]')
+})
+
+// (v0.893.0) the face-151 fold verbatim - the fatal arm's own depth's
+// first live face: 42 arms (blind 0 / critical 5 / band 4 / headroom
+// 33 - the headroom seat owns 78.6%), the F1 fatal arm rode o2 0 (the
+// floor) - depth = 10 - 0 = 10, the lever's MAXIMUM price: the
+// rescueBand's own edge sat TEN o2-units above the lane's own firing
+// point (the row's own words on the live face: 'the trigger's constant
+// must ride higher' - the depth prices HOW MUCH)
+const FACE151 = [
+  start('F1', 15), start('F1', 12), start('F1', 5), start('F1', 1), start('F1', 0), start('F1', 0),
+  start('F13', 4), start('F13', 4), start('F13', 5), start('F13', 5), start('F13', 9),
+  start('F13', 14), start('F13', 14), start('F13', 14), start('F13', 14), start('F13', 14),
+  start('F10', 14), start('F10', 14), start('F10', 14), start('F10', 15), start('F10', 15), start('F10', 15), start('F10', 10),
+  start('F15', 15), start('F15', 15), start('F15', 15), start('F15', 15), start('F15', 16), start('F15', 16), start('F15', 10),
+  start('F11', 12), start('F11', 12), start('F11', 13), start('F11', 13),
+  start('F4', 15), start('F4', 16), start('F4', 16), start('F4', 10),
+  start('F14', 19), start('F14', 12),
+  start('F2', 20),
+  start('F12', 10),
+  died('F1'),
+  death('F1', 'reset(-1)', 'active', 2)
+]
+
+test('the face-151 fold verbatim - 42 arms, the fatal arm at the floor', () => {
+  const o2g = o2Gap(FACE151)
+  assert.ok(o2g, 'the o2 gap folded')
+  assert.equal(o2g.deaths, 1)
+  const b = o2ArmBook(o2g, FACE151)
+  assert.ok(b, 'the book folded')
+  assert.equal(b.starts, 42)
+  assert.equal(b.blindArms, 0)
+  assert.deepEqual(b.bands, { blind: 0, critical: 5, band: 4, headroom: 33 })
+  assert.deepEqual(b.spread, { min: 0, max: 20, avg: 497 / 42, count: 42 })
+  assert.deepEqual(b.seat, { band: 'headroom', n: 33, total: 42 }, '33 of 42 = 78.6% - the strict majority seats')
+  assert.equal(b.deaths, 1)
+  assert.deepEqual(b.verdicts, { blind: 0, critical: 1, band: 0, headroom: 0, unarmed: 0 })
+  assert.deepEqual(b.perDeath.F1, { o2: 0, band: 'critical' }, 'the F1 fatal arm rode the floor')
+  // (v0.893.0) the fatal arm's own depth - the lever's own price
+  assert.deepEqual(b.fatalDepth, { count: 1, min: 10, max: 10, sum: 10 }, 'depth = 10 - 0 = 10 - the MAXIMUM price the lever can ride')
+  assert.equal(o2ArmBookRidersRow(b), 'F1 [arm o2 0 - critical]')
+})
+
+test('the row byte verbatim - face 151\'s own read, the depth priced', () => {
+  const b = o2ArmBook(o2Gap(FACE151), FACE151)
+  assert.equal(
+    o2ArmBookRow(b),
+    'the rescue arm\'s own o2 book (v0.893.0): 42 arm(s) - o2 0..20 avg 11.8 (42 numeric arm(s)) - arm seat: headroom owns 33 of 42 (78.6%) - the fatal arm(s): blind 0 / critical 1 / band 0 / headroom 0 / unarmed 0 (the in-band fatal arms\' own depth below the rescueBand\'s edge: 10..10 avg 10.0 o2-unit(s) - the lever\'s own price) - the lane armed at the damage window - the trigger\'s constant must ride higher (the o2-low front\'s own lever)'
+  )
+})
+
+test('the fatal arm\'s own depth - the fold\'s own floor arithmetic, the two-seat mass', () => {
+  const lines = [
+    start('F1', 3), // critical: depth = 10 - 3 = 7
+    start('F2', 8), // band: depth = 10 - 8 = 2
+    start('F2', 8), // the latest start wins - the same depth
+    died('F1'),
+    death('F1', 'reset(-1)', 'active', 2),
+    died('F2'),
+    death('F2', 'reset(-1)', 'active', 2)
+  ]
+  const b = o2ArmBook(o2Gap(lines), lines)
+  assert.ok(o2ArmBookConsistent(b))
+  assert.deepEqual(b.verdicts, { blind: 0, critical: 1, band: 1, headroom: 0, unarmed: 0 })
+  assert.deepEqual(b.fatalDepth, { count: 2, min: 2, max: 7, sum: 9 }, 'the two seats\' own mass - the avg rides 4.5, the spread 2..7')
+  const row = o2ArmBookRow(b)
+  assert.ok(row.includes("(the in-band fatal arms' own depth below the rescueBand's edge: 2..7 avg 4.5 o2-unit(s) - the lever's own price)"))
+  assert.ok(!row.includes('2..7 avg 9'), 'the sum never prices the lever')
+})
+
+test('the depth\'s honest exclusions - the headroom, the blind, the unarmed ride no depth', () => {
+  const lines = [
+    start('F1', 12), // the headroom fatal arm: the edge already satisfied
+    start('F2', -1), // the blind fatal arm: the sensor's own death
+    died('F1'),
+    death('F1', 'reset(-1)', 'active', 2),
+    died('F2'),
+    death('F2', 'reset(-1)', 'active', 2),
+    died('F3'),
+    death('F3', 'reset(-1)', 'never', 4) // the unarmed death: no arm at all
+  ]
+  const b = o2ArmBook(o2Gap(lines), lines)
+  assert.ok(o2ArmBookConsistent(b))
+  assert.deepEqual(b.verdicts, { blind: 1, critical: 0, band: 0, headroom: 1, unarmed: 1 })
+  assert.deepEqual(b.fatalDepth, { count: 0, min: null, max: null, sum: 0 }, 'no in-band fatal arm rode - the honest empty cell')
+  const row = o2ArmBookRow(b)
+  assert.ok(!row.includes('depth'), 'the silent fold never names a price')
+  assert.ok(row.includes('the fatal arm(s): blind 1 / critical 0 / band 0 / headroom 1 / unarmed 1 -'))
+})
+
+test('the depth fence - the lying cells price nothing', () => {
+  const lines = [
+    start('F1', 3),
+    died('F1'),
+    death('F1', 'reset(-1)', 'active', 2)
+  ]
+  const b = o2ArmBook(o2Gap(lines), lines)
+  assert.ok(o2ArmBookConsistent(b))
+  assert.deepEqual(b.fatalDepth, { count: 1, min: 7, max: 7, sum: 7 })
+  const lie = (fd, pd) => o2ArmBookConsistent({
+    ...b,
+    fatalDepth: fd === undefined ? b.fatalDepth : fd,
+    perDeath: pd === undefined ? b.perDeath : pd
+  })
+  assert.equal(lie({ ...b.fatalDepth, count: 2 }), false, 'a count the fold never rode')
+  assert.equal(lie({ ...b.fatalDepth, sum: 8 }), false)
+  assert.equal(lie({ ...b.fatalDepth, min: 6 }), false)
+  assert.equal(lie({ ...b.fatalDepth, max: null }), false)
+  assert.equal(lie({ count: 0, min: null, max: null, sum: 0 }), false, 'the omission lies like the leak')
+  assert.equal(lie({ count: 1, min: null, max: 7, sum: 7 }), false)
+  assert.equal(lie({ count: 1, min: 0, max: 7, sum: 7 }), false, 'the depth rides the census\'s own bounds (1..10)')
+  assert.equal(lie({ count: 1, min: 7, max: 11, sum: 7 }), false, 'no depth passes the band\'s own edge')
+  assert.equal(lie(undefined, { F1: { o2: null, band: 'critical' } }), false, 'a critical seat with no numeric o2 is a lie the walk catches')
+  assert.equal(lie(undefined, { F1: { o2: 12, band: 'critical' } }), false, 'a critical seat at headroom o2 is a lie the walk catches')
+  assert.equal(o2ArmBookConsistent({ ...b, fatalDepth: null }), false)
+  assert.equal(o2ArmBookRow({ ...b, fatalDepth: { ...b.fatalDepth, count: 9 } }), null, 'a lying book prices nothing')
 })
 
 test('the join law whole - the latest start wins, the death resets, the order is the truth', () => {
