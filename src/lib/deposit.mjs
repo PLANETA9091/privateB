@@ -1335,7 +1335,7 @@ export function yardGraceGate ({ dist = null, graceUsed = false, shortDist = CHE
   return { grant: false, budgetMs: 0, why: `d=${Math.round(d)} beyond the grace envelope (${Math.round(fDist)}) - the doom guard stands` }
 }
 
-// (v0.871.0) THE WALK FLOOR'S OWN PREFLIGHT - the chain prices the walk
+// (v0.872.0) THE WALK FLOOR'S OWN PREFLIGHT - the chain prices the walk
 // BEFORE the visit, with the same ruler and the same grace (the one-ruler
 // law: chestWalkBudgetMs prices, effectiveWalkBudget floors, yardGraceGate
 // pardons - no new pin, no new arithmetic). Face 138's budget-floor book
@@ -2266,7 +2266,7 @@ export async function depositToChests (bot, { maxChests = 8, findRadius = 64, ke
         continue
       }
     }
-    // (v0.871.0) THE WALK FLOOR'S OWN PREFLIGHT - the visit's own walk-floor
+    // (v0.872.0) THE WALK FLOOR'S OWN PREFLIGHT - the visit's own walk-floor
     // verdict, priced one gate earlier. The same ruler (chestWalkBudgetMs at
     // the live distance), the same floor (effectiveWalkBudget against THIS
     // chain's remaining clock), the same grace peek (yardGraceGate with the
