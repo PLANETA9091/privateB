@@ -197,16 +197,22 @@ export function chestDoorDistanceRowConsistent (shape) {
   return shape.decide !== null || shape.noPath !== null || shape.other !== null
 }
 
-/** The row: 'the decide door's own distance (v0.856.0): decide rides d
- * 10..28 (avg 17.4 of 6) vs no-path rides d 10..12 (avg 11.0 of 4) - THE
+/** The row: 'the decide door's own distance (v0.858.0): decide rides d
+ * 12..30 (avg 20.8 of 5) vs no-path rides d 8..16 (avg 11 of 5) - THE
  * DECIDE'S OWN SEAT: the decide chests walk farther'. Both sides needed
- * for the seat comparison; a solo class reads its own honest row. */
+ * for the seat comparison; a solo class reads its own honest row. The
+ * (v0.858.0) THIN SEAT'S OWN GUARD: a seat never names off a solo ride -
+ * either side at n=1 reads the sample note and the seat waits (face
+ * 131's own page: n=1 vs n=1 named THE DECIDE'S OWN SEAT, the seat
+ * face 129's fuller page denied - the comparison needs both sides at
+ * n>=2 before it prices the front). */
 export function chestDoorDistanceRow (shape) {
   if (!chestDoorDistanceRowConsistent(shape)) return null
   const cell = (b, name) => b === null ? `${name} rides none` : `${name} rides d ${b.min}..${b.max} (avg ${b.avg} of ${b.n})`
-  const head = `the decide door's own distance (v0.856.0): ${cell(shape.decide, 'decide')} vs ${cell(shape.noPath, 'no-path')}${shape.other !== null ? ` vs other rides d ${shape.other.min}..${shape.other.max} (avg ${shape.other.avg} of ${shape.other.n})` : ''}`
+  const head = `the decide door's own distance (v0.858.0): ${cell(shape.decide, 'decide')} vs ${cell(shape.noPath, 'no-path')}${shape.other !== null ? ` vs other rides d ${shape.other.min}..${shape.other.max} (avg ${shape.other.avg} of ${shape.other.n})` : ''}`
   let seat
   if (shape.decide === null || shape.noPath === null) seat = '- THE DISTANCE READ: one class rode alone - the comparison waits'
+  else if (shape.decide.n < 2 || shape.noPath.n < 2) seat = `- THE SEAT'S OWN SAMPLE: decide n=${shape.decide.n} vs no-path n=${shape.noPath.n} - the thin side waits for its second ride`
   else if (shape.decide.avg > shape.noPath.avg) seat = "- THE DECIDE'S OWN SEAT: the decide chests walk farther - the walk budget dies on the long approach"
   else if (shape.decide.avg < shape.noPath.avg) seat = "- THE NO-PATH'S OWN SEAT: the no-path chests walk farther - the geometry owns the door, not the clock"
   else seat = '- THE DISTANCES AGREE: the budget dies everywhere, not on the approach'
