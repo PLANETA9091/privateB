@@ -21901,3 +21901,17 @@ Work Log:
 Stage Summary:
 - v0.873.0 shipped: the day-lock's own rename (advance_time/advance_weather + the loud verify - the CI red's root cause cured at the source), the smelt lane's own hard cap + the storm-first tally (the safety net), the walk floor's own lens (the preflight's field read ready for face 142).
 - Next fire: (1) verdict BY RUN ID: this push's CI + face 142 = 37924221081 (if mined: decompose the artifact - the walk floor census's FIRST live face, the doomed-goal census's age-shadow watch, the candidate list's first live face). (2) THE SMELT LANE'S OWN VERDICT: the lock verify must print the acks; if the smelt test still storms, the tally skip reads honestly. (3) THE CREEPER/night front still unclaimed (face 140: deaths 19, mob 15). (4) 0.874.0 next slot, origin re-verify MANDATORY (thirteen collisions today).
+
+---
+Task ID: cron30-20261009-1940-close
+Agent: main (Super Z, fire-1940)
+Task: the verdicts + the first live faces read (the preflight's, the candidate's, the lock's own proof byte).
+
+Work Log:
+- Verdicts BY RUN ID: face 142 = 37924221081 (cd7dee2 dispatch, the walk floor preflight's first live face) = SUCCESS MINED; my push-CI 37928385680 (48f5611, v0.873.0) = SUCCESS - both integration lanes green with the FIXED day-lock.
+- THE LOCK'S OWN PROOF BYTE (37928385680's console): 'Gamerule advance_time is now set to: false' + 'Gamerule advance_weather is now set to: false' - the lock ACCEPTED for the first time since v0.751.0 shipped it (the rename fix validated in the field; the verify step printed the acks, no rejection).
+- FACE 142's OWN READ (decompose on the artifact, run37924221081/): THE WALK FLOOR'S FIRST LIVE REFUSAL = F15 'chest skip (walk floor preflight: d=22 prices 30s beyond the 0s left - the grace already rode (one-shot per chain))' - the grace-rode class, the chain arrived with an EXHAUSTED clock (0s left, deficit 30s), the gate refused one gate earlier and the break ended the scan; the mid-visit 'budget exhausted (walk floor)' throw class rode ZERO lines this face. THE DOOMED-GOAL CENSUS: 7 refusals by 5 bots on 7 cells (ages 4..36s avg 17.9, shadow15=3, shadow45=0 - the 90s class still unproven, all sweep drops). THE CRATER AT ITS DEEPEST: mined 2310u, banked 0 (0% conversion, 1738u unbanked), the write-off's failed walks own 83.7%, NIGHT owns 54.7% of the failed mass - the silent bank read 0u/144 visit-lines. THE EXCLUDE CANDIDATE'S FIRST LIVE FACE: [-144,80,393] x4 (F15+F5+F8, d 18..24) - THE SWAP LIST'S OWN CHEST, 3 bots paid the same door (the v0.869.0 pricing artifact now has its field read; the wire still waits per the v0.473.0 law). Deaths 6, drown-kind 4 (66.7% - the kind's own seat).
+
+Stage Summary:
+- CI GREEN end to end: 37928385680 (v0.873.0) SUCCESS - the day-lock's rename fix + the smelt hard cap + the walk floor's lens, all validated in one face. The collision ledger: no new collision this fire (the lane silent).
+- Next fire: (1) face 143 dispatch on clear (x2 poll BEFORE the POST) - the lock now holds, the crater read should move (night 54.7% of the failed mass is the front the lock strikes). (2) THE CANDIDATE CHEST [-144,80,393]: read whether the swap ring would have priced it (the v0.23.1 next-chest ring vs the face's own chest row). (3) THE DROWN KIND 4/6: the water hazard book's next read (the deaths' own seat). (4) 0.874.0 next slot, origin re-verify MANDATORY.
