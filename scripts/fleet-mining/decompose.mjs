@@ -27,6 +27,7 @@ import { hotspotCensus, hotspotBands, hotSpotSeat, hotSpotSeatRow, hotSpotRiders
 import { climbOutCensus, climbFailVerdict, climbFailVerdictRow, climbFailRiders, climbFailRidersRow, climbStageBill, climbStageBillRow, climbStageRiders, climbStageRidersRow } from '../../src/lib/climbout.mjs' // (v0.420.0) the vertical doom's verdict read; (v0.779.0) WHICH fail-why owns the climb book; (v0.781.0) WHICH rung owns the ladder
 import { bankFailCensus, bankZeroWhySeat, bankZeroWhySeatRow, bankZeroWhyRiders, bankZeroWhyRidersRow } from '../../src/lib/bankfail.mjs' // (v0.411.0) the bank lane's own decide/no-path ledger; (v0.807.0) WHICH why owns the zero-delivery book
 import { chestDoorBill, chestDoorBillRow } from '../../src/lib/chestdoor.mjs' // (v0.852.0) the chest door's own bot bill - the unreachable rides folded per bot per chest (the WHO+WHERE the docket's aggregates rode unnamed)
+import { thirdKindSplit, thirdKindRow } from '../../src/lib/thirdkind.mjs' // (v0.854.0) the late third's own kind - the thirds join the server's kind (which KIND owns the deadline's third)
 import { nopathBill } from '../../src/lib/nopathbill.mjs' // (v0.716.0) the no-path spike's own WHO read - the door family's no-path rides folded per bot per lane (the column's repeats vs the crowd's spread)
 import { decideBook } from '../../src/lib/decidebook.mjs' // (v0.720.0) the decide door's own book - the door leg's decide rides per bot AND per goal (the shared dead chest's cross-bot column vs the bot's rider repeats)
 import { dropWalkCensus, dropWalkVerdict, dropWalkVerdictRow, dropWalkRiders, dropWalkRidersRow } from '../../src/lib/dropwalk.mjs' // (v0.413.0) the vein sweep's per-fail drop-walk line; (v0.777.0) WHICH class owns the book; (v0.785.0) the verdict's silence's own companion
@@ -349,6 +350,15 @@ if (sweep.keywordOnly.length) {
         else if (tv.cls === 'mid') seat = `- THE MIDDLE'S OWN STORM: ${t.mid} of ${c.timed} death(s) peaked mid-face`
         else seat = `- THE OPENING'S OWN STORM: ${t.early} of ${c.timed} death(s) led the face`
         console.log(`  the siege's own thirds (v0.733.0): early ${t.early} / mid ${t.mid} / late ${t.late} (thirds ${Math.round(t.thirdS)}s of the clock's ${c.clockEnd}s${unplacedNote}) ${seat}`)
+        // (v0.854.0) THE LATE THIRD'S OWN KIND - the thirds join the server's
+        // own kind word (the v0.117.0 authority by reuse): which KIND owns the
+        // deadline's third. The self-inconsistent shape never renders (the
+        // fence law); the kind-clean face reads the honest silence.
+        const tk = thirdKindSplit(lines)
+        if (tk) {
+          const tkRow = thirdKindRow(tk)
+          if (tkRow) console.log(`  ${tkRow}`)
+        }
       }
     }
   }

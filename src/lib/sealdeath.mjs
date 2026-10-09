@@ -51,7 +51,7 @@ export const DEATH_BURST_MIN = 3
 // The heartbeat line: 'b] n=1 ts=21s rss=251M late=5ms mainLate=0ms'
 // (heartbeat.mjs's own emitted form) - the same clock the v0.395.0
 // whale-feed lens reads in shootercensus.mjs; the regex shape rides it.
-const HB_RE = /\b\] n=\d+ ts=(\d+)s/
+export const HB_RE = /\b\] n=\d+ ts=(\d+)s/
 
 // The loss ledger form (verbatim face 23):
 //   F14 [F14] death drop: ~172u lost at [-117,60,380] (cobblestone 64,
