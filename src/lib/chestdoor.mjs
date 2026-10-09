@@ -479,7 +479,7 @@ export function chestNoPathRepeatsRow (book) {
   return `${head} ${repeatsCell} ${priceCell} ${seat}`
 }
 
-// (v0.863.0) THE BUDGET-FLOOR'S OWN BOOK - the budget-floor rides' own
+// (v0.864.0) THE BUDGET-FLOOR'S OWN BOOK - the budget-floor rides' own
 // WHO+WHERE fold. The whys lens (v0.861.0, the lane's) named the budget
 // floor the door's own second seat (face 134: 12 of 37 = 32%) and its
 // first live face INVERTED the door (face 136: budget-floor 21 of 38 =
@@ -606,7 +606,7 @@ export function chestBudgetFloorBookConsistent (book) {
   return repeatSum === book.repeatRides
 }
 
-/** The row: 'the budget floor's own book (v0.863.0): 20 floor ride(s) -
+/** The row: 'the budget floor's own book (v0.864.0): 20 floor ride(s) -
  * bots 1 (F19=20) - chests 11 distinct (repeats 9: ...) - d 23..29 avg
  * 26 - bands close 0 / mid 7 / far 13 - THE ONE BOT'S OWN FLOOR: the
  * floor rides F19's pocket - the personal budget, not the shared law'.
@@ -621,7 +621,7 @@ export function chestBudgetFloorBookRow (book) {
   const repeatsCell = book.repeatChests.length > 0
     ? ` (repeats ${book.repeatChests.length}: ${book.repeatChests.map(r => `[${r.pos}] x${r.n} ${Object.keys(r.bots).sort().join('+')} d ${r.d.min}..${r.d.max} avg ${r.d.avg}`).join(', ')})`
     : ' (every chest priced once)'
-  const head = `the budget floor's own book (v0.863.0): ${book.n} floor ride(s) - ${botCell} - chests ${book.distinctChests} distinct${repeatsCell} - d ${book.d.min}..${book.d.max} avg ${book.d.avg} - bands close ${book.bands.close} / mid ${book.bands.mid} / far ${book.bands.far}`
+  const head = `the budget floor's own book (v0.864.0): ${book.n} floor ride(s) - ${botCell} - chests ${book.distinctChests} distinct${repeatsCell} - d ${book.d.min}..${book.d.max} avg ${book.d.avg} - bands close ${book.bands.close} / mid ${book.bands.mid} / far ${book.bands.far}`
   const top = entries[0]
   let seat
   if (top && top[1] > book.n / 2) seat = `- THE ONE BOT'S OWN FLOOR: the floor rides ${top[0]}'s pocket - the personal budget, not the shared law`

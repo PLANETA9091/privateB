@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import { chestBudgetFloorBook, chestBudgetFloorBookRow, chestBudgetFloorBookConsistent } from '../../src/lib/chestdoor.mjs'
 
-// The v0.863.0 lens: the budget-floor rides' own WHO+WHERE fold (the
+// The v0.864.0 lens: the budget-floor rides' own WHO+WHERE fold (the
 // budget floor's own book). The motive: the whys lens (v0.861.0, the
 // lane's) named the budget floor the door's own second seat (face 134:
 // 12 of 37 = 32%) and its first live face INVERTED the door (face 136:
@@ -82,7 +82,7 @@ assert.deepEqual(book.repeatChests.map(r => r.pos), [
 // The verbatim row: the rider's majority names the one bot's own floor.
 assert.match(
   chestBudgetFloorBookRow(book),
-  /^the budget floor's own book \(v0\.863\.0\): 20 floor ride\(s\) - bots 1 \(F19=20\) - chests 11 distinct \(repeats 9: \[-106,71,401\] x2 F19 d 23\.\.25 avg 24, \[-106,71,403\] x2 F19 d 23\.\.26 avg 24\.5, \[-106,71,405\] x2 F19 d 23\.\.26 avg 24\.5, \[-106,71,407\] x2 F19 d 23\.\.27 avg 25, \[-106,71,409\] x2 F19 d 23\.\.27 avg 25, \[-111,71,401\] x2 F19 d 29\.\.29 avg 29, \[-111,71,403\] x2 F19 d 27\.\.27 avg 27, \[-111,71,405\] x2 F19 d 27\.\.27 avg 27, \[-111,71,407\] x2 F19 d 27\.\.27 avg 27\) - d 23\.\.29 avg 26 - bands close 0 \/ mid 7 \/ far 13 - THE ONE BOT'S OWN FLOOR: the floor rides F19's pocket - the personal budget, not the shared law$/,
+  /^the budget floor's own book \(v0\.864\.0\): 20 floor ride\(s\) - bots 1 \(F19=20\) - chests 11 distinct \(repeats 9: \[-106,71,401\] x2 F19 d 23\.\.25 avg 24, \[-106,71,403\] x2 F19 d 23\.\.26 avg 24\.5, \[-106,71,405\] x2 F19 d 23\.\.26 avg 24\.5, \[-106,71,407\] x2 F19 d 23\.\.27 avg 25, \[-106,71,409\] x2 F19 d 23\.\.27 avg 25, \[-111,71,401\] x2 F19 d 29\.\.29 avg 29, \[-111,71,403\] x2 F19 d 27\.\.27 avg 27, \[-111,71,405\] x2 F19 d 27\.\.27 avg 27, \[-111,71,407\] x2 F19 d 27\.\.27 avg 27\) - d 23\.\.29 avg 26 - bands close 0 \/ mid 7 \/ far 13 - THE ONE BOT'S OWN FLOOR: the floor rides F19's pocket - the personal budget, not the shared law$/,
   'the face-136 row verbatim'
 )
 
@@ -202,6 +202,6 @@ assert.match(src, /if \(cbfbRow\) console\.log\(`  \$\{cbfbRow\}`\)/, "the book'
 
 // The row's own byte lives in the lib.
 const lib = fs.readFileSync(new URL('../../src/lib/chestdoor.mjs', import.meta.url), 'utf8')
-assert.match(lib, /the budget floor's own book \(v0\.863\.0\)/, "the row's own byte lives in the lib")
+assert.match(lib, /the budget floor's own book \(v0\.864\.0\)/, "the row's own byte lives in the lib")
 
 console.log('budgetfloorbook.test.mjs: all green')
