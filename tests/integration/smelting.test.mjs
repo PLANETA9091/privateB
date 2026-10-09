@@ -454,24 +454,63 @@ test('smelting pipeline: craft a furnace, place it, smelt sand into glass', { ti
   // poisoned cascade can sink a single pass (the fleet survives this via redundancy;
   // a single-bot test needs an explicit retry).
   let toolRes = { ok: false, kit: 'not attempted' }
-  for (let attempt = 0; attempt < 2 && !toolRes.ok; attempt++) {
-    // 70/60s: two full 90s attempts on a barren spawn blow the whole test budget
-    // (measured: 0 logs in 90s twice = 300s before the table is even craftable)
-    try { await miner.gatherWood({ want: 20, maxSeconds: 70 }) } catch (e) { log(`gatherWood failed: ${e.message}`) }
-    toolRes = await ensureTools(bot, { miner, log, maxSeconds: 60 })
-    if (toolRes.ok) break
-    // beach spawns can leave every neighbour cell under water - no legal placement
-    // cell. Walk inland (the fleet's relocate-to-solid-ground escalation) and retry.
-    log(`tools attempt ${attempt} failed (${toolRes.kit}) - walking inland and retrying`)
-    try {
-      const { Vec3 } = await import('vec3')
-      const here = bot.entity.position
-      await gotoSafe(bot, new goals.GoalNear(here.x + 16, here.y, here.z + 16, 2), { timeoutMs: 20000, label: 'inland walk' })
-      await relocateToSolidGround(bot)
-    } catch (e) { log(`inland walk failed: ${e.message}`) }
+  // (v0.873.0) THE TOOL-PHASE HARD CAP (the productivity test's own law,
+  // fleet 37166578886's face): the gatherWood/ensureTools caps are
+  // COOPERATIVE (polled BETWEEN operations) - one awaited goto/dig that
+  // never settles (the combat AI owns the pathfinder when the storm owns
+  // the surface; run 37924419381: 8 mob deaths in the open field, the flee
+  // loop kited through every cooperative cap) holds the loop hostage to
+  // the runner's 390s kill - and the phase-boundary skips (the storm
+  // tally, the night re-arm) never got a chance to fire. The cap converts
+  // the never-settling phase into an honest {ok:false}; the skips below
+  // read it like any other tool failure. 280s > the legitimate worst case
+  // (2 attempts x gatherWood 70s + ensureTools 60s + inland walk ~20s) and
+  // leaves the rest of the chain under the 390s file kill.
+  const TOOL_PHASE_HARD_CAP_MS = 280000
+  let toolAbort = false
+  const toolLoop = (async () => {
+    for (let attempt = 0; attempt < 2 && !toolRes.ok && !toolAbort; attempt++) {
+      // 70/60s: two full 90s attempts on a barren spawn blow the whole test budget
+      // (measured: 0 logs in 90s twice = 300s before the table is even craftable)
+      try { await miner.gatherWood({ want: 20, maxSeconds: 70 }) } catch (e) { log(`gatherWood failed: ${e.message}`) }
+      if (toolAbort) break
+      toolRes = await ensureTools(bot, { miner, log, maxSeconds: 60 })
+      if (toolRes.ok) break
+      // beach spawns can leave every neighbour cell under water - no legal placement
+      // cell. Walk inland (the fleet's relocate-to-solid-ground escalation) and retry.
+      log(`tools attempt ${attempt} failed (${toolRes.kit}) - walking inland and retrying`)
+      try {
+        const { Vec3 } = await import('vec3')
+        const here = bot.entity.position
+        await gotoSafe(bot, new goals.GoalNear(here.x + 16, here.y, here.z + 16, 2), { timeoutMs: 20000, label: 'inland walk' })
+        await relocateToSolidGround(bot)
+      } catch (e) { log(`inland walk failed: ${e.message}`) }
+    }
+  })()
+  const capped = await Promise.race([
+    toolLoop,
+    new Promise(resolve => {
+      const timer = setTimeout(() => resolve(true), TOOL_PHASE_HARD_CAP_MS)
+      if (typeof timer.unref === 'function') timer.unref()
+    })
+  ])
+  if (capped === true && !toolRes.ok) {
+    toolAbort = true
+    log(`tools: hard cap ${Math.round(TOOL_PHASE_HARD_CAP_MS / 1000)}s - the phase never settled (the storm owns the surface?)`)
+    toolRes = { ok: false, kit: `tool phase hard cap ${Math.round(TOOL_PHASE_HARD_CAP_MS / 1000)}s (the operation never settled)` }
   }
   log(`tools: ${toolRes.ok ? 'ok' : 'fail'} (${toolRes.kit})`)
   if (!toolRes.ok) {
+    // (v0.873.0) THE STORM TALLY RIDES FIRST: the boundary skips used to sit
+    // BEHIND the wood-scarce read - a storm that killed 2+ bots mid-tool-phase
+    // and starved the pocket would read as wood scarcity when it was the mobs'
+    // tax all along. The tally (threshold 2, MOB_STORM_DEATHS) is the
+    // distinguishing signal: the run's own corpse count, read at the first
+    // boundary the cap lets the chain reach.
+    if (!stormLeft()) {
+      t.skip(`the storm's own tally: ${stormMobDeaths} mob kill(s) absorbed - the single unarmoured chain is feeding the storm, smelting chain not exercised this run`)
+      return
+    }
     // TOLERANT (like the planks/stone skips below): a STRIPPED spawn forest (several
     // diag/test runs chop the same fixed-seed spawn area bare) or a night-mob kill
     // streak of the naked bot are ENVIRONMENT conditions, not smelting-pipeline
