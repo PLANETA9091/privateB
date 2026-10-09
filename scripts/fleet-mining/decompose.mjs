@@ -24,7 +24,8 @@ import { sensorWindowsBook, sensorWindowsRow } from '../../src/lib/sensorwindow.
 import { ascendStall } from '../../src/lib/ascendstall.mjs' // (v0.708.0) the ascend's live fence - the stall lane's own mass (the live side the toll fences out)
 import { entryWindow, saveableDeaths } from '../../src/lib/entrywindow.mjs' // (v0.480.0) the effective window - the live trigger's real reaction window (lead - the stale floor) priced against the lane's own saves; (v0.743.0) the saveable death - the window's own verdict joined with the lane's own relation
 import { pageLeadBook, pageLeadBookRow, pageLeadBookRidersRow } from '../../src/lib/pagelead.mjs' // (v0.875.0) THE PAGE LEAD'S OWN BOOK - the rescue-ran mirror's own lead byte ('(paged Ns before death)' - unread since v0.477.0: the cue join read only the controls-blind 'sight died Ns' prose, so every rescue-ran death rode 'sight died ?s' and the effective window priced 3 of 4 unpriced on face 142) folded per death, with the mirror kind's own seat (the strict-majority law) and the page window priced against the lane's own saves (rescue-ledger's classifier - the one classifier, entrywindow's own filter; the page IS the arm event - no stale floor, the floor taxes the snapshot age and the page fires on the o2 event itself)
-import { o2ArmBook, o2ArmBookRow, o2ArmBookRidersRow } from '../../src/lib/o2arm.mjs' // (v0.880.0) THE ARM-O2'S OWN BOOK - the rescue start's own oxygen byte ('drowning rescue start (drowning, oxygen N)' - unread since v0.368.0 counted the start classes: the o2 census (v0.422.0) counted the PASSES' o2, the starts' own air never rode a book) folded per start with the sentry census's own band edges (critical <=4 / band 5..9 / headroom >=10) and per death the latest start's own arm (line order is the truth, the latest start wins whole, an arm never survives the death it joined) - the o2-low front's own price read (the v0.473.0 law)
+import { o2ArmBook, o2ArmBookRow, o2ArmBookRidersRow } from '../../src/lib/o2arm.mjs'
+import { o2TriggerBook, o2TriggerRow } from '../../src/lib/o2trigger.mjs' // (v0.884.0) THE O2-LOW TRIGGER'S OWN WINDOW - the page lead's own row named the front twice (the trigger must fire at o2 low, not at the reset - fits 0 / misses 2 on face 145): the span from the bot's last re-crossing into the census's own rescueBand edge (<=10) to the death line itself - the window the trigger would have owned, priced per death (the reuse law: parseSentryPass + HB_RE + the anchored death token, never re-spelled; the blind skins judge nothing and clear nothing; the death resets the state - the v0.880.0 law's own idiom) // (v0.880.0) THE ARM-O2'S OWN BOOK - the rescue start's own oxygen byte ('drowning rescue start (drowning, oxygen N)' - unread since v0.368.0 counted the start classes: the o2 census (v0.422.0) counted the PASSES' o2, the starts' own air never rode a book) folded per start with the sentry census's own band edges (critical <=4 / band 5..9 / headroom >=10) and per death the latest start's own arm (line order is the truth, the latest start wins whole, an arm never survives the death it joined) - the o2-low front's own price read (the v0.473.0 law)
 import { walkFailCensus, walkFailBotBill, walkFailBotBillRow, walkFailRiders, walkFailRidersRow, walkFailLaneBill, walkFailLaneBillRow, walkFailLaneRiders, walkFailLaneRidersRow } from '../../src/lib/walkfail.mjs' // (v0.410.0) the A* starvation's fleet-wide leg (beyond the hop lane); (v0.773.0) WHICH walker owns the chest-walk book; (v0.776.0) WHICH lane owns it
 import { decideWeather } from '../../src/lib/decideweather.mjs' // (v0.689.0) THE DECIDE WEATHER - the A* starvation's own sky read (the starve's ents/rss at its own anchor)
 import { hotspotCensus, hotspotBands, hotSpotSeat, hotSpotSeatRow, hotSpotRiders, hotSpotRidersRow } from '../../src/lib/hotspot.mjs' // (v0.419.0 + the v0.421.0 band read) the failure geometry's cross-lane read; (v0.794.0) WHICH spot owns the starvation book
@@ -851,6 +852,13 @@ if (oab) {
   const oar = o2ArmBookRidersRow(oab)
   if (oar) console.log(`  ${oar}`)
 }
+// (v0.884.0) THE O2-LOW TRIGGER'S OWN WINDOW - the window the trigger
+// would have owned from the census's own band edge to the death line
+// (the page lead's own front: the trigger must fire at o2 low, not at
+// the reset; the fence law: an inconsistent book prices nothing)
+const o2t = o2TriggerBook(lines)
+const o2tRow = o2TriggerRow(o2t)
+if (o2tRow) console.log(`  ${o2tRow}`)
 // (v0.707.0) THE SENSOR'S OWN TOLL - the reset(-1) skin's full mass across
 // the family's three skins: the death contexts the v0.379.0 census owns,
 // the breath mirrors the v0.479.0 cue lens owns, and the deep-pocket
