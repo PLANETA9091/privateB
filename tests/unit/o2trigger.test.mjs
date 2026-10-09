@@ -223,7 +223,7 @@ test('the false-positive split - the crossed deaths\' own kinds', () => {
   assert.equal(b.kinds.fp.melee, 0, 'suffocate has no attacker - the true wrong door')
   assert.equal(b.kinds.fp.wrongDoor, 1)
   const row = o2TriggerKindRow(b)
-  assert.ok(row.includes("the o2-low trigger's own kind join (v0.889.0)"))
+  assert.ok(row.includes("the o2-low trigger's own kind join (v0.890.0)"))
   assert.ok(row.includes('crossed drown 1 (the trigger\'s own)'))
   assert.ok(row.includes('crossed non-o2 1 (the false-positive price: wrong-door 1)'))
 })
@@ -239,11 +239,17 @@ test('the no-crossing deaths\' own kinds - the misses\' own families', () => {
   assert.equal(b.deaths, 2)
   assert.equal(b.noCrossing, 2)
   assert.deepEqual(b.kinds.noCrossing, { mob: 1, fall: 1 })
+  // (v0.890.0) the miss seat's own predator - F3's Drowned never dipped
+  assert.equal(b.kinds.miss.drowned, 1, 'the Drowned\'s own word on the no-crossing seat')
+  assert.equal(b.perDeath[0].missClass, 'drowned')
+  assert.equal(b.perDeath[0].attacker, 'Drowned')
+  assert.equal(b.perDeath[1].missClass, null, 'the fall carries no predator')
+  assert.equal(b.perDeath[1].attacker, null)
   assert.equal(b.kinds.o2, 0)
   assert.equal(b.kinds.falsePositive, 0)
   assert.ok(o2TriggerKindConsistent(b))
   const row = o2TriggerKindRow(b)
-  assert.ok(row.includes('no-crossing mob 1/fall 1'))
+  assert.ok(row.includes('no-crossing mob 1/fall 1, the miss\'s own predator: drowned 1'))
 })
 
 test('the trigger\'s own kind in the misses - the blind spot names itself', () => {
@@ -253,8 +259,10 @@ test('the trigger\'s own kind in the misses - the blind spot names itself', () =
   ]
   const b = o2TriggerKindBook(lines)
   assert.deepEqual(b.kinds.noCrossing, { drown: 1 })
+  assert.equal(b.kinds.miss.drowned, 0, 'the drown kind carries no attacker - no predator seat')
   const row = o2TriggerKindRow(b)
   assert.ok(row.includes('no-crossing drown 1'))
+  assert.ok(!row.includes('predator'), 'the zero-class silence holds')
 })
 
 test('the unkinded honesty - the inferred-only family counts unkinded', () => {
@@ -296,7 +304,7 @@ test('the face-145 kind join - the artifact\'s own death lines, byte for byte', 
   assert.equal(b.kinds.fp.wrongDoor, 1)
   assert.deepEqual(b.kinds.noCrossing, { mob: 1, fall: 1 })
   const row = o2TriggerKindRow(b)
-  assert.ok(row.includes("the o2-low trigger's own kind join (v0.889.0)"))
+  assert.ok(row.includes("the o2-low trigger's own kind join (v0.890.0)"))
   assert.ok(row.includes('crossed drown 1 (the trigger\'s own), crossed non-o2 1 (the false-positive price: wrong-door 1), no-crossing mob 1/fall 1'))
   assert.ok(row.includes('the kind join prices the trigger\'s own cost'))
 })
@@ -336,9 +344,14 @@ test('the face-148 kind join - the drowned-melee seat\'s own live face', () => {
   assert.equal(b.perDeath[0].window, 40, 'the o2 seat\'s own window rides untouched')
   assert.equal(b.perDeath[2].window, 60)
   assert.deepEqual(b.kinds.noCrossing, { mob: 1 })
+  // (v0.890.0) the miss seat's own predator - F17's Drowned OUTSIDE the
+  // band = the no-crossing miss where the predator WAS present
+  assert.equal(b.kinds.miss.drowned, 1, 'the blind-spot seat named by the predator\'s own word')
+  assert.equal(b.perDeath[1].missClass, 'drowned')
+  assert.equal(b.perDeath[1].attacker, 'Drowned')
   const row = o2TriggerKindRow(b)
-  assert.ok(row.includes("the o2-low trigger's own kind join (v0.889.0)"))
-  assert.ok(row.includes('crossed drown 2 (the trigger\'s own), crossed non-o2 1 (the false-positive price: drowned-melee 1 (window 20..20s avg 20s)), no-crossing mob 1'))
+  assert.ok(row.includes("the o2-low trigger's own kind join (v0.890.0)"))
+  assert.ok(row.includes('crossed drown 2 (the trigger\'s own), crossed non-o2 1 (the false-positive price: drowned-melee 1 (window 20..20s avg 20s)), no-crossing mob 1, the miss\'s own predator: drowned 1'))
 })
 
 test('the anatomy\'s both seats live - the row names only the live ones, joined', () => {
@@ -457,4 +470,79 @@ test('the kind row\'s honest silence - the zero deaths, the junk input', () => {
   assert.equal(b.deaths, 1)
   assert.equal(b.kinds.o2, 1)
   assert.ok(o2TriggerKindConsistent(b))
+})
+
+// (v0.890.0) THE MISS SEAT'S OWN PREDATOR - the misses' own anatomy's
+// own battery: the Drowned's own word on the no-crossing seat (the
+// trigger's own blind spot - the predator was present, the trigger
+// never saw the crossing); the other attackers stay unnamed (the
+// second split waits for the mass - the honest defer).
+test("the miss seat's own predator - the blind spot named by the attacker's own word", () => {
+  const lines = [
+    hb(1, 20),
+    'F17 [F17] died - respawning (cause: server: was slain by Drowned [kind=mob by Drowned] | inferred: drowned@1.9 (0s before death at [-91,62,346]) [the inference corroborates the server verdict])', // never dipped - the predator's own blind-spot seat
+    hb(2, 40),
+    diedKind('F8', 'was slain by Zombie', 'mob', 'Zombie'), // the other attacker - unnamed
+    hb(3, 60),
+    diedKind('F5', 'fell from a high place', 'fall') // no water, no predator
+  ]
+  const b = o2TriggerKindBook(lines)
+  assert.ok(o2TriggerKindConsistent(b))
+  assert.equal(b.deaths, 3)
+  assert.equal(b.noCrossing, 3)
+  assert.deepEqual(b.kinds.noCrossing, { mob: 2, fall: 1 })
+  assert.equal(b.kinds.miss.drowned, 1, "the Drowned's own word prices the blind-spot seat")
+  assert.equal(b.perDeath[0].missClass, 'drowned')
+  assert.equal(b.perDeath[0].attacker, 'Drowned')
+  assert.equal(b.perDeath[1].missClass, null, 'the Zombie miss stays unnamed')
+  assert.equal(b.perDeath[1].attacker, 'Zombie')
+  assert.equal(b.perDeath[2].missClass, null)
+  assert.equal(b.perDeath[2].attacker, null, 'the fall carries no attacker')
+  const row = o2TriggerKindRow(b)
+  assert.ok(row.includes("the o2-low trigger's own kind join (v0.890.0)"))
+  assert.ok(row.includes("no-crossing mob 2/fall 1, the miss's own predator: drowned 1"))
+})
+
+test("the miss predator's own fence - the lying seats price nothing", () => {
+  const lines = [
+    hb(1, 20),
+    diedKind('F17', 'was slain by Drowned', 'mob', 'Drowned'), // the predator's own blind-spot seat
+    hb(2, 40),
+    diedKind('F8', 'was slain by Zombie', 'mob', 'Zombie')
+  ]
+  const b = o2TriggerKindBook(lines)
+  assert.ok(o2TriggerKindConsistent(b))
+  // the lying counter: a count the fold never rode
+  assert.equal(o2TriggerKindConsistent({ ...b, kinds: { ...b.kinds, miss: { drowned: 2 } } }), false, 'a count the fold never rode')
+  // the omission: the predator seat stripped of its marker - the seat lies by silence
+  const stripped = o2TriggerKindBook(lines)
+  stripped.perDeath[0].missClass = null
+  assert.equal(o2TriggerKindConsistent(stripped), false, 'the omission lies like the leak')
+  // the leak: the marker on the Zombie seat - the wrong predator
+  const leak = o2TriggerKindBook(lines)
+  leak.perDeath[1].missClass = 'drowned'
+  assert.equal(o2TriggerKindConsistent(leak), false, 'the marker never rides the other attacker')
+  // the leak: the marker on a fall death
+  const fallBook = o2TriggerKindBook([hb(1, 20), diedKind('F5', 'fell from a high place', 'fall')])
+  fallBook.perDeath[0].missClass = 'drowned'
+  assert.equal(o2TriggerKindConsistent(fallBook), false, 'the marker never rides a fall')
+  // the leak: the marker on a crossed death (the melee seat's own class is fpClass, never missClass)
+  const crossedBook = o2TriggerKindBook([
+    hb(1, 20), pass('F9', 0, 6), hb(2, 26),
+    diedKind('F9', 'was slain by Drowned', 'mob', 'Drowned') // the melee seat
+  ])
+  assert.equal(crossedBook.kinds.fp.melee, 1)
+  assert.equal(crossedBook.kinds.miss.drowned, 0, 'the melee seat is the price, not the miss')
+  crossedBook.perDeath[0].missClass = 'drowned'
+  assert.equal(o2TriggerKindConsistent(crossedBook), false, 'the marker never rides a crossed seat')
+  // the shape: the miss cells missing / negative
+  assert.equal(o2TriggerKindConsistent({ ...b, kinds: { ...b.kinds, miss: null } }), false)
+  assert.equal(o2TriggerKindConsistent({ ...b, kinds: { ...b.kinds, miss: { drowned: -1 } } }), false)
+  // the lying row prices nothing
+  assert.equal(o2TriggerKindRow({ ...b, kinds: { ...b.kinds, miss: { drowned: 9 } } }), null)
+  // the zero-class silence: no Drowned miss - the row never names the predator clause
+  const zombieOnly = o2TriggerKindBook([hb(1, 20), diedKind('F8', 'was slain by Zombie', 'mob', 'Zombie')])
+  const zRow = o2TriggerKindRow(zombieOnly)
+  assert.ok(zRow.includes('no-crossing mob 1'))
+  assert.ok(!zRow.includes('predator'), 'the zero-class silence holds')
 })

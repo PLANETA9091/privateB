@@ -228,6 +228,26 @@ export function o2TriggerRow (book) {
 // seats' own timed fold - count + the untimed melee seats = the
 // melee seat itself, the cells agree with the perDeath image; a lying
 // cell prices nothing.
+//
+// (v0.890.0) THE MISS SEAT'S OWN PREDATOR - the misses' own anatomy
+// (the face-148 read named it: F17's 'mob by Drowned' OUTSIDE the band
+// = the no-crossing miss - THE PREDATOR WAS PRESENT, THE TRIGGER NEVER
+// SAW THE CROSSING). The no-crossing mob seats join the attacker's own
+// word (parseDeathKind's own attacker field - the one-parser law: the
+// same parse's group, never re-spelled): miss.drowned = the band's own
+// predator killed a bot whose o2 never read at-or-below the band edge -
+// the trigger's own blind spot named by the predator's own word (the
+// band edge's own blindness: the race can be lost BEFORE the band
+// opens, or the reads were too sparse to see the descent). The other
+// attackers (the Zombie's own family) stay unnamed - the second split
+// waits for the mass (the honest defer). The row names only the live
+// seats (the zero-class silence idiom). THE PREDATOR'S OWN FENCE:
+// miss.drowned must be exactly the no-crossing mob seats' own Drowned
+// fold - every such seat carries the marker, no marker ever leaks onto
+// a fall/o2/crossed seat, and the omission lies like the leak; a lying
+// seat prices nothing. The server verdict stays the authority - the
+// attacker's word is READ, never re-adjudicated (the v0.117.0
+// doctrine).
 
 // The trigger's own death word - the server's own kind= vocabulary's
 // oxygen death (deathcause.mjs's own bucket, never invented here).
@@ -238,6 +258,7 @@ const emptyKindJoin = () => ({
   falsePositive: 0,
   crossedUnknown: 0,
   fp: { melee: 0, wrongDoor: 0, meleeWindow: { count: 0, min: null, max: null, sum: 0 } },
+  miss: { drowned: 0 },
   noCrossing: {},
   noCrossingUnknown: 0
 })
@@ -266,10 +287,19 @@ export function o2TriggerKindBook (lines) {
     if (!seat) break // the fence catches the misalignment - never invent
     const parsed = parseDeathKind(line)
     seat.kind = parsed ? parsed.kind : null
+    seat.attacker = parsed ? parsed.attacker : null // the parse's own group - the one-parser law
     seat.fpClass = null // the price's own seat - only the falsePositive owns a class (never leaks)
+    seat.missClass = null // the miss's own seat - only the predator miss owns a class (never leaks)
     if (!seat.crossed) {
       if (seat.kind === null) book.kinds.noCrossingUnknown++
       else book.kinds.noCrossing[seat.kind] = (book.kinds.noCrossing[seat.kind] || 0) + 1
+      if (seat.kind === 'mob' && seat.attacker === DROWNED_ATTACKER) {
+        // the miss seat's own predator (the v0.890.0 anatomy): the
+        // Drowned's own word on the no-crossing seat - the trigger's
+        // own blind spot, the predator's own read
+        seat.missClass = 'drowned'
+        book.kinds.miss.drowned++
+      }
     } else if (seat.kind === null) book.kinds.crossedUnknown++
     else if (seat.kind === O2_DEATH_KIND) book.kinds.o2++
     else {
@@ -315,6 +345,10 @@ export function o2TriggerKindConsistent (book) {
   if (!Number.isInteger(mw.count) || mw.count < 0 || !Number.isInteger(mw.sum) || mw.sum < 0) return false
   if (mw.count > 0 && (mw.min === null || mw.max === null)) return false
   if (mw.count === 0 && (mw.min !== null || mw.max !== null || mw.sum !== 0)) return false
+  // the miss predator's own cells: the no-crossing mob seats' own
+  // Drowned fold (the v0.890.0 anatomy's own shape)
+  if (!k.miss || typeof k.miss !== 'object' || Array.isArray(k.miss)) return false
+  if (!Number.isInteger(k.miss.drowned) || k.miss.drowned < 0) return false
   if (!k.noCrossing || typeof k.noCrossing !== 'object' || Array.isArray(k.noCrossing)) return false
   let ncSum = 0
   for (const key of Object.keys(k.noCrossing)) {
@@ -323,13 +357,20 @@ export function o2TriggerKindConsistent (book) {
     ncSum += v
   }
   if (ncSum + k.noCrossingUnknown !== book.noCrossing) return false
-  let o2 = 0, fp = 0, cu = 0, ncu = 0, melee = 0, wrongDoor = 0
+  let o2 = 0, fp = 0, cu = 0, ncu = 0, melee = 0, wrongDoor = 0, missedDrowned = 0
   let mwc = 0, mws = 0, mwm = null, mwM = null
   for (const d of book.perDeath) {
     if (!d || typeof d !== 'object') return false
     if (d.kind !== null && typeof d.kind !== 'string') return false
+    if (d.attacker !== null && d.attacker !== undefined && typeof d.attacker !== 'string') return false
     const fc = d.fpClass === undefined ? null : d.fpClass
     if (fc !== null && fc !== 'melee' && fc !== 'wrongDoor') return false
+    const mc = d.missClass === undefined ? null : d.missClass
+    if (mc !== null && mc !== 'drowned') return false
+    const predatorMiss = !d.crossed && d.kind === 'mob' && d.attacker === DROWNED_ATTACKER
+    if (mc === 'drowned' && !predatorMiss) return false // the marker never leaks off the predator's own seat
+    if (predatorMiss && mc !== 'drowned') return false // the omission lies like the leak
+    if (predatorMiss) missedDrowned++
     if (!d.crossed) {
       if (fc !== null) return false // the price's class never leaks off the price
       if (d.kind === null) { ncu++; continue }
@@ -357,7 +398,7 @@ export function o2TriggerKindConsistent (book) {
     }
   }
   return o2 === k.o2 && fp === k.falsePositive && cu === k.crossedUnknown && ncu === k.noCrossingUnknown &&
-    melee === k.fp.melee && wrongDoor === k.fp.wrongDoor &&
+    melee === k.fp.melee && wrongDoor === k.fp.wrongDoor && missedDrowned === k.miss.drowned &&
     mwc === mw.count && mws === mw.sum && mwm === mw.min && mwM === mw.max
 }
 
@@ -389,7 +430,10 @@ export function o2TriggerKindRow (book) {
   if (book.kinds.crossedUnknown > 0) parts.push(`crossed unkinded ${book.kinds.crossedUnknown}`)
   const nc = Object.keys(book.kinds.noCrossing)
   if (nc.length) parts.push(`no-crossing ${nc.map((key) => `${key} ${book.kinds.noCrossing[key]}`).join('/')}`)
+  // the miss's own anatomy: only the live predator seat rides (the
+  // zero-class silence idiom)
+  if (book.kinds.miss.drowned > 0) parts.push(`the miss's own predator: drowned ${book.kinds.miss.drowned}`)
   if (book.kinds.noCrossingUnknown > 0) parts.push(`no-crossing unkinded ${book.kinds.noCrossingUnknown}`)
   if (!parts.length) return null
-  return `the o2-low trigger's own kind join (v0.889.0): ${parts.join(', ')} - the kind join prices the trigger's own cost`
+  return `the o2-low trigger's own kind join (v0.890.0): ${parts.join(', ')} - the kind join prices the trigger's own cost`
 }
