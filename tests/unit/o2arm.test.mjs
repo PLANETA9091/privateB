@@ -98,7 +98,7 @@ test('the row byte verbatim - face 143\'s own read', () => {
   const b = o2ArmBook(o2Gap(FACE143), FACE143)
   assert.equal(
     o2ArmBookRow(b),
-    'the rescue arm\'s own o2 book (v0.893.0): 41 arm(s) - o2 2..20 avg 8.6 (38 numeric arm(s), blind 3) - arm seat: the spread is the shape (no strict majority) - the fatal arm(s): blind 1 / critical 0 / band 0 / headroom 0 / unarmed 0 - the blind arm prices nothing - the sensor\'s own seat owns the lane (the sensor\'s health is the front, the trigger\'s constant is moot while the arm rides blind)'
+    'the rescue arm\'s own o2 book (v0.894.0): 41 arm(s) - o2 2..20 avg 8.6 (38 numeric arm(s), blind 3) - arm seat: the spread is the shape (no strict majority) - the fatal arm(s): blind 1 / critical 0 / band 0 / headroom 0 / unarmed 0 - the blind arm prices nothing - the sensor\'s own seat owns the lane (the sensor\'s health is the front, the trigger\'s constant is moot while the arm rides blind)'
   )
 })
 
@@ -107,7 +107,7 @@ test('the riders byte verbatim - the blind arm\'s own bracket', () => {
   assert.equal(o2ArmBookRidersRow(b), 'F1 [arm o2 -1 - blind]')
 })
 
-// (v0.893.0) the face-151 fold verbatim - the fatal arm's own depth's
+// (v0.894.0) the face-151 fold verbatim - the fatal arm's own depth's
 // first live face: 42 arms (blind 0 / critical 5 / band 4 / headroom
 // 33 - the headroom seat owns 78.6%), the F1 fatal arm rode o2 0 (the
 // floor) - depth = 10 - 0 = 10, the lever's MAXIMUM price: the
@@ -143,7 +143,7 @@ test('the face-151 fold verbatim - 42 arms, the fatal arm at the floor', () => {
   assert.equal(b.deaths, 1)
   assert.deepEqual(b.verdicts, { blind: 0, critical: 1, band: 0, headroom: 0, unarmed: 0 })
   assert.deepEqual(b.perDeath.F1, { o2: 0, band: 'critical' }, 'the F1 fatal arm rode the floor')
-  // (v0.893.0) the fatal arm's own depth - the lever's own price
+  // (v0.894.0) the fatal arm's own depth - the lever's own price
   assert.deepEqual(b.fatalDepth, { count: 1, min: 10, max: 10, sum: 10 }, 'depth = 10 - 0 = 10 - the MAXIMUM price the lever can ride')
   assert.equal(o2ArmBookRidersRow(b), 'F1 [arm o2 0 - critical]')
 })
@@ -152,7 +152,7 @@ test('the row byte verbatim - face 151\'s own read, the depth priced', () => {
   const b = o2ArmBook(o2Gap(FACE151), FACE151)
   assert.equal(
     o2ArmBookRow(b),
-    'the rescue arm\'s own o2 book (v0.893.0): 42 arm(s) - o2 0..20 avg 11.8 (42 numeric arm(s)) - arm seat: headroom owns 33 of 42 (78.6%) - the fatal arm(s): blind 0 / critical 1 / band 0 / headroom 0 / unarmed 0 (the in-band fatal arms\' own depth below the rescueBand\'s edge: 10..10 avg 10.0 o2-unit(s) - the lever\'s own price) - the lane armed at the damage window - the trigger\'s constant must ride higher (the o2-low front\'s own lever)'
+    'the rescue arm\'s own o2 book (v0.894.0): 42 arm(s) - o2 0..20 avg 11.8 (42 numeric arm(s)) - arm seat: headroom owns 33 of 42 (78.6%) - the fatal arm(s): blind 0 / critical 1 / band 0 / headroom 0 / unarmed 0 (the in-band fatal arms\' own depth below the rescueBand\'s edge: 10..10 avg 10.0 o2-unit(s) - the lever\'s own price) - the lane armed at the damage window - the trigger\'s constant must ride higher (the o2-low front\'s own lever)'
   )
 })
 

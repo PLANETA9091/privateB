@@ -36,7 +36,7 @@
 // owns the loss, the constant is not the lever) / unarmed (no arm since
 // the last death - the trigger itself never fired for this drowning).
 //
-// (v0.893.0) THE FATAL ARM'S OWN DEPTH - the lever's own price (the
+// (v0.894.0) THE FATAL ARM'S OWN DEPTH - the lever's own price (the
 // face-151 read named it: F1's fatal arm rode o2 0 - the lane armed at
 // the floor, and the row said 'the trigger's constant must ride
 // higher' without pricing HOW MUCH the higher constant buys). The
@@ -128,7 +128,7 @@ export function o2ArmBook (o2g, lines) {
   // the death side: the counts ride the death line (the pagelead law)
   const perDeath = {}
   const verdicts = { blind: 0, critical: 0, band: 0, headroom: 0, unarmed: 0 }
-  // the fatal arms' own depth (the v0.893.0 lever's own price): the
+  // the fatal arms' own depth (the v0.894.0 lever's own price): the
   // in-band fatal arms' own o2 fold - depth = the rescueBand's own edge
   // minus the arm's own firing point (the o2-units a higher constant
   // would have bought)
@@ -231,7 +231,7 @@ export function o2ArmBookConsistent (b) {
     if (!v || typeof v !== 'object') return false
     if (!(v.band in b.verdicts)) return false
   }
-  // the depth fold's own image (the v0.893.0 fence): the in-band fatal
+  // the depth fold's own image (the v0.894.0 fence): the in-band fatal
   // seats' own walk - every critical/band fatal seat folds exactly
   // once, the count agrees with the verdict census (a critical/band
   // seat with no numeric o2 is a lie the walk catches), the cells ride
@@ -284,7 +284,7 @@ export function o2ArmBookRow (b) {
   else if (v.critical > 0) verdictByte = 'the lane armed at the damage window - the trigger\'s constant must ride higher (the o2-low front\'s own lever)'
   else if (v.band > 0) verdictByte = 'the lane armed inside the band - the constant has the seat, the lane\'s own execution prices the loss'
   else verdictByte = 'the arms rode with headroom - the lane\'s own execution owns the losses (the constant is not the lever)'
-  // the fatal arms' own depth (the v0.893.0 lever's own price): the
+  // the fatal arms' own depth (the v0.894.0 lever's own price): the
   // in-band fatal arms' own o2-units a higher constant would have
   // bought - a READ of the fold's own cells, never re-computed
   let fatalByte = `the fatal arm(s): blind ${v.blind} / critical ${v.critical} / band ${v.band} / headroom ${v.headroom} / unarmed ${v.unarmed}`
@@ -292,7 +292,7 @@ export function o2ArmBookRow (b) {
   if (fd.count > 0) {
     fatalByte += ` (the in-band fatal arms' own depth below the rescueBand's edge: ${fd.min}..${fd.max} avg ${(fd.sum / fd.count).toFixed(1)} o2-unit(s) - the lever's own price)`
   }
-  return `the rescue arm's own o2 book (v0.893.0): ${b.starts} arm(s) - ${spreadByte} - ${seatByte} - ${fatalByte} - ${verdictByte}`
+  return `the rescue arm's own o2 book (v0.894.0): ${b.starts} arm(s) - ${spreadByte} - ${seatByte} - ${fatalByte} - ${verdictByte}`
 }
 
 /**
