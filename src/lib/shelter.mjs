@@ -323,6 +323,45 @@ export function ringSillDue (side = {}, p = {}) {
 }
 
 /**
+ * The decline's own reads: partition the SEAT-SHAPED dead sides by what
+ * unseats them. The v0.851.0 line counted the sides that already PASSED the
+ * seat reads (ringSillDue) - so a side whose failure IS ground-busy or
+ * no-reference dropped out of the very set the buckets counted, and the
+ * decline stayed invisible in exactly those two buckets (face 127 measured
+ * it live: F11's [-o -o -o -o] refusal in water - the under-bot block reads
+ * water, no reference owns all four seats, the line never printed). The
+ * reads run over the shape class instead and PARTITION it: no reference
+ * owns all when the under-bot block is missing, then ground busy per side,
+ * then head blocked among the rest; the seatable remainder is the
+ * foreclosure the non-seat dead side owns. Junk input reads as null - a
+ * shape the reads cannot name never renders (the v0.59.0 law).
+ * @param {Array<object>} [sides] the seat-shaped dead sides, each pre-read
+ *   as { busy, closable } (the call site's live reads)
+ * @param {boolean} [sides[].busy] a hostile stands in the side's ground cell
+ * @param {boolean} [sides[].closable] the side closes once seated
+ * @param {object} [p] the global mechanics read
+ * @param {boolean} [p.underBotSolid] the block under the bot is solid
+ * @returns {{count: number, busy: number, noRef: number, blocked: number}|null}
+ */
+export function ringSillDeclineReads (sides = [], p = {}) {
+  if (!Array.isArray(sides) || sides.length === 0) return null
+  if (!p || typeof p !== 'object') return null
+  const underBotSolid = p.underBotSolid === true
+  if (!underBotSolid) {
+    return { count: sides.length, busy: 0, noRef: sides.length, blocked: 0 }
+  }
+  let busy = 0
+  let blocked = 0
+  for (const s of sides) {
+    if (!s || typeof s !== 'object') return null
+    if (typeof s.busy !== 'boolean' || typeof s.closable !== 'boolean') return null
+    if (s.busy) busy++
+    else if (!s.closable) blocked++
+  }
+  return { count: sides.length, busy, noRef: 0, blocked }
+}
+
+/**
  * The whole ring (4 sides) must be closable BEFORE the first placement: a
  * single unbuilt gap is a walk-in door, so a partial build must not buy the
  * wait. Junk input reads as not feasible.

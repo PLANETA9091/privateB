@@ -46,7 +46,7 @@ import { bestPickaxe, bestPickTier, oreTierGuardLine, oreTierRequired, tierDebtO
 import { isNight } from '../lib/nightsafety.mjs'
 import { RATION_OPTS, rationVerdict, createRationGate } from '../lib/ration.mjs' // (v0.511.0) THE FLESH RATION - the autoeat plugin's own policy, finally fed and finally enabled; (v0.513.0) the fight table rides the same import
 import { GRAVITY_ROOF_BLOCKS, GRAVITY_MAX_PASSES, gravityColumnOrder } from '../lib/gravityroof.mjs'
-import { shelterDue, earnSealDue, pickSealItem, pickJunkToDrop, SHELTER_WALL_OK, SHELTER_ROUND_MS, SHELTER_MAX_MS, SHELTER_SAFE_DIST, EARN_SEAL_MAX_THREAT_DIST, RING_SIDE_NORMALS, RING_BLOCKS_NEEDED, ringFeasible, ringBlocksNeeded, ringSideOrder, ringSideBuildable, ringSillDue, ringThreatSideIndex, ringRangedNeeded, ringRangedEnough, countSealBlocks, emptySlotCount, RING_PLACE_ROUNDS, RING_RETRY_TICKS, ringDigEarnSupply, RING_DIG_EARN_OK } from '../lib/shelter.mjs'
+import { shelterDue, earnSealDue, pickSealItem, pickJunkToDrop, SHELTER_WALL_OK, SHELTER_ROUND_MS, SHELTER_MAX_MS, SHELTER_SAFE_DIST, EARN_SEAL_MAX_THREAT_DIST, RING_SIDE_NORMALS, RING_BLOCKS_NEEDED, ringFeasible, ringBlocksNeeded, ringSideOrder, ringSideBuildable, ringSillDue, ringSillDeclineReads, ringThreatSideIndex, ringRangedNeeded, ringRangedEnough, countSealBlocks, emptySlotCount, RING_PLACE_ROUNDS, RING_RETRY_TICKS, ringDigEarnSupply, RING_DIG_EARN_OK } from '../lib/shelter.mjs'
 import { sealSnapshot, sealDeclareLine, sealRespawnLine } from '../lib/sealwatch.mjs' // (v0.421.0) the seal watch: the pre-risk declare + the respawn accounting, the same SEAL_PRIORITY list all four seal arithmetics spend
 import {
   waterVerdict, airBarTrust, shoreDirection, isWaterName, SHAFT_FLUID_NAMES,
@@ -1269,18 +1269,31 @@ export function createMiner ({
       // still has to be buildable - otherwise the same honest skip line
       if ((!ranged || !ringSideBuildable(sides[threatIdx])) && !sillCarries) {
         log(`${tag} combat: shelter skip (open field: ring not buildable [${sides.map(mark).join(' ')}]${ranged ? ', no arrow wall either' : ''} vs ${threat.name}@${threat.dist.toFixed(1)})`)
-        // (v0.851.0) THE SILL'S OWN DECLINE: the carry refused a ring that
-        // had sill-shaped sides - the silent decline is the v0.59.0 bug
-        // class (face 126 measured it live: ONE [-o] refusal, the decline
-        // invisible, the decode cannot price the sill's opportunities). One
-        // line names the reads: ground busy (a hostile in the ground cell),
-        // no reference (the under-bot block empty or unreadable), head
-        // blocked (the side would never close even seated).
-        if (sillSides.length > 0) {
-          const busy = sillSides.filter(s => hostileIn(s.fx, here.y - 1, s.fz)).length
-          const noRef = underBotBlock ? 0 : sillSides.length
-          const unclosable = sillSides.filter(s => !ringSideBuildable({ ...s, groundSolid: true })).length
-          log(`${tag} combat: shelter ring sill decline: ${sillSides.length} seat-shaped side(s) unseatable (ground busy ${busy}, no reference ${noRef}, head blocked ${unclosable})`)
+        // (v0.851.0, completed v0.852.0) THE SILL'S OWN DECLINE: the carry
+        // refused a ring that had sill-shaped sides - the silent decline is
+        // the v0.59.0 bug class (face 126 measured it live: ONE [-o]
+        // refusal, the decline invisible). The v0.851.0 cure counted the
+        // sides that already PASSED the seat reads (sillSides) - so a side
+        // whose failure IS ground-busy or no-reference dropped out of the
+        // very set the buckets counted, and the decline stayed invisible in
+        // exactly those two buckets (face 127 measured it live: F11's
+        // [-o -o -o -o] refusal in water - the under-bot block reads water,
+        // no reference owns all four seats, the line never printed). The
+        // reads now run over the SEAT-SHAPED DEAD set (the '-' shape class,
+        // the mark's own grammar) and PARTITION it: no reference owns all
+        // when the under-bot block is missing, then ground busy per side,
+        // then head blocked among the rest; the seatable remainder is the
+        // foreclosure the non-seat dead side owns. The line's byte keeps
+        // its shape; the ranged lane never prints it (its own guard).
+        const seatShaped = ranged ? [] : deadSides.filter(s => s.foot === 'empty' && s.groundSolid !== true)
+        if (seatShaped.length > 0) {
+          const decline = ringSillDeclineReads(seatShaped.map(s => ({
+            busy: hostileIn(s.fx, here.y - 1, s.fz),
+            closable: ringSideBuildable({ ...s, groundSolid: true })
+          })), { underBotSolid: !!underBotBlock })
+          if (decline) {
+            log(`${tag} combat: shelter ring sill decline: ${decline.count} seat-shaped side(s) unseatable (ground busy ${decline.busy}, no reference ${decline.noRef}, head blocked ${decline.blocked})`)
+          }
         }
         return false
       }

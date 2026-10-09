@@ -15,7 +15,8 @@ import {
   shelterDue, losingFight, pickSealItem, pickJunkToDrop, earnSealDue,
   ringCellClass, ringSideBuildable, ringFeasible, ringBlocksNeeded,
   ringSideOrder, countSealBlocks, emptySlotCount, ringDigEarnSupply,
-  ringThreatSideIndex, ringRangedNeeded, ringRangedEnough, ringSillDue
+  ringThreatSideIndex, ringRangedNeeded, ringRangedEnough, ringSillDue,
+  ringSillDeclineReads
 } from '../../src/lib/shelter.mjs'
 import { FLEE_HP } from '../../src/lib/combat.mjs'
 
@@ -569,19 +570,82 @@ test('REGRESSION PIN: the miner carries the sill lane (the v0.849.0 uneven-groun
   assert.ok(/ring not buildable \[\$\{sides\.map\(mark\)\.join\(' '\)\}\]/.test(minerSrc), "the honest refusal line keeps its byte (the decode greps survive)")
 })
 
-test('REGRESSION PIN: the sill decline names its reads (the v0.851.0 opacity cure)', async () => {
+test('REGRESSION PIN: the sill decline names its reads (the v0.851.0 cure, completed v0.852.0)', async () => {
   // MEASURED (face 126 = 37857285783, the sill's first live face): ONE
   // sill-shaped refusal ([Bo oo -o oo] vs zombie@3.6, a single dead '-o'
   // side) and the carry DECLINED it invisibly - the mark line cannot say
   // which legality read failed (ground busy / no under-bot reference / head
   // blocked), so the decode cannot price the sill's opportunities. The
   // v0.59.0 law: the silent fall-through is the bug class.
+  // MEASURED AGAIN (face 127 = 37860800596, the sill's second live face):
+  // the v0.851.0 line counted the sides that already PASSED the seat reads
+  // (sillSides filters through ringSillDue) - F11's [-o -o -o -o] refusal
+  // in water (the under-bot block reads water, no reference owns all four
+  // seats) dropped out of the very set the buckets counted and the line
+  // never printed. The reads now run over the SEAT-SHAPED DEAD set and
+  // PARTITION it - the cure names the read that owns the decline.
   const fs = await import('node:fs')
   const minerSrc = fs.readFileSync(new URL('../../src/bots/miner.mjs', import.meta.url), 'utf8')
-  // the decline line rides the refusal path, ONLY when sill-shaped sides exist
-  assert.ok(/if \(sillSides\.length > 0\) \{\s*const busy = sillSides\.filter\(s => hostileIn\(s\.fx, here\.y - 1, s\.fz\)\)\.length\s*const noRef = underBotBlock \? 0 : sillSides\.length\s*const unclosable = sillSides\.filter\(s => !ringSideBuildable\(\{ \.\.\.s, groundSolid: true \}\)\)\.length\s*log\(`\$\{tag\} combat: shelter ring sill decline: \$\{sillSides\.length\} seat-shaped side\(s\) unseatable \(ground busy \$\{busy\}, no reference \$\{noRef\}, head blocked \$\{unclosable\}\)`\)/.test(minerSrc), 'the decline line names all three reads with the live re-checks (the decode prices the sill)')
+  // the decline rides the SEAT-SHAPED DEAD set (the shape class), never the
+  // legality-passed set, and the ranged lane never prints it (its own guard)
+  assert.ok(/const seatShaped = ranged \? \[\] : deadSides\.filter\(s => s\.foot === 'empty' && s\.groundSolid !== true\)/.test(minerSrc), 'the decline reads the seat-shaped DEAD set (the shape class), the ranged lane guarded out')
+  // the reads ride the pure helper with the LIVE mechanics reads
+  assert.ok(/const decline = ringSillDeclineReads\(seatShaped\.map\(s => \(\{\s*busy: hostileIn\(s\.fx, here\.y - 1, s\.fz\),\s*closable: ringSideBuildable\(\{ \.\.\.s, groundSolid: true \}\)\s*\}\)\), \{ underBotSolid: !!underBotBlock \}\)/.test(minerSrc), 'the buckets ride the pure helper with the live hostile + under-bot reads')
+  // the decline line keeps its byte (the decode greps survive)
+  assert.ok(/shelter ring sill decline: \$\{decline\.count\} seat-shaped side\(s\) unseatable \(ground busy \$\{decline\.busy\}, no reference \$\{decline\.noRef\}, head blocked \$\{decline\.blocked\}\)/.test(minerSrc), 'the decline line keeps its grammar (the decode prices the sill)')
   // the decline lives INSIDE the refusal branch (after the notbuildable log, before the return)
   const declineIdx = minerSrc.indexOf('shelter ring sill decline:')
   const refuseIdx = minerSrc.indexOf("shelter skip (open field: ring not buildable [")
-  assert.ok(declineIdx > refuseIdx && declineIdx - refuseIdx < 1200, 'the decline follows the refusal line it explains (the same branch, the same return)')
+  assert.ok(declineIdx > refuseIdx && declineIdx - refuseIdx < 2000, 'the decline follows the refusal line it explains (the same branch, the same return)')
+  // the return closes the branch AFTER the decline (the anchor stays)
+  const retIdx = minerSrc.indexOf('return false', declineIdx)
+  assert.ok(retIdx > declineIdx && retIdx - declineIdx < 300, 'the decline rides the refusal return (the branch ends honest)')
+})
+
+test('ringSillDeclineReads: the water case names no reference (the face-127 verbatim)', () => {
+  // face 127's F11: [-o -o -o -o] vs drowned@1.1, the bot in water - the
+  // under-bot block reads water, no reference owns ALL four seats
+  const water = ringSillDeclineReads([
+    { busy: false, closable: true }, { busy: false, closable: true },
+    { busy: false, closable: true }, { busy: false, closable: true }
+  ], { underBotSolid: false })
+  assert.deepEqual(water, { count: 4, busy: 0, noRef: 4, blocked: 0 }, 'no reference owns all four seats in the water case')
+  const one = ringSillDeclineReads([{ busy: false, closable: true }], { underBotSolid: false })
+  assert.deepEqual(one, { count: 1, busy: 0, noRef: 1, blocked: 0 }, 'the face-126 shape reads the same law (no reference owns the single seat)')
+})
+
+test('ringSillDeclineReads: the buckets partition the seat-shaped set', () => {
+  // ground busy owns first, head blocked owns among the rest, the seatable
+  // remainder is the foreclosure gap: busy + noRef + blocked <= count always
+  const mixed = ringSillDeclineReads([
+    { busy: true, closable: true },   // ground busy owns it
+    { busy: false, closable: false }, // head blocked owns it
+    { busy: false, closable: true },  // seatable - the foreclosure gap
+    { busy: true, closable: false }   // busy owns it before blocked
+  ], { underBotSolid: true })
+  assert.deepEqual(mixed, { count: 4, busy: 2, noRef: 0, blocked: 1 }, 'busy owns first, blocked owns among the rest, the gap reads honest')
+  const allBusy = ringSillDeclineReads([
+    { busy: true, closable: true }, { busy: true, closable: false }
+  ], { underBotSolid: true })
+  assert.deepEqual(allBusy, { count: 2, busy: 2, noRef: 0, blocked: 0 }, 'the busy read owns every seat it covers')
+  const allBlocked = ringSillDeclineReads([
+    { busy: false, closable: false }, { busy: false, closable: false }
+  ], { underBotSolid: true })
+  assert.deepEqual(allBlocked, { count: 2, busy: 0, noRef: 0, blocked: 2 }, 'the head-blocked read owns the unclosable seats')
+})
+
+test('ringSillDeclineReads: the junk battery never renders a made-up shape', () => {
+  // the v0.59.0 law: a shape the reads cannot name never renders
+  assert.equal(ringSillDeclineReads(null, { underBotSolid: true }), null, 'null sides read null')
+  assert.equal(ringSillDeclineReads([], { underBotSolid: true }), null, 'empty sides read null (nothing to decline)')
+  assert.equal(ringSillDeclineReads([{ busy: false, closable: true }], null), null, 'null reads read null')
+  assert.equal(ringSillDeclineReads([{ busy: false, closable: true }], 'junk'), null, 'junk reads read null')
+  assert.equal(ringSillDeclineReads([null], { underBotSolid: true }), null, 'a null side read nulls the shape')
+  assert.equal(ringSillDeclineReads([{ busy: false }], { underBotSolid: true }), null, 'a missing closable flag nulls the shape')
+  assert.equal(ringSillDeclineReads([{ closable: true }], { underBotSolid: true }), null, 'a missing busy flag nulls the shape')
+  assert.equal(ringSillDeclineReads([{ busy: 'yes', closable: true }], { underBotSolid: true }), null, 'a non-boolean busy flag nulls the shape')
+  assert.equal(ringSillDeclineReads([{ busy: false, closable: 1 }], { underBotSolid: true }), null, 'a non-boolean closable flag nulls the shape')
+  // the no-reference arm is shape-total: it owns every side it is given
+  const noRef = ringSillDeclineReads([{ busy: true, closable: true }, { busy: false, closable: false }], { underBotSolid: false })
+  assert.deepEqual(noRef, { count: 2, busy: 0, noRef: 2, blocked: 0 }, 'no reference owns all when the under-bot block is missing')
 })
