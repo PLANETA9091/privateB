@@ -341,3 +341,140 @@ export function chestNoPathRingRow (ring) {
   else seat = '- THE SPREAD IS THE SHAPE: no band owns the refusals - the tie law held'
   return `${head} ${seat}`
 }
+
+// (v0.861.0) THE STUCK CHEST'S OWN BOOK - the no-path refusals' own
+// per-chest repeat fold. The ring (v0.860.0) banded the refusals' d and
+// named the geometry the door's owner (face 134: mid 14 of 18) - but the
+// fold rode band-aggregate only: WHICH chest refused, and WHICH chest
+// refused AGAIN, rode unnamed. The exclude front's own question rode with
+// it: a chest that refuses no-path TWICE is the exclude machinery's own
+// candidate (the v0.853.0 swap voice's exclude-one-candidate bound -
+// the twice-refused chest should never re-rent its walk), while a chest
+// refused once is the ring's noise. The refusal's own d rides the walk
+// the chest rented - so the repeats' ride-share prices the cure BEFORE
+// the fleet wiring: walks rented on repeats / all no-path walks.
+//
+// Reads through the SAME hop regex the bill and the ring read (the
+// one-parser law - no new grammar), filters the no-path verdict (the
+// class that owns the door - face 134: 23 of 24), folds per chest:
+// the rides, the bots, the d stats, the band split (the ring's own
+// ruler: close d<=10, mid 11..25, far 26+ - the one-ruler law).
+//
+// Pure: reads, never mutates. Zero fleet wiring (mining-surface only).
+export function chestNoPathRepeats (lines) {
+  const rows = Array.isArray(lines)
+    ? lines
+    : (typeof lines === 'string' ? lines.split('\n') : [])
+  if (!Array.isArray(rows)) return null
+  const bandOf = (d) => d <= 10 ? 'close' : (d <= 25 ? 'mid' : 'far')
+  const chests = {}
+  let n = 0
+  for (const l of rows) {
+    if (typeof l !== 'string') continue
+    const hop = l.match(CHEST_DOOR_HOP_RE)
+    if (!hop) continue
+    if (verdictOf(hop[6]) !== 'noPath') continue
+    const d = Number(hop[5])
+    if (!Number.isFinite(d)) continue
+    n++
+    const pos = `${hop[2]},${hop[3]},${hop[4]}`
+    if (!chests[pos]) chests[pos] = { n: 0, bots: {}, ds: [], bands: { close: 0, mid: 0, far: 0 } }
+    const c = chests[pos]
+    c.n++
+    c.bots[hop[1]] = (c.bots[hop[1]] || 0) + 1
+    c.ds.push(d)
+    c.bands[bandOf(d)]++
+  }
+  if (n === 0) return null
+  const mkD = (ds) => ({
+    n: ds.length,
+    min: Math.min(...ds),
+    max: Math.max(...ds),
+    avg: Math.round((ds.reduce((a, b) => a + b, 0) / ds.length) * 10) / 10
+  })
+  const shaped = {}
+  for (const [pos, c] of Object.entries(chests)) {
+    shaped[pos] = {
+      n: c.n,
+      bots: { ...c.bots },
+      d: mkD(c.ds),
+      bands: { ...c.bands },
+      bandCell: ['close', 'mid', 'far'].filter(b => c.bands[b] > 0).join('+')
+    }
+  }
+  const repeatChests = Object.entries(shaped)
+    .filter(([, c]) => c.n >= 2)
+    .map(([pos, c]) => ({ pos, ...c }))
+    .sort((a, b) => b.n - a.n ||
+      Object.keys(b.bots).length - Object.keys(a.bots).length ||
+      a.pos.localeCompare(b.pos))
+  const repeatRides = repeatChests.reduce((a, c) => a + c.n, 0)
+  return {
+    n,
+    chests: shaped,
+    distinctChests: Object.keys(shaped).length,
+    repeatChests,
+    repeatRides,
+    soloRides: n - repeatRides
+  }
+}
+
+/** THE CONSISTENCY FENCE (the v0.852.0 fence law): the chests' n sum to
+ * the book's n, every chest's bots sum to its n, the d stats obey
+ * min <= avg <= max with n >= 1 and match the chest's ride count, the
+ * band counts sum to the chest's n, the repeats' ride-share arithmetic
+ * closes (repeatRides + soloRides === n, every repeat at n >= 2). A
+ * self-inconsistent book never renders. */
+export function chestNoPathRepeatsConsistent (book) {
+  if (!book || typeof book !== 'object') return false
+  if (!Number.isFinite(book.n) || book.n < 1) return false
+  if (!Number.isFinite(book.distinctChests) || book.distinctChests < 1) return false
+  if (!Number.isFinite(book.repeatRides) || !Number.isFinite(book.soloRides)) return false
+  if (book.repeatRides + book.soloRides !== book.n) return false
+  let sum = 0
+  for (const c of Object.values(book.chests || {})) {
+    if (!Number.isFinite(c.n) || c.n < 1) return false
+    const botsSum = Object.values(c.bots || {}).reduce((a, b) => a + b, 0)
+    if (botsSum !== c.n) return false
+    const d = c.d || {}
+    if (!Number.isFinite(d.n) || d.n !== c.n) return false
+    if (!Number.isFinite(d.min) || !Number.isFinite(d.max) || !Number.isFinite(d.avg)) return false
+    if (d.min > d.avg || d.avg > d.max) return false
+    const bandSum = ['close', 'mid', 'far'].reduce((a, b) => a + (c.bands?.[b] || 0), 0)
+    if (bandSum !== c.n) return false
+    sum += c.n
+  }
+  if (sum !== book.n) return false
+  if (Object.keys(book.chests || {}).length !== book.distinctChests) return false
+  let repeatSum = 0
+  for (const r of book.repeatChests || []) {
+    if (!Number.isFinite(r.n) || r.n < 2) return false
+    const src = book.chests[r.pos]
+    if (!src || src.n !== r.n) return false
+    repeatSum += r.n
+  }
+  return repeatSum === book.repeatRides
+}
+
+/** The row: 'the no-path repeats' own book (v0.861.0): 18 refusal(s) on
+ * 13 distinct chest(s) - repeats 3 ([-117,70,414] x4 F1+F19+F3 d 14..32
+ * avg 21.3 mid+far, ...) - walks rented on repeats 8 of 18 (44%) - THE
+ * EXCLUDE'S OWN CANDIDATES: the twice-refused chest re-rents its walk -
+ * the cross-bot repeat names the swap list, the same-bot repeat names
+ * the memory hole'. The seat law: a MAJORITY of the walks rented on
+ * repeats (> n/2) names the rent the exclude machinery would stop; a
+ * clean face (every chest refused once) reads the honest once. */
+export function chestNoPathRepeatsRow (book) {
+  if (!chestNoPathRepeatsConsistent(book)) return null
+  const head = `the no-path repeats' own book (v0.861.0): ${book.n} refusal(s) on ${book.distinctChests} distinct chest(s)`
+  const repeatsCell = book.repeatChests.length > 0
+    ? `- repeats ${book.repeatChests.length} (${book.repeatChests.map(r => `[${r.pos}] x${r.n} ${Object.keys(r.bots).sort().join('+')} d ${r.d.min}..${r.d.max} avg ${r.d.avg} ${r.bandCell}`).join(', ')})`
+    : '- repeats none (every chest refused once)'
+  const pct = Math.round((book.repeatRides / book.n) * 100)
+  const priceCell = `- walks rented on repeats ${book.repeatRides} of ${book.n} (${pct}%)`
+  let seat
+  if (book.repeatChests.length === 0) seat = "- THE HONEST ONCE: the ring's noise owns, the repeats wait for their second face"
+  else if (book.repeatRides > book.n / 2) seat = "- THE REPEAT'S OWN RENT: the majority of the walks rented on chests that had already refused - the exclude machinery's own front"
+  else seat = "- THE EXCLUDE'S OWN CANDIDATES: the twice-refused chest re-rents its walk - the cross-bot repeat names the swap list, the same-bot repeat names the memory hole"
+  return `${head} ${repeatsCell} ${priceCell} ${seat}`
+}

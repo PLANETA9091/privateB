@@ -26,7 +26,7 @@ import { decideWeather } from '../../src/lib/decideweather.mjs' // (v0.689.0) TH
 import { hotspotCensus, hotspotBands, hotSpotSeat, hotSpotSeatRow, hotSpotRiders, hotSpotRidersRow } from '../../src/lib/hotspot.mjs' // (v0.419.0 + the v0.421.0 band read) the failure geometry's cross-lane read; (v0.794.0) WHICH spot owns the starvation book
 import { climbOutCensus, climbFailVerdict, climbFailVerdictRow, climbFailRiders, climbFailRidersRow, climbStageBill, climbStageBillRow, climbStageRiders, climbStageRidersRow } from '../../src/lib/climbout.mjs' // (v0.420.0) the vertical doom's verdict read; (v0.779.0) WHICH fail-why owns the climb book; (v0.781.0) WHICH rung owns the ladder
 import { bankFailCensus, bankZeroWhySeat, bankZeroWhySeatRow, bankZeroWhyRiders, bankZeroWhyRidersRow } from '../../src/lib/bankfail.mjs' // (v0.411.0) the bank lane's own decide/no-path ledger; (v0.807.0) WHICH why owns the zero-delivery book
-import { chestDoorBill, chestDoorBillRow, chestDoorDistance, chestDoorDistanceRow, chestNoPathRing, chestNoPathRingRow } from '../../src/lib/chestdoor.mjs' // (v0.852.0) the chest door's own bot bill - the unreachable rides folded per bot per chest (the WHO+WHERE the docket's aggregates rode unnamed); (v0.856.0) + the decide rides' own distance (the walk-budget front's read); (v0.860.0) + the no-path ring's own reach (the refusals' d bands - the ring's edge or the geometry)
+import { chestDoorBill, chestDoorBillRow, chestDoorDistance, chestDoorDistanceRow, chestNoPathRing, chestNoPathRingRow, chestNoPathRepeats, chestNoPathRepeatsRow } from '../../src/lib/chestdoor.mjs' // (v0.852.0) the chest door's own bot bill - the unreachable rides folded per bot per chest (the WHO+WHERE the docket's aggregates rode unnamed); (v0.856.0) + the decide rides' own distance (the walk-budget front's read); (v0.860.0) + the no-path ring's own reach (the refusals' d bands - the ring's edge or the geometry); (v0.861.0) + the no-path refusals' own per-chest repeat fold (the stuck chest's own book - the exclude machinery's own candidates)
 import { chestLidBook, chestLidBookRow } from '../../src/lib/chestlid.mjs' // (v0.859.0) the chest lid's own book - the lid-timeout rides folded per bot per chest (the walk arrived, the lid died - the WHO+WHERE the open-timeout aggregates rode unnamed)
 import { thirdKindSplit, thirdKindRow } from '../../src/lib/thirdkind.mjs' // (v0.854.0) the late third's own kind - the thirds join the server's kind (which KIND owns the deadline's third)
 import { nopathBill } from '../../src/lib/nopathbill.mjs' // (v0.716.0) the no-path spike's own WHO read - the door family's no-path rides folded per bot per lane (the column's repeats vs the crowd's spread)
@@ -2070,6 +2070,16 @@ const cnr = chestNoPathRing(lines)
 if (cnr) {
   const cnrRow = chestNoPathRingRow(cnr)
   if (cnrRow) console.log(`  ${cnrRow}`)
+}
+// (v0.861.0) THE STUCK CHEST'S OWN BOOK - the no-path refusals' own
+// per-chest repeat fold (the ring banded the d, the book names the
+// chests that refuse AGAIN - the exclude machinery's own candidates
+// and the walks they re-rent). The self-inconsistent book never
+// renders (the fence law).
+const cnrp = chestNoPathRepeats(lines)
+if (cnrp) {
+  const cnrpRow = chestNoPathRepeatsRow(cnrp)
+  if (cnrpRow) console.log(`  ${cnrpRow}`)
 }
 // (v0.716.0) THE NOPATH DOOR'S OWN BOT BILL - the spike's WHO read (the
 // door family's no-path rides folded per bot per lane): a lane's repeats
