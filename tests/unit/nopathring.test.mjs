@@ -98,7 +98,7 @@ assert.equal(mixed.n, 1, 'the junk rows and the decide family judge nothing')
 
 // The decompose prints the ring beside the door's own rows.
 const src = fs.readFileSync(new URL('../../scripts/fleet-mining/decompose.mjs', import.meta.url), 'utf8')
-assert.match(src, /import \{ chestDoorBill, chestDoorBillRow, chestDoorDistance, chestDoorDistanceRow, chestNoPathRing, chestNoPathRingRow, chestNoPathRepeats, chestNoPathRepeatsRow \} from '\.\.\/\.\.\/src\/lib\/chestdoor\.mjs'/, 'the lens rides the chestdoor import band')
+assert.match(src, /import \{ chestDoorBill, chestDoorBillRow, chestDoorDistance, chestDoorDistanceRow, chestNoPathRing, chestNoPathRingRow, chestNoPathRepeats, chestNoPathRepeatsRow, chestBudgetFloorBook, chestBudgetFloorBookRow \} from '\.\.\/\.\.\/src\/lib\/chestdoor\.mjs'/, 'the lens rides the chestdoor import band')
 assert.match(src, /const cnr = chestNoPathRing\(lines\)/, 'the lens folds the face\'s own lines')
 assert.match(src, /if \(cnrRow\) console\.log\(`  \$\{cnrRow\}`\)/, "the ring's own reach prints beside the door rows")
 

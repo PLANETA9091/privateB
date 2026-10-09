@@ -170,7 +170,7 @@ assert.equal(chestNoPathRepeatsConsistent(null), false, 'null book fence')
 
 // The decompose prints the book beside the ring's own rows.
 const src = fs.readFileSync(new URL('../../scripts/fleet-mining/decompose.mjs', import.meta.url), 'utf8')
-assert.match(src, /import \{ chestDoorBill, chestDoorBillRow, chestDoorDistance, chestDoorDistanceRow, chestNoPathRing, chestNoPathRingRow, chestNoPathRepeats, chestNoPathRepeatsRow \} from '\.\.\/\.\.\/src\/lib\/chestdoor\.mjs'/, 'the lens rides the chestdoor import band')
+assert.match(src, /import \{ chestDoorBill, chestDoorBillRow, chestDoorDistance, chestDoorDistanceRow, chestNoPathRing, chestNoPathRingRow, chestNoPathRepeats, chestNoPathRepeatsRow, chestBudgetFloorBook, chestBudgetFloorBookRow \} from '\.\.\/\.\.\/src\/lib\/chestdoor\.mjs'/, 'the lens rides the chestdoor import band')
 assert.match(src, /const cnrp = chestNoPathRepeats\(lines\)/, 'the lens folds the face\'s own lines')
 assert.match(src, /if \(cnrpRow\) console\.log\(`  \$\{cnrpRow\}`\)/, "the book's own repeats print beside the ring rows")
 

@@ -478,3 +478,156 @@ export function chestNoPathRepeatsRow (book) {
   else seat = "- THE EXCLUDE'S OWN CANDIDATES: the twice-refused chest re-rents its walk - the cross-bot repeat names the swap list, the same-bot repeat names the memory hole"
   return `${head} ${repeatsCell} ${priceCell} ${seat}`
 }
+
+// (v0.863.0) THE BUDGET-FLOOR'S OWN BOOK - the budget-floor rides' own
+// WHO+WHERE fold. The whys lens (v0.861.0, the lane's) named the budget
+// floor the door's own second seat (face 134: 12 of 37 = 32%) and its
+// first live face INVERTED the door (face 136: budget-floor 21 of 38 =
+// 55% - the class owns the door's majority now), but the fold rode
+// verdict-aggregate only: WHICH bot's pocket ran dry, and WHICH chest
+// priced the floor's death, rode unnamed. The distance row priced the
+// class's own d (face 136: avg 26 vs the door's ~20 - the floor dies on
+// the longer approach) - the book folds the same rides per bot per chest
+// (the repeats book's own shape, the v0.862.0 law) and bands the d by
+// the ring's own ruler (the one-ruler law: close d<=10, mid 11..25,
+// far 26+). The rider's majority names the personal budget (the one
+// bot's own floor), the band's majority names the distance lever (the
+// floor needs the approach's length in its arithmetic).
+//
+// Reads through the SAME hop regex the bill, the ring and the repeats
+// book read (the one-parser law - no new grammar), filters the
+// budgetFloor verdict (the class that owns the door's majority - face
+// 136: 21 of 38), folds per bot per chest: the rides, the bots, the d
+// stats, the band split. The bank-side floor bytes carry no position
+// and stay honestly out (the bank family's own shape - the bill keeps
+// their verdict count).
+//
+// Pure: reads, never mutates. Zero fleet wiring (mining-surface only).
+export function chestBudgetFloorBook (lines) {
+  const rows = Array.isArray(lines)
+    ? lines
+    : (typeof lines === 'string' ? lines.split('\n') : [])
+  if (!Array.isArray(rows)) return null
+  const bandOf = (d) => d <= 10 ? 'close' : (d <= 25 ? 'mid' : 'far')
+  const chests = {}
+  const byBot = {}
+  const bands = { close: 0, mid: 0, far: 0 }
+  const ds = []
+  let n = 0
+  for (const l of rows) {
+    if (typeof l !== 'string') continue
+    const hop = l.match(CHEST_DOOR_HOP_RE)
+    if (!hop) continue
+    if (verdictOf(hop[6]) !== 'budgetFloor') continue
+    const d = Number(hop[5])
+    if (!Number.isFinite(d)) continue
+    n++
+    const bot = hop[1]
+    byBot[bot] = (byBot[bot] || 0) + 1
+    ds.push(d)
+    bands[bandOf(d)]++
+    const pos = `${hop[2]},${hop[3]},${hop[4]}`
+    if (!chests[pos]) chests[pos] = { n: 0, bots: {}, ds: [] }
+    const c = chests[pos]
+    c.n++
+    c.bots[bot] = (c.bots[bot] || 0) + 1
+    c.ds.push(d)
+  }
+  if (n === 0) return null
+  const mkD = (list) => ({
+    n: list.length,
+    min: Math.min(...list),
+    max: Math.max(...list),
+    avg: Math.round((list.reduce((a, b) => a + b, 0) / list.length) * 10) / 10
+  })
+  const shaped = {}
+  for (const [pos, c] of Object.entries(chests)) {
+    shaped[pos] = { n: c.n, bots: { ...c.bots }, d: mkD(c.ds) }
+  }
+  const repeatChests = Object.entries(shaped)
+    .filter(([, c]) => c.n >= 2)
+    .map(([pos, c]) => ({ pos, ...c }))
+    .sort((a, b) => b.n - a.n ||
+      Object.keys(b.bots).length - Object.keys(a.bots).length ||
+      a.pos.localeCompare(b.pos))
+  const repeatRides = repeatChests.reduce((a, c) => a + c.n, 0)
+  return {
+    n,
+    byBot: { ...byBot },
+    d: mkD(ds),
+    bands: { ...bands },
+    chests: shaped,
+    distinctChests: Object.keys(shaped).length,
+    repeatChests,
+    repeatRides,
+    soloRides: n - repeatRides
+  }
+}
+
+/** THE CONSISTENCY FENCE (the v0.852.0 fence law): the bots' n sum to the
+ * book's n, the chests' n sum to n, the bands sum to n, the d stats obey
+ * min <= avg <= max with matching n, the repeats' ride-share arithmetic
+ * closes (repeatRides + soloRides === n, every repeat at n >= 2 with a
+ * matching chest entry). A self-inconsistent book never renders. */
+export function chestBudgetFloorBookConsistent (book) {
+  if (!book || typeof book !== 'object') return false
+  if (!Number.isFinite(book.n) || book.n < 1) return false
+  if (!Number.isFinite(book.distinctChests) || book.distinctChests < 1) return false
+  if (!Number.isFinite(book.repeatRides) || !Number.isFinite(book.soloRides)) return false
+  if (book.repeatRides + book.soloRides !== book.n) return false
+  const botSum = Object.values(book.byBot || {}).reduce((a, b) => a + b, 0)
+  if (botSum !== book.n) return false
+  const d = book.d || {}
+  if (!Number.isFinite(d.n) || d.n !== book.n) return false
+  if (!Number.isFinite(d.min) || !Number.isFinite(d.max) || !Number.isFinite(d.avg)) return false
+  if (d.min > d.avg || d.avg > d.max) return false
+  const bandSum = ['close', 'mid', 'far'].reduce((a, b) => a + (book.bands?.[b] || 0), 0)
+  if (bandSum !== book.n) return false
+  let sum = 0
+  for (const c of Object.values(book.chests || {})) {
+    if (!Number.isFinite(c.n) || c.n < 1) return false
+    const botsSum = Object.values(c.bots || {}).reduce((a, b) => a + b, 0)
+    if (botsSum !== c.n) return false
+    const cd = c.d || {}
+    if (!Number.isFinite(cd.n) || cd.n !== c.n) return false
+    if (!Number.isFinite(cd.min) || !Number.isFinite(cd.max) || !Number.isFinite(cd.avg)) return false
+    if (cd.min > cd.avg || cd.avg > cd.max) return false
+    sum += c.n
+  }
+  if (sum !== book.n) return false
+  if (Object.keys(book.chests || {}).length !== book.distinctChests) return false
+  let repeatSum = 0
+  for (const r of book.repeatChests || []) {
+    if (!Number.isFinite(r.n) || r.n < 2) return false
+    const src = book.chests[r.pos]
+    if (!src || src.n !== r.n) return false
+    repeatSum += r.n
+  }
+  return repeatSum === book.repeatRides
+}
+
+/** The row: 'the budget floor's own book (v0.863.0): 20 floor ride(s) -
+ * bots 1 (F19=20) - chests 11 distinct (repeats 9: ...) - d 23..29 avg
+ * 26 - bands close 0 / mid 7 / far 13 - THE ONE BOT'S OWN FLOOR: the
+ * floor rides F19's pocket - the personal budget, not the shared law'.
+ * The seat law ranks the rider's majority first (a single bot owning
+ * most of the floor rides names the personal budget), then the band's
+ * majority (the distance lever), else the tie law honestly. */
+export function chestBudgetFloorBookRow (book) {
+  if (!chestBudgetFloorBookConsistent(book)) return null
+  const entries = Object.entries(book.byBot || {})
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+  const botCell = `bots ${entries.length} (${entries.map(([k, c]) => `${k}=${c}`).join(' ')})`
+  const repeatsCell = book.repeatChests.length > 0
+    ? ` (repeats ${book.repeatChests.length}: ${book.repeatChests.map(r => `[${r.pos}] x${r.n} ${Object.keys(r.bots).sort().join('+')} d ${r.d.min}..${r.d.max} avg ${r.d.avg}`).join(', ')})`
+    : ' (every chest priced once)'
+  const head = `the budget floor's own book (v0.863.0): ${book.n} floor ride(s) - ${botCell} - chests ${book.distinctChests} distinct${repeatsCell} - d ${book.d.min}..${book.d.max} avg ${book.d.avg} - bands close ${book.bands.close} / mid ${book.bands.mid} / far ${book.bands.far}`
+  const top = entries[0]
+  let seat
+  if (top && top[1] > book.n / 2) seat = `- THE ONE BOT'S OWN FLOOR: the floor rides ${top[0]}'s pocket - the personal budget, not the shared law`
+  else if (book.bands.far > book.n / 2) seat = "- THE FAR'S OWN FLOOR: the budget dies on the far approach - the floor needs the distance in its arithmetic"
+  else if (book.bands.mid > book.n / 2) seat = "- THE MID'S OWN FLOOR: the budget dies inside the reach - the approach's geometry owns the floor"
+  else if (book.bands.close > book.n / 2) seat = "- THE CLOSE'S OWN FLOOR: the budget dies at the doorstep - the floor starves, not the walk"
+  else seat = '- THE SPREAD IS THE SHAPE: no rider, no band owns the floor - the tie law held'
+  return `${head} ${seat}`
+}
