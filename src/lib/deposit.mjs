@@ -2375,7 +2375,7 @@ export function bankFallback ({ deposited = 0, reason = '', yardDist = null, max
   return { action: 'walk', dist: Math.round(yardDist) }
 }
 
-// (v0.875.0) THE DEPOSIT RING'S OWN FOLD - the refusal voice's own book.
+// (v0.876.0) THE DEPOSIT RING'S OWN FOLD - the refusal voice's own book.
 //
 // The deposit chain's swap speaks ONE line when the nearest chest refuses
 // the walk (the v0.23.1 swap's own voice, the emitter above): 'deposit:
@@ -2500,7 +2500,7 @@ export function depositRingFoldConsistent (book) {
   return true
 }
 
-/** The fold's own row: 'the deposit ring's own fold (v0.875.0): N refusal(s)
+/** The fold's own row: 'the deposit ring's own fold (v0.876.0): N refusal(s)
  * by K bot(s) (F9+F15), M chest(s), top [x,y,z] xC - the why's seat: "msg" -
  * repeats R'. A tie reads the spread's own seat; a junk or inconsistent
  * book renders nothing (the fence law, the honest silence). */
@@ -2509,5 +2509,5 @@ export function depositRingFoldRow (book) {
   const botNames = Object.keys(book.byBot).sort()
   const top = Object.entries(book.chests).sort((a, b) => b[1].n - a[1].n || (a[0] < b[0] ? -1 : 1))[0]
   const seat = book.whySeat != null ? `"${book.whySeat}"` : 'THE SPREAD IS THE SHAPE (the tie law held)'
-  return `the deposit ring's own fold (v0.875.0): ${book.n} refusal(s) by ${botNames.length} bot(s) (${botNames.join('+')}), ${Object.keys(book.chests).length} chest(s), top [${top[0]}] x${top[1].n} - the why's seat: ${seat} - repeats ${book.repeats.length}`
+  return `the deposit ring's own fold (v0.876.0): ${book.n} refusal(s) by ${botNames.length} bot(s) (${botNames.join('+')}), ${Object.keys(book.chests).length} chest(s), top [${top[0]}] x${top[1].n} - the why's seat: ${seat} - repeats ${book.repeats.length}`
 }

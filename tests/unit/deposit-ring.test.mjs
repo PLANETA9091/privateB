@@ -1,4 +1,4 @@
-// THE DEPOSIT RING'S OWN FOLD - the swap voice's own tests (v0.875.0).
+// THE DEPOSIT RING'S OWN FOLD - the swap voice's own tests (v0.876.0).
 // The emitter's line is deposit.mjs's own byte (the v0.23.1 swap's own
 // voice, riding the 'deposit' filter-key since the fleet's first faces);
 // face 142's read priced the crater at its deepest (banked 0 of 1738u)
@@ -121,7 +121,7 @@ test('THE ROW BYTES: the verdict line rides verbatim', () => {
     refusalLine('F3', '-144,80,393', 'No path to the goal!'),
     refusalLine('F3', '-144,80,393', 'No path to the goal!')
   ])
-  assert.equal(depositRingFoldRow(f), 'the deposit ring\'s own fold (v0.875.0): 4 refusal(s) by 3 bot(s) (F15+F3+F9), 1 chest(s), top [-144,80,393] x4 - the why\'s seat: "No path to the goal!" - repeats 1', 'the row rides its exact bytes')
+  assert.equal(depositRingFoldRow(f), 'the deposit ring\'s own fold (v0.876.0): 4 refusal(s) by 3 bot(s) (F15+F3+F9), 1 chest(s), top [-144,80,393] x4 - the why\'s seat: "No path to the goal!" - repeats 1', 'the row rides its exact bytes')
   assert.equal(depositRingFoldRow(null), null, 'a null book renders nothing')
   assert.equal(depositRingFoldRow({ n: 1 }), null, 'a junk book renders nothing')
 })
@@ -132,5 +132,5 @@ test('THE WIRING PINS: the decompose print site rides beside the preflight book\
   assert.match(dec, /const drf = depositRingFold\(lines\)/, 'the fold reads the face')
   assert.match(dec, /const drfRow = depositRingFoldRow\(drf\)/, 'the row renders')
   const lib = readFileSync(new URL('../../src/lib/deposit.mjs', import.meta.url), 'utf8')
-  assert.match(lib, /\(v0\.875\.0\) THE DEPOSIT RING'S OWN FOLD/, 'the lib rides its own version stamp')
+  assert.match(lib, /\(v0\.876\.0\) THE DEPOSIT RING'S OWN FOLD/, 'the lib rides its own version stamp')
 })
