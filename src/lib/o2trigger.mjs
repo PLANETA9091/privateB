@@ -190,6 +190,26 @@ export function o2TriggerRow (book) {
 // crossedUnknown, every no-crossing kind rides its own named map cell,
 // the unkinded ones count unkinded. An inconsistent book prices nothing
 // (the row stays silent).
+//
+// (v0.887.0) THE FALSE-POSITIVE'S OWN ANATOMY - the cost seat's own
+// split (the kind join's own NEXT BYTE the four faces' mass named:
+// crossed non-o2 rode 3 of 11 crossings across faces 145/146/147/148
+// and the class was not one animal). The attacker's own word -
+// parseDeathKind's own attacker field (the one-parser law: the same
+// parse's group, never re-spelled) - splits the price:
+//   drowned-melee = the attacker IS a Drowned (face 148: F9's 'mob by
+//     Drowned' rode a real crossing) - the band's own predator
+//     finishing the job; the rescue raced a genuine water emergency
+//     and lost the race - the near-miss seat, not a wrong door.
+//   wrong-door = everything else (face 145's suffocate, face 147's F8
+//     'mob by Zombie' at window 240s) - the rescue would have fired
+//     for a death the water never owned - the true false positive.
+// Both seats live in the mass; the row names only the live ones (the
+// zero-class silence idiom). THE ANATOMY'S OWN FENCE: melee +
+// wrong-door must equal the falsePositive seat exactly, and a seat's
+// fpClass never leaks onto a death the price did not own. The server
+// verdict stays the authority - the attacker's word is READ, never
+// re-adjudicated (the v0.117.0 doctrine).
 
 // The trigger's own death word - the server's own kind= vocabulary's
 // oxygen death (deathcause.mjs's own bucket, never invented here).
@@ -199,9 +219,15 @@ const emptyKindJoin = () => ({
   o2: 0,
   falsePositive: 0,
   crossedUnknown: 0,
+  fp: { melee: 0, wrongDoor: 0 },
   noCrossing: {},
   noCrossingUnknown: 0
 })
+
+// The drowned-melee seat's own word - the attacker's own name that
+// makes the crossed non-o2 death the band's own predator's kill (the
+// server's own verdict names the killer; the anatomy only reads it).
+const DROWNED_ATTACKER = 'Drowned'
 
 /**
  * The window book's own kind join: the same fold's deaths, each seat
@@ -222,12 +248,20 @@ export function o2TriggerKindBook (lines) {
     if (!seat) break // the fence catches the misalignment - never invent
     const parsed = parseDeathKind(line)
     seat.kind = parsed ? parsed.kind : null
+    seat.fpClass = null // the price's own seat - only the falsePositive owns a class (never leaks)
     if (!seat.crossed) {
       if (seat.kind === null) book.kinds.noCrossingUnknown++
       else book.kinds.noCrossing[seat.kind] = (book.kinds.noCrossing[seat.kind] || 0) + 1
     } else if (seat.kind === null) book.kinds.crossedUnknown++
     else if (seat.kind === O2_DEATH_KIND) book.kinds.o2++
-    else book.kinds.falsePositive++
+    else {
+      book.kinds.falsePositive++
+      // the anatomy: the attacker's own word splits the price (the
+      // Drowned's own melee = the near-miss; everything else = the
+      // true wrong door)
+      seat.fpClass = parsed && parsed.attacker === DROWNED_ATTACKER ? 'melee' : 'wrongDoor'
+      book.kinds.fp[seat.fpClass]++
+    }
   }
   return book
 }
@@ -242,6 +276,11 @@ export function o2TriggerKindConsistent (book) {
   if (!k || typeof k !== 'object' || Array.isArray(k)) return false
   if (![k.o2, k.falsePositive, k.crossedUnknown, k.noCrossingUnknown]
     .every((v) => Number.isInteger(v) && v >= 0)) return false
+  // the anatomy's own cells: the price's own split must be integers
+  // and sum to the price itself (the sub-seats' own agreement)
+  if (!k.fp || typeof k.fp !== 'object' || Array.isArray(k.fp)) return false
+  if (![k.fp.melee, k.fp.wrongDoor].every((v) => Number.isInteger(v) && v >= 0)) return false
+  if (k.fp.melee + k.fp.wrongDoor !== k.falsePositive) return false
   if (!k.noCrossing || typeof k.noCrossing !== 'object' || Array.isArray(k.noCrossing)) return false
   let ncSum = 0
   for (const key of Object.keys(k.noCrossing)) {
@@ -250,20 +289,33 @@ export function o2TriggerKindConsistent (book) {
     ncSum += v
   }
   if (ncSum + k.noCrossingUnknown !== book.noCrossing) return false
-  let o2 = 0, fp = 0, cu = 0, ncu = 0
+  let o2 = 0, fp = 0, cu = 0, ncu = 0, melee = 0, wrongDoor = 0
   for (const d of book.perDeath) {
     if (!d || typeof d !== 'object') return false
     if (d.kind !== null && typeof d.kind !== 'string') return false
+    const fc = d.fpClass === undefined ? null : d.fpClass
+    if (fc !== null && fc !== 'melee' && fc !== 'wrongDoor') return false
     if (!d.crossed) {
+      if (fc !== null) return false // the price's class never leaks off the price
       if (d.kind === null) { ncu++; continue }
       if (!(Object.prototype.hasOwnProperty.call(k.noCrossing, d.kind))) return false
       continue
     }
-    if (d.kind === null) cu++
-    else if (d.kind === O2_DEATH_KIND) o2++
-    else fp++
+    if (d.kind === null) {
+      if (fc !== null) return false
+      cu++
+    } else if (d.kind === O2_DEATH_KIND) {
+      if (fc !== null) return false
+      o2++
+    } else {
+      if (fc === 'melee') melee++
+      else if (fc === 'wrongDoor') wrongDoor++
+      else return false // every falsePositive owns exactly one anatomy seat
+      fp++
+    }
   }
-  return o2 === k.o2 && fp === k.falsePositive && cu === k.crossedUnknown && ncu === k.noCrossingUnknown
+  return o2 === k.o2 && fp === k.falsePositive && cu === k.crossedUnknown && ncu === k.noCrossingUnknown &&
+    melee === k.fp.melee && wrongDoor === k.fp.wrongDoor
 }
 
 /**
@@ -277,11 +329,18 @@ export function o2TriggerKindRow (book) {
   if (!book || book.deaths === 0) return null
   const parts = []
   if (book.kinds.o2 > 0) parts.push(`crossed ${O2_DEATH_KIND} ${book.kinds.o2} (the trigger's own)`)
-  if (book.kinds.falsePositive > 0) parts.push(`crossed non-o2 ${book.kinds.falsePositive} (the false-positive price)`)
+  if (book.kinds.falsePositive > 0) {
+    // the anatomy's own clause: only the live seats ride (the
+    // zero-class silence idiom)
+    const anatomy = []
+    if (book.kinds.fp.melee > 0) anatomy.push(`drowned-melee ${book.kinds.fp.melee}`)
+    if (book.kinds.fp.wrongDoor > 0) anatomy.push(`wrong-door ${book.kinds.fp.wrongDoor}`)
+    parts.push(`crossed non-o2 ${book.kinds.falsePositive} (the false-positive price: ${anatomy.join(' / ')})`)
+  }
   if (book.kinds.crossedUnknown > 0) parts.push(`crossed unkinded ${book.kinds.crossedUnknown}`)
   const nc = Object.keys(book.kinds.noCrossing)
   if (nc.length) parts.push(`no-crossing ${nc.map((key) => `${key} ${book.kinds.noCrossing[key]}`).join('/')}`)
   if (book.kinds.noCrossingUnknown > 0) parts.push(`no-crossing unkinded ${book.kinds.noCrossingUnknown}`)
   if (!parts.length) return null
-  return `the o2-low trigger's own kind join (v0.885.0): ${parts.join(', ')} - the kind join prices the trigger's own cost`
+  return `the o2-low trigger's own kind join (v0.887.0): ${parts.join(', ')} - the kind join prices the trigger's own cost`
 }
