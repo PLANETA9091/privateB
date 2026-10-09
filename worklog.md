@@ -21641,3 +21641,23 @@ Work Log:
 
 Stage Summary:
 - The whys lens is on origin and FLYING (face 136 in flight on fc2a909). Next fire: verdicts BY RUN ID (face 136 = 37894029206 + my push-CIs done); mine with the v0.861.0 stack; the floor's own cure (the budget-swap front) after the floor's second face; the mob front's fourth confirmation watch; 0.862.0 next slot, origin re-verify MANDATORY (six collisions today).
+
+---
+Task ID: cron30-20261009-1400
+Agent: main (Super Z, fire-1400)
+Task: ONE atomic improvement on PLANETA9091/privateB; zero-conflict protocol honored end to end.
+
+Work Log:
+- A: rebase clean at start (origin = 76c5b3f). Both worklogs read.
+- Verdicts BY RUN ID: push-CI 37890742450 (ba5f63c, v0.860.0) = SUCCESS; face 135 = 37890804054 = SUCCESS - MINED (artifact -> run37890804054/, fleet19.log 2723 lines, decompose exit 0, 616 rows, err empty).
+- Face 135 with the v0.862.0 stack: THE RING'S FIRST LIVE FACE = the honest near-silence (1 refusal, mid d20, the seat never named off n=1); the bill's sixth face the DECIDE-MAJORITY RETURNED (20 rides - decide 14 / other 5 / no-path 1 - repeats F6=8 F4=5, chests 15 distinct shared 2); lid timeouts 0 (the lid book's second honest silence); the mob storm BROKE (4 deaths: drown 3 / mob 1 by Drowned); the drown owns the face's end (the late third 75%, drown 2 of 3); the door's rate 22.1%; the bank moved 1341u at 11.9u/visit.
+- C: ONE front from the exclude leg: v0.862.0 THE STUCK CHEST'S OWN BOOK (17212d6) - chestNoPathRepeats folds the no-path hop refusals per chest (rides, bots, d stats, the band split by the ring's own ruler - the one-parser/one-ruler laws) and names the REPEATS: the twice-refused chest is the exclude machinery's own candidate (the v0.853.0 swap voice's exclude-one-candidate bound), the once-refused chest is the ring's noise. chestNoPathRepeatsRow fenced (the v0.852.0 fence law + the ride-share arithmetic), the seat law (the rent / the candidates / the honest once). Face 134's real page byte-verified: 18 refusal(s) on 13 distinct chest(s) - repeats 3 ([-117,70,414] x4 F1+F19+F3 d 14..32 avg 21.3 mid+far - the CROSS-BOT stuck chest; [-117,70,418] x2 F19+F3 mid+far; [-122,70,410] x2 F1 mid - the SAME-BOT re-walk, the memory hole) - walks rented on repeats 8 of 18 (44%).
+- D: check-syntax 567/0; FULL unit 321/321 green (the baseline caught the documented smelting sandbox flake - green isolated, the fire-1140 precedent; the final suite clean); the new nopathrepeats.test.mjs (the verbatim fold + row from the REAL log lines, the x4/x2/same-bot shapes, the repeat order law, the three seats, the band edges, the silences, the fence battery, the junk rows, the WIRING pins) + the chest-door/nopathring WIRING pins re-measured (the import grows - the fire-1030 precedent).
+- Version law: THE SIXTH COLLISION OF THE DAY - the lane's v0.861.0 THE DOOR'S OWN WHYS (74a53de) landed mid-fire; rebase clean (the lane's head grammar vs my EOF additions - disjoint); my stamps re-bumped to 0.862.0, the lane's byte-intact; the fold RE-VERIFIED on the real face-134 log under the merged greedy grammar - the page IDENTICAL (the greedy capture added zero no-path rides - the 10 newly-visible rides rode the budget-floor class). The lane's addendum 2a7e187 landed pre-push - rebase took it, push fc2a909..17212d6 clean. NO force-push, NO history rewrite.
+- E: push-CI 37894133985 (17212d6) = SUCCESS (polled to completion BY RUN ID).
+- F: dispatch law: face 136 = 37894029206 (the lane's, on fc2a909) IN_PROGRESS - NO dispatch (the one-fleet-run law held); v0.862.0 rides face 137.
+- G: appended after the tail re-read.
+
+Stage Summary:
+- v0.862.0 THE STUCK CHEST'S OWN BOOK shipped (17212d6, push-CI SUCCESS); face 135 mined; face 136 = 37894029206 in flight (the whys + the ring; my book rides the next face).
+- Next fire: (1) face 136 = 37894029206 verdict + mine with the v0.862.0 stack (the whys' first live face - the budget-floor's third of the door; the decide-majority's seventh face; the book's second face). (2) THE EXCLUDE FRONT: the repeat book's second face - if the repeats return, the exclude machinery is the named cure (the watch candidate [-117,70,414]). (3) THE DROWN FRONT: the late third drown 2 of 3 - the o2 book's next leg. (4) The mob storm broke - watch. (5) 0.863.0 next slot, origin re-verify MANDATORY. (6) dispatch law on clear (face 137, x2 poll BEFORE the POST).
