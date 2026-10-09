@@ -1697,6 +1697,17 @@ export async function depositToChest (bot, {
     if (!chestBlock && exclude.length === 0 && isDeadChestVerdict(lastMsg).dead && chest.position) {
       const dead = typeof chest.position.floored === 'function' ? chest.position.floored() : chest.position
       if (dead && Number.isFinite(dead.x)) {
+        // (v0.853.0) THE SWAP'S OWN VOICE - the v0.23.1 resilience hop flew
+        // SILENT for 830 versions (the fleet could not see the cure fire: a
+        // saved deposit printed as a NORMAL success, a doubled refusal printed
+        // only the FIRST chest's reason - face 127's bot bill (run
+        // 37860800596: 7 chest-unreachable rides, no-path 6) priced the
+        // door's crowd blind to how often the swap already answered it).
+        // The line rides the existing 'deposit' filter key; it speaks once
+        // per fired swap (the cause leg - the outcome legs keep their bytes:
+        // the second candidate's success prints the normal receipts, its
+        // failure prints the byte-identical primary-failure zero below).
+        log(`${tag} deposit: the nearest chest [${dead.x},${dead.y},${dead.z}] refused (${lastMsg}) - the next chest in the ring takes the walk (the v0.23.1 swap's own voice)`)
         // the hop is a resilience attempt: report the PRIMARY failure ('No path to
         // the nearest chest') when the second candidate also fails, and the second
         // candidate's success when it does not
