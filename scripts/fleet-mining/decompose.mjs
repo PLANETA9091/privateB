@@ -19,6 +19,7 @@ import { zeroClockCensus, budgetFloorVerdict, noPathClockVerdict } from '../../s
 import { budgetSpread, budgetGoalSplit, budgetZeroSeat, budgetZeroSeatRow, budgetZeroRiders, budgetZeroRidersRow } from '../../src/lib/budgetspread.mjs' // (v0.473.0) the budget-zero family's per-bot half - the sizing lever's spread read (fuel commons + iron commune, the trip kind rides the line); (v0.475.0) the goal-size split - the miscalibration read; (v0.787.0) WHICH lane owns the zero book
 import { o2Gap, reentryGaps, REENTRY_IMMEDIATE_MAX } from '../../src/lib/o2gap.mjs' // (v0.477.0) the rescue-relation split - the o2 census's missing half (stale vs live rescues) + the sentry's last-known read joined per drown death; (v0.746.0) the re-entry's own gap - the stale class's own clock (immediate vs delayed)
 import { sensorToll } from '../../src/lib/sensortoll.mjs' // (v0.707.0) the sensor's own toll - the reset(-1) skin's mass across the family's three skins
+import { sensorWindowsBook, sensorWindowsRow } from '../../src/lib/sensorwindow.mjs' // (v0.881.0) THE SENSOR WINDOW'S OWN BOOK - the blind reads' own windows: a maximal run of consecutive reset(-1) pass reads in one bot's line-order stream (the reuse law: parseSentryPass is the one parser, the blind skin is the o2 kind 'reset' - the parser's own word, never re-spelled); the run's read count is the price, the pass span (from..to) is the clock - the sensor-health front's own next byte (the toll owns the rides, the windows own the DURATION)
 import { ascendStall } from '../../src/lib/ascendstall.mjs' // (v0.708.0) the ascend's live fence - the stall lane's own mass (the live side the toll fences out)
 import { entryWindow, saveableDeaths } from '../../src/lib/entrywindow.mjs' // (v0.480.0) the effective window - the live trigger's real reaction window (lead - the stale floor) priced against the lane's own saves; (v0.743.0) the saveable death - the window's own verdict joined with the lane's own relation
 import { pageLeadBook, pageLeadBookRow, pageLeadBookRidersRow } from '../../src/lib/pagelead.mjs' // (v0.875.0) THE PAGE LEAD'S OWN BOOK - the rescue-ran mirror's own lead byte ('(paged Ns before death)' - unread since v0.477.0: the cue join read only the controls-blind 'sight died Ns' prose, so every rescue-ran death rode 'sight died ?s' and the effective window priced 3 of 4 unpriced on face 142) folded per death, with the mirror kind's own seat (the strict-majority law) and the page window priced against the lane's own saves (rescue-ledger's classifier - the one classifier, entrywindow's own filter; the page IS the arm event - no stale floor, the floor taxes the snapshot age and the page fires on the o2 event itself)
@@ -3666,6 +3667,15 @@ console.log('  plan lines:', count(/materials plan|plan progress/i))
     }
     const o2avg = sc.o2.n > 0 ? (sc.o2.sum / sc.o2.n).toFixed(1) : 'n/a'
     console.log(`  o2: min ${sc.o2.min}, avg ${o2avg}, at20 ${sc.o2.at20}, at0 ${sc.o2.at0}, critical(<=4) ${sc.o2.critical}, rescueBand(<=10) ${sc.o2.rescueBand}${sc.o2.reset > 0 || sc.o2.unknown > 0 ? `, reset ${sc.o2.reset}, unknown ${sc.o2.unknown}` : ''}`)
+    // (v0.881.0) THE SENSOR WINDOW'S OWN BOOK - the blind reads' own
+    // windows beside the census's own o2 row (the toll owns the rides,
+    // the windows own the DURATION - the frozen-physics/relog lane's
+    // own shape; the fence law: an inconsistent book prices nothing)
+    const swb = sensorWindowsBook(lines)
+    if (swb) {
+      const swRow = sensorWindowsRow(swb)
+      if (swRow) console.log(`  ${swRow}`)
+    }
     for (const sp of sc.spots.slice(0, 5)) {
       const botsRow = Object.keys(sp.bots).join('+')
       console.log(`  spot [${sp.key}]${sp.y !== null ? ` y=${sp.y}` : ''} x${sp.total} bots ${botsRow}`)
