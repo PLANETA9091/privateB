@@ -1,4 +1,4 @@
-// THE ARM-O2'S OWN BOOK - the o2arm tests (v0.877.0).
+// THE ARM-O2'S OWN BOOK - the o2arm tests (v0.878.0).
 //
 // The rescue start's own oxygen byte ('drowning rescue start (drowning,
 // oxygen N)') - unread since v0.368.0 counted the start classes and the
@@ -98,7 +98,7 @@ test('the row byte verbatim - face 143\'s own read', () => {
   const b = o2ArmBook(o2Gap(FACE143), FACE143)
   assert.equal(
     o2ArmBookRow(b),
-    'the rescue arm\'s own o2 book (v0.877.0): 41 arm(s) - o2 2..20 avg 8.6 (38 numeric arm(s), blind 3) - arm seat: the spread is the shape (no strict majority) - the fatal arm(s): blind 1 / critical 0 / band 0 / headroom 0 / unarmed 0 - the blind arm prices nothing - the sensor\'s own seat owns the lane (the sensor\'s health is the front, the trigger\'s constant is moot while the arm rides blind)'
+    'the rescue arm\'s own o2 book (v0.878.0): 41 arm(s) - o2 2..20 avg 8.6 (38 numeric arm(s), blind 3) - arm seat: the spread is the shape (no strict majority) - the fatal arm(s): blind 1 / critical 0 / band 0 / headroom 0 / unarmed 0 - the blind arm prices nothing - the sensor\'s own seat owns the lane (the sensor\'s health is the front, the trigger\'s constant is moot while the arm rides blind)'
   )
 })
 

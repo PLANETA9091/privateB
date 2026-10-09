@@ -1,5 +1,5 @@
 //
-// o2arm.mjs - THE ARM-O2'S OWN BOOK (v0.877.0)
+// o2arm.mjs - THE ARM-O2'S OWN BOOK (v0.878.0)
 //
 // The rescue lane's own arm depth. The start line carries the emitter's
 // oxygen byte - 'F1 [F1] water: drowning rescue start (drowning,
@@ -222,7 +222,7 @@ export function o2ArmBookRow (b) {
   else if (v.critical > 0) verdictByte = 'the lane armed at the damage window - the trigger\'s constant must ride higher (the o2-low front\'s own lever)'
   else if (v.band > 0) verdictByte = 'the lane armed inside the band - the constant has the seat, the lane\'s own execution prices the loss'
   else verdictByte = 'the arms rode with headroom - the lane\'s own execution owns the losses (the constant is not the lever)'
-  return `the rescue arm's own o2 book (v0.877.0): ${b.starts} arm(s) - ${spreadByte} - ${seatByte} - the fatal arm(s): blind ${v.blind} / critical ${v.critical} / band ${v.band} / headroom ${v.headroom} / unarmed ${v.unarmed} - ${verdictByte}`
+  return `the rescue arm's own o2 book (v0.878.0): ${b.starts} arm(s) - ${spreadByte} - ${seatByte} - the fatal arm(s): blind ${v.blind} / critical ${v.critical} / band ${v.band} / headroom ${v.headroom} / unarmed ${v.unarmed} - ${verdictByte}`
 }
 
 /**
