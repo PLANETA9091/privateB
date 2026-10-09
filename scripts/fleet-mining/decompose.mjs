@@ -21,6 +21,7 @@ import { o2Gap, reentryGaps, REENTRY_IMMEDIATE_MAX } from '../../src/lib/o2gap.m
 import { sensorToll } from '../../src/lib/sensortoll.mjs' // (v0.707.0) the sensor's own toll - the reset(-1) skin's mass across the family's three skins
 import { ascendStall } from '../../src/lib/ascendstall.mjs' // (v0.708.0) the ascend's live fence - the stall lane's own mass (the live side the toll fences out)
 import { entryWindow, saveableDeaths } from '../../src/lib/entrywindow.mjs' // (v0.480.0) the effective window - the live trigger's real reaction window (lead - the stale floor) priced against the lane's own saves; (v0.743.0) the saveable death - the window's own verdict joined with the lane's own relation
+import { pageLeadBook, pageLeadBookRow, pageLeadBookRidersRow } from '../../src/lib/pagelead.mjs' // (v0.875.0) THE PAGE LEAD'S OWN BOOK - the rescue-ran mirror's own lead byte ('(paged Ns before death)' - unread since v0.477.0: the cue join read only the controls-blind 'sight died Ns' prose, so every rescue-ran death rode 'sight died ?s' and the effective window priced 3 of 4 unpriced on face 142) folded per death, with the mirror kind's own seat (the strict-majority law) and the page window priced against the lane's own saves (rescue-ledger's classifier - the one classifier, entrywindow's own filter; the page IS the arm event - no stale floor, the floor taxes the snapshot age and the page fires on the o2 event itself)
 import { walkFailCensus, walkFailBotBill, walkFailBotBillRow, walkFailRiders, walkFailRidersRow, walkFailLaneBill, walkFailLaneBillRow, walkFailLaneRiders, walkFailLaneRidersRow } from '../../src/lib/walkfail.mjs' // (v0.410.0) the A* starvation's fleet-wide leg (beyond the hop lane); (v0.773.0) WHICH walker owns the chest-walk book; (v0.776.0) WHICH lane owns it
 import { decideWeather } from '../../src/lib/decideweather.mjs' // (v0.689.0) THE DECIDE WEATHER - the A* starvation's own sky read (the starve's ents/rss at its own anchor)
 import { hotspotCensus, hotspotBands, hotSpotSeat, hotSpotSeatRow, hotSpotRiders, hotSpotRidersRow } from '../../src/lib/hotspot.mjs' // (v0.419.0 + the v0.421.0 band read) the failure geometry's cross-lane read; (v0.794.0) WHICH spot owns the starvation book
@@ -811,6 +812,20 @@ if (ew) {
   for (const sd of saveableDeaths(ew, o2g)) {
     console.log(`  the saveable death (v0.743.0): ${sd.bot}'s window fit (${sd.effective}s >= the lane's worst save ${sd.laneWorst}s) and the lane never flew - the trigger's own gap owned the death - the window was there, the trigger was not`)
   }
+}
+// (v0.875.0) THE PAGE LEAD'S OWN BOOK - the rescue-ran mirror's own lead
+// ('(paged Ns before death)' - unread since v0.477.0: the cue join read
+// only the controls-blind 'sight died Ns' prose, so every rescue-ran
+// death rode 'sight died ?s' and the effective window priced 3 of 4
+// unpriced on face 142). The page IS the arm event (no stale floor - the
+// floor taxes the snapshot age, the page fires on the o2 event itself).
+// Priced against the lane's own saves (rescue-ledger's classifier - the
+// one classifier, never forked). Silent on zero deaths.
+const plb = pageLeadBook(o2g, lines)
+if (plb) {
+  console.log(`  ${pageLeadBookRow(plb)}`)
+  const plr = pageLeadBookRidersRow(plb)
+  if (plr) console.log(`  ${plr}`)
 }
 // (v0.707.0) THE SENSOR'S OWN TOLL - the reset(-1) skin's full mass across
 // the family's three skins: the death contexts the v0.379.0 census owns,
