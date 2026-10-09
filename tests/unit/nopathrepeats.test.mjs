@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
-import { chestNoPathRepeats, chestNoPathRepeatsRow, chestNoPathRepeatsConsistent } from '../../src/lib/chestdoor.mjs'
+import { chestNoPathRepeats, chestNoPathRepeatsRow, chestNoPathRepeatsConsistent, chestExcludeCandidate, chestExcludeCandidateRow } from '../../src/lib/chestdoor.mjs'
 
 // The v0.862.0 lens: the no-path refusals' own per-chest repeat fold (the
 // stuck chest's own book). The motive: the ring (v0.860.0) banded the
@@ -166,16 +166,74 @@ repeatBreak.repeatChests[0].n = 2
 assert.equal(chestNoPathRepeatsConsistent(repeatBreak), false, 'the repeat n break')
 assert.equal(chestNoPathRepeatsConsistent(null), false, 'null book fence')
 
+// ---- THE EXCLUDE'S OWN CANDIDATE LIST (v0.869.0) ----
+
+// The face-134 book prices its TOP repeat: the x4 stuck chest, the
+// cross-bot crowd - THE SWAP LIST'S OWN CHEST. The bound: 3 repeats rode
+// the face, the list prices exactly ONE (the exclude-one-candidate law).
+const cand = chestExcludeCandidate(book)
+assert.ok(cand, 'the face-134 book prices its candidate')
+assert.equal(cand.pos, '-117,70,414', 'the heaviest chest rides as the top')
+assert.equal(cand.n, 4, 'the candidate keeps the book\'s own count')
+assert.equal(cand.kind, 'swap-list', 'the cross-bot crowd names the swap list')
+assert.equal(cand.why, "3 bots paid the same door - the v0.23.1 swap's next-chest ring prices it out", 'the swap-list why')
+assert.match(
+  chestExcludeCandidateRow(cand),
+  /^the exclude's own candidate \(v0\.869\.0\): \[-117,70,414\] x4 F1\+F19\+F3 d 14\.\.32 avg 21\.3 mid\+far - THE SWAP LIST'S OWN CHEST: 3 bots paid the same door - the v0\.23\.1 swap's next-chest ring prices it out$/,
+  'the swap-list row verbatim (the bots ride sorted)'
+)
+
+// The same-bot repeat: one bot came BACK - the MEMORY HOLE'S OWN CHEST.
+const holeBook = chestNoPathRepeats([NP('F1', 0, 64, 0, 12), NP('F1', 0, 64, 0, 14), NP('F2', 0, 64, 1, 30)])
+const hole = chestExcludeCandidate(holeBook)
+assert.equal(hole.pos, '0,64,0', 'the same-bot repeat rides as the top')
+assert.equal(hole.kind, 'memory-hole', 'the solo crowd names the memory hole')
+assert.equal(hole.why, 'F1 came BACK to the refused chest - the private loop, the TTL\'s own class', 'the memory-hole why')
+assert.match(
+  chestExcludeCandidateRow(hole),
+  /- THE MEMORY HOLE'S OWN CHEST: F1 came BACK to the refused chest - the private loop, the TTL's own class$/,
+  'the memory-hole seat'
+)
+
+// The bound: a face that names many has not priced any - exactly one
+// candidate rides, the book's own order decides which.
+assert.equal(book.repeatChests.length, 3, 'the face rode 3 repeats')
+assert.equal(cand.pos, book.repeatChests[0].pos, 'the top rides, the rest stay the honest spread')
+
+// The honest silences: the clean face prices nothing, the inconsistent
+// book prices nothing (the fence law), junk prices nothing.
+assert.equal(chestExcludeCandidate(onceBook), null, 'the honest once prices nothing')
+assert.equal(chestExcludeCandidate(clone({ n: 17 })), null, 'the inconsistent book prices nothing')
+assert.equal(chestExcludeCandidate(null), null, 'null book')
+assert.equal(chestExcludeCandidate(42), null, 'junk book')
+
+// The row's own junk law: junk, unknown kind, sub-repeat n, missing
+// cells, a botless crowd - all render nothing.
+assert.equal(chestExcludeCandidateRow(null), null, 'null cand row')
+assert.equal(chestExcludeCandidateRow(42), null, 'junk cand row')
+assert.equal(chestExcludeCandidateRow({ ...cand, kind: 'junk' }), null, 'unknown kind')
+assert.equal(chestExcludeCandidateRow({ ...cand, n: 1 }), null, 'a sub-repeat n renders nothing')
+assert.equal(chestExcludeCandidateRow({ ...cand, pos: '' }), null, 'a missing pos renders nothing')
+assert.equal(chestExcludeCandidateRow({ ...cand, d: { ...cand.d, avg: NaN } }), null, 'a junk d renders nothing')
+assert.equal(chestExcludeCandidateRow({ ...cand, bandCell: '' }), null, 'a missing band cell renders nothing')
+assert.equal(chestExcludeCandidateRow({ ...cand, bots: {} }), null, 'a botless crowd renders nothing')
+
 // ---- WIRING ----
 
 // The decompose prints the book beside the ring's own rows.
 const src = fs.readFileSync(new URL('../../scripts/fleet-mining/decompose.mjs', import.meta.url), 'utf8')
-assert.match(src, /import \{ chestDoorBill, chestDoorBillRow, chestDoorDistance, chestDoorDistanceRow, chestNoPathRing, chestNoPathRingRow, chestNoPathRepeats, chestNoPathRepeatsRow, chestBudgetFloorBook, chestBudgetFloorBookRow \} from '\.\.\/\.\.\/src\/lib\/chestdoor\.mjs'/, 'the lens rides the chestdoor import band')
+assert.match(src, /import \{ chestDoorBill, chestDoorBillRow, chestDoorDistance, chestDoorDistanceRow, chestNoPathRing, chestNoPathRingRow, chestNoPathRepeats, chestNoPathRepeatsRow, chestExcludeCandidate, chestExcludeCandidateRow, chestBudgetFloorBook, chestBudgetFloorBookRow \} from '\.\.\/\.\.\/src\/lib\/chestdoor\.mjs'/, 'the lens rides the chestdoor import band')
 assert.match(src, /const cnrp = chestNoPathRepeats\(lines\)/, 'the lens folds the face\'s own lines')
 assert.match(src, /if \(cnrpRow\) console\.log\(`  \$\{cnrpRow\}`\)/, "the book's own repeats print beside the ring rows")
+// (v0.869.0) the candidate's own print site rides the book's block
+assert.match(src, /const cnrpCand = chestExcludeCandidate\(cnrp\)/, 'the lens prices the book\'s own top repeat')
+assert.match(src, /if \(cnrpCandRow\) console\.log\(`  \$\{cnrpCandRow\}`\)/, 'the candidate\'s own row prints beside the book')
 
 // The row's own byte lives in the lib.
 const lib = fs.readFileSync(new URL('../../src/lib/chestdoor.mjs', import.meta.url), 'utf8')
 assert.match(lib, /the no-path repeats' own book \(v0\.862\.0\)/, "the row's own byte lives in the lib")
+// (v0.869.0) the candidate list's own bytes live in the lib beside the book
+assert.match(lib, /\(v0\.869\.0\) THE EXCLUDE'S OWN CANDIDATE LIST/, 'the list\'s own docstring lives in the lib')
+assert.match(lib, /the exclude's own candidate \(v0\.869\.0\)/, "the candidate row's own byte lives in the lib")
 
 console.log('nopathrepeats.test.mjs: all green')

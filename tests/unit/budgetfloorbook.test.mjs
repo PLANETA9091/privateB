@@ -196,7 +196,7 @@ assert.equal(chestBudgetFloorBookConsistent(null), false, 'null book fence')
 
 // The decompose prints the book beside the repeats book's own rows.
 const src = fs.readFileSync(new URL('../../scripts/fleet-mining/decompose.mjs', import.meta.url), 'utf8')
-assert.match(src, /import \{ chestDoorBill, chestDoorBillRow, chestDoorDistance, chestDoorDistanceRow, chestNoPathRing, chestNoPathRingRow, chestNoPathRepeats, chestNoPathRepeatsRow, chestBudgetFloorBook, chestBudgetFloorBookRow \} from '\.\.\/\.\.\/src\/lib\/chestdoor\.mjs'/, 'the lens rides the chestdoor import band')
+assert.match(src, /import \{ chestDoorBill, chestDoorBillRow, chestDoorDistance, chestDoorDistanceRow, chestNoPathRing, chestNoPathRingRow, chestNoPathRepeats, chestNoPathRepeatsRow, chestExcludeCandidate, chestExcludeCandidateRow, chestBudgetFloorBook, chestBudgetFloorBookRow \} from '\.\.\/\.\.\/src\/lib\/chestdoor\.mjs'/, 'the lens rides the chestdoor import band')
 assert.match(src, /const cbfb = chestBudgetFloorBook\(lines\)/, 'the lens folds the face\'s own lines')
 assert.match(src, /if \(cbfbRow\) console\.log\(`  \$\{cbfbRow\}`\)/, "the book's own print beside the repeats rows")
 

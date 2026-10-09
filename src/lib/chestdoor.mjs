@@ -479,6 +479,62 @@ export function chestNoPathRepeatsRow (book) {
   return `${head} ${repeatsCell} ${priceCell} ${seat}`
 }
 
+// (v0.869.0) THE EXCLUDE'S OWN CANDIDATE LIST - the repeats book's own
+// pricing artifact. The row (v0.862.0) names the front: the twice-refused
+// chest re-rents its walk (face 138: 18 refusals on 13 chests, repeats 3
+// cross-bot, walks rented on repeats 8 of 18 = 44% - the face-134 storm
+// signature back). The list prices the CANDIDATES: the book's own order
+// (the heaviest chest, then the widest bot crowd, then the position)
+// rides as the priority, the kind reads from the crowd - a cross-bot
+// repeat names the SWAP LIST (different bots paid the same door: the
+// fleet's shared truth, the v0.23.1 swap's next-chest ring prices it
+// out), a same-bot repeat names the MEMORY HOLE (one bot came BACK to
+// the refused chest: the private loop, the TTL's own class). THE BOUND
+// (the v0.853.0 swap voice's exclude-one-candidate law): the list prices
+// AT MOST ONE candidate per face - a face that names many has not priced
+// any; the top candidate rides, the rest stay the honest spread.
+// Junk-safe: an inconsistent book prices nothing (the fence law), a
+// clean face prices nothing (the honest once).
+//
+// Pure: reads, never mutates. Zero fleet wiring (mining-surface only) -
+// the fleet wire (the candidate riding the deposit chain's own exclude)
+// waits for the pricing's own field verdict.
+// @param {object} book - the chestNoPathRepeats fold
+// @returns {null | {pos: string, n: number, bots: object, d: object,
+//   bands: object, bandCell: string, kind: string, why: string}}
+export function chestExcludeCandidate (book) {
+  if (!chestNoPathRepeatsConsistent(book)) return null
+  const top = (book.repeatChests || [])[0]
+  if (!top) return null
+  const botNames = Object.keys(top.bots || {})
+  const crowd = botNames.length
+  if (crowd >= 2) return { ...top, kind: 'swap-list', why: `${crowd} bots paid the same door - the v0.23.1 swap's next-chest ring prices it out` }
+  return { ...top, kind: 'memory-hole', why: `${botNames[0] ?? 'the bot'} came BACK to the refused chest - the private loop, the TTL's own class` }
+}
+
+/** The candidate's own row: 'the exclude's own candidate (v0.869.0):
+ * [-117,70,414] x4 F1+F19+F3 d 14..32 avg 21.3 mid+far - THE SWAP LIST'S
+ * OWN CHEST: 3 bots paid the same door - the v0.23.1 swap's next-chest
+ * ring prices it out'. The memory hole reads its own seat. Junk-safe: a
+ * junk candidate, an unknown kind, a sub-repeat n or a missing cell
+ * renders nothing. */
+export function chestExcludeCandidateRow (cand) {
+  if (!cand || typeof cand !== 'object') return null
+  if (cand.kind !== 'swap-list' && cand.kind !== 'memory-hole') return null
+  if (!Number.isFinite(cand.n) || cand.n < 2) return null
+  if (typeof cand.pos !== 'string' || !cand.pos) return null
+  const d = cand.d || {}
+  if (!Number.isFinite(d.min) || !Number.isFinite(d.max) || !Number.isFinite(d.avg)) return null
+  if (typeof cand.bandCell !== 'string' || !cand.bandCell) return null
+  const botNames = Object.keys(cand.bots || {}).sort()
+  if (botNames.length === 0) return null
+  const head = `the exclude's own candidate (v0.869.0): [${cand.pos}] x${cand.n} ${botNames.join('+')} d ${d.min}..${d.max} avg ${d.avg} ${cand.bandCell}`
+  const seat = cand.kind === 'swap-list'
+    ? `- THE SWAP LIST'S OWN CHEST: ${cand.why}`
+    : `- THE MEMORY HOLE'S OWN CHEST: ${cand.why}`
+  return `${head} ${seat}`
+}
+
 // (v0.864.0) THE BUDGET-FLOOR'S OWN BOOK - the budget-floor rides' own
 // WHO+WHERE fold. The whys lens (v0.861.0, the lane's) named the budget
 // floor the door's own second seat (face 134: 12 of 37 = 32%) and its
