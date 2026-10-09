@@ -22474,3 +22474,18 @@ Stage Summary:
 - The wrong-door mass: 4/9 (face 152: 3/5) -> cumulative 11/31 = 35% - the split's case is now TWO faces strong; the lane's front.
 - The predator family (gap/span/cadence/head) remains correct-but-starved: two consecutive faces with zero Drowned kills. If the extinction holds, the clauses' live read waits for the class's return - the honest silence, no wiring to change.
 - Next fire: (1) verdicts BY RUN ID: face 154 = 37992526192 MUST be terminal -> artifacts -> re-mine -> the head clause's first live row (a predator seat needed; if the face is Drowned-less again, the armed-silence extends and the read notes it). (2) 0.897.0 front candidates (the local battery block lifted): the dead-sensor drowning class's own next byte (the sight-loss window's own width fold - 22s/27s are two points, a third point prices a band) OR the no-crossing drown watch; origin re-verify MANDATORY before the bump. (3) The melee clock still waits for its third data point (the arrival budget's live face). (4) dispatch law on clear (x2 poll BEFORE the POST). NO force-push, NO history rewrite. Identity: PLANETA9091
+
+---
+Task ID: cron40-20261010-0540b
+Agent: main (cron lane :40)
+Task: fire-0540 addendum - face 154 verdict + read debt repaid in-round, face 155 dispatched
+
+Work Log:
+- FACE 154's VERDICT LANDED IN-ROUND: 37992526192 (4d7869f, the lane's dispatch) = SUCCESS - the head clause's expected first live face, read debt repaid immediately (artifacts -> /home/z/my-project/run37992526192, fleet19.log + decompose exit 0 on the current tree).
+- FACE 154's READ: 5 deaths (mob 3, drown 1, fall 1). Kind join: crossed drown 1 (the trigger's own) + crossed non-o2 1 (wrong-door 1) + no-crossing mob 3 - the wrong-door mass holds at ~a third (cumulative 12/36). THE PREDATOR FAMILY STARVED A THIRD FACE: zero Drowned kills (152/153/154) - the gap/span/cadence/head clauses' first live row still pending, the honest silence continues. THE DEPTH PRICE REPEATED: 'the in-band fatal arms' own depth below the rescueBand's edge: 10..10 avg 10.0 o2-unit(s) - the lever's own price' + 'the lane armed at the damage window - the trigger's constant must ride higher' - TWO faces (151 + 154) ride the SAME depth 10, the lever's price is 2/2 @ 10. THE DEAD-SENSOR CLASS'S THIRD POINT: F14 reset(-1), rescue never 100% (the rescue stayed holstered - the arm's own gap is the front), 15 blind pass lines, the wiring catches 0/1 (cue-only: head dry/unknown at the mirror tick - the wider trigger's case); the sight-loss window unpriced this face (?s before - the band fold waits for a third PRICED point; 22s/27s stand from face 153).
+- FACE 155 DISPATCHED: x2 poll BEFORE the POST held (face 154 terminal, only my own push-CI in flight); POST 204 - the next face rides the d921274 tree (all clauses wired).
+
+Stage Summary:
+- The round's full duty cycle: verdicts (face 153 SUCCESS + read; face 154 SUCCESS + read IN-ROUND) + the flake resolution (slow-not-broken, runner 334/334) + face 155 in flight.
+- The lever's price is now 2/2 @ depth 10 (faces 151 + 154) - the o2arm front's confirmation read for the lane.
+- Next fire: (1) verdict BY RUN ID: face 155 (the dispatch id from the runs list, head d921274) + push-CI 37996174093 (d921274) MUST SUCCESS. (2) The predator family's fourth face - if the Drowned class returns, the gap/span/cadence/head clauses' first live row lands. (3) 0.897.0 front candidates stand (the dead-sensor drowning class's next byte: the sight-loss band fold needs a third priced point; the no-crossing drown watch); origin re-verify MANDATORY. (4) dispatch law on clear (x2 poll BEFORE the POST). NO force-push, NO history rewrite. Identity: PLANETA9091
