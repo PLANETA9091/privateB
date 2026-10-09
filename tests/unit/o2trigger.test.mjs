@@ -223,7 +223,7 @@ test('the false-positive split - the crossed deaths\' own kinds', () => {
   assert.equal(b.kinds.fp.melee, 0, 'suffocate has no attacker - the true wrong door')
   assert.equal(b.kinds.fp.wrongDoor, 1)
   const row = o2TriggerKindRow(b)
-  assert.ok(row.includes("the o2-low trigger's own kind join (v0.887.0)"))
+  assert.ok(row.includes("the o2-low trigger's own kind join (v0.889.0)"))
   assert.ok(row.includes('crossed drown 1 (the trigger\'s own)'))
   assert.ok(row.includes('crossed non-o2 1 (the false-positive price: wrong-door 1)'))
 })
@@ -296,7 +296,7 @@ test('the face-145 kind join - the artifact\'s own death lines, byte for byte', 
   assert.equal(b.kinds.fp.wrongDoor, 1)
   assert.deepEqual(b.kinds.noCrossing, { mob: 1, fall: 1 })
   const row = o2TriggerKindRow(b)
-  assert.ok(row.includes("the o2-low trigger's own kind join (v0.887.0)"))
+  assert.ok(row.includes("the o2-low trigger's own kind join (v0.889.0)"))
   assert.ok(row.includes('crossed drown 1 (the trigger\'s own), crossed non-o2 1 (the false-positive price: wrong-door 1), no-crossing mob 1/fall 1'))
   assert.ok(row.includes('the kind join prices the trigger\'s own cost'))
 })
@@ -305,18 +305,22 @@ test('the face-145 kind join - the artifact\'s own death lines, byte for byte', 
 // for byte - face 148's own anatomy: the same attacker on both sides
 // of the band (F9's Drowned INSIDE the crossing = the melee seat;
 // F17's Drowned OUTSIDE it = the no-crossing miss). The pass lines
-// ride the battery's own idiom - the crossings the fold needs.
+// ride the battery's own idiom; the heartbeats space the REAL face's
+// own windows (F3 40s, F6 60s, F9 20s - the live seats' own spans).
 test('the face-148 kind join - the drowned-melee seat\'s own live face', () => {
   const lines = [
     hb(1, 20),
     pass('F3', 0, 8), // the crossing
+    hb(2, 60), // F3's window: 40s
     'F3 [F3] died - respawning (cause: server: drowned [kind=drown] | inferred: fall/env (0s before death at [-119,47,393]) [the inference is blind to this kind - the hint is noise by construction (the server kind stays the authority)])',
     'F17 [F17] died - respawning (cause: server: was slain by Drowned [kind=mob by Drowned] | inferred: drowned@1.9 (0s before death at [-91,62,346]) [the inference corroborates the server verdict])', // never dipped
-    hb(2, 40),
+    hb(3, 80),
     pass('F6', 0, 4), // the crossing
+    hb(4, 140), // F6's window: 60s
     'F6 [F6] died - respawning (cause: server: drowned [kind=drown] | inferred: fall/env (0s before death at [-118,48,395]) [the inference is blind to this kind - the hint is noise by construction (the server kind stays the authority)])',
-    hb(3, 60),
+    hb(5, 160),
     pass('F9', 0, 6), // the crossing
+    hb(6, 180), // F9's window: 20s - THE PREDATOR'S RACE IS FASTER
     'F9 [F9] died - respawning (cause: server: was slain by Drowned [kind=mob by Drowned] | inferred: drowned@1.2 (0s before death at [-127,61,386]) [the inference corroborates the server verdict])' // the melee seat
   ]
   const b = o2TriggerKindBook(lines)
@@ -327,10 +331,14 @@ test('the face-148 kind join - the drowned-melee seat\'s own live face', () => {
   assert.equal(b.kinds.falsePositive, 1, 'F9\'s Drowned melee rode a real crossing')
   assert.equal(b.kinds.fp.melee, 1, 'the attacker\'s own word prices the near-miss seat')
   assert.equal(b.kinds.fp.wrongDoor, 0)
+  // (v0.889.0) the melee seat's own window join - the race's own clock
+  assert.deepEqual(b.kinds.fp.meleeWindow, { count: 1, min: 20, max: 20, sum: 20 }, 'F9\'s own 20s - the race the rescue lost')
+  assert.equal(b.perDeath[0].window, 40, 'the o2 seat\'s own window rides untouched')
+  assert.equal(b.perDeath[2].window, 60)
   assert.deepEqual(b.kinds.noCrossing, { mob: 1 })
   const row = o2TriggerKindRow(b)
-  assert.ok(row.includes("the o2-low trigger's own kind join (v0.887.0)"))
-  assert.ok(row.includes('crossed drown 2 (the trigger\'s own), crossed non-o2 1 (the false-positive price: drowned-melee 1), no-crossing mob 1'))
+  assert.ok(row.includes("the o2-low trigger's own kind join (v0.889.0)"))
+  assert.ok(row.includes('crossed drown 2 (the trigger\'s own), crossed non-o2 1 (the false-positive price: drowned-melee 1 (window 20..20s avg 20s)), no-crossing mob 1'))
 })
 
 test('the anatomy\'s both seats live - the row names only the live ones, joined', () => {
@@ -348,8 +356,47 @@ test('the anatomy\'s both seats live - the row names only the live ones, joined'
   assert.ok(o2TriggerKindConsistent(b))
   assert.equal(b.kinds.fp.melee, 1)
   assert.equal(b.kinds.fp.wrongDoor, 1)
+  assert.deepEqual(b.kinds.fp.meleeWindow, { count: 1, min: 25, max: 25, sum: 25 }, 'only the melee seat\'s clock joins - the wrong-door windows stay unjoined')
   const row = o2TriggerKindRow(b)
-  assert.ok(row.includes('crossed non-o2 2 (the false-positive price: drowned-melee 1 / wrong-door 1)'))
+  assert.ok(row.includes('crossed non-o2 2 (the false-positive price: drowned-melee 1 (window 25..25s avg 25s) / wrong-door 1)'))
+})
+
+// (v0.889.0) the untimed melee seat - a crossing before the first
+// heartbeat: the seat counts, the clock rides the honest silence (the
+// blind-skin idiom)
+test('the untimed melee seat - the clock rides the honest silence', () => {
+  const lines = [
+    pass('F1', 0, 5), // the crossing before any heartbeat - untimed
+    diedKind('F1', 'was slain by Drowned', 'mob', 'Drowned')
+  ]
+  const b = o2TriggerKindBook(lines)
+  assert.ok(o2TriggerKindConsistent(b))
+  assert.equal(b.kinds.fp.melee, 1)
+  assert.deepEqual(b.kinds.fp.meleeWindow, { count: 0, min: null, max: null, sum: 0 })
+  const row = o2TriggerKindRow(b)
+  assert.ok(row.includes('crossed non-o2 1 (the false-positive price: drowned-melee 1)'))
+  assert.ok(!row.includes('window'), 'the silent clock never names a span')
+})
+
+test('the melee window\'s own fence - the lying cells price nothing', () => {
+  const lines = [
+    hb(1, 20),
+    pass('F1', 0, 5),
+    hb(2, 45),
+    diedKind('F1', 'was slain by Drowned', 'mob', 'Drowned') // window 25
+  ]
+  const b = o2TriggerKindBook(lines)
+  assert.ok(o2TriggerKindConsistent(b))
+  const fp = b.kinds.fp
+  assert.equal(o2TriggerKindConsistent({ ...b, kinds: { ...b.kinds, fp: { ...fp, meleeWindow: { ...fp.meleeWindow, count: 2 } } } }), false, 'a count the fold never rode')
+  assert.equal(o2TriggerKindConsistent({ ...b, kinds: { ...b.kinds, fp: { ...fp, meleeWindow: { ...fp.meleeWindow, sum: 26 } } } }), false)
+  assert.equal(o2TriggerKindConsistent({ ...b, kinds: { ...b.kinds, fp: { ...fp, meleeWindow: { ...fp.meleeWindow, min: 24 } } } }), false)
+  assert.equal(o2TriggerKindConsistent({ ...b, kinds: { ...b.kinds, fp: { ...fp, meleeWindow: null } } }), false)
+  assert.equal(o2TriggerKindConsistent({ ...b, kinds: { ...b.kinds, fp: { ...fp, meleeWindow: { ...fp.meleeWindow, max: null } } } }), false)
+  // the untimed melee seat carrying a window cell = the fence's own lie
+  const untimed = o2TriggerKindBook([pass('F1', 0, 5), diedKind('F1', 'was slain by Drowned', 'mob', 'Drowned')])
+  assert.equal(o2TriggerKindConsistent({ ...untimed, kinds: { ...untimed.kinds, fp: { ...untimed.kinds.fp, meleeWindow: { count: 1, min: 0, max: 0, sum: 0 } } } }), false)
+  assert.equal(o2TriggerKindRow({ ...b, kinds: { ...b.kinds, fp: { ...fp, meleeWindow: { ...fp.meleeWindow, count: 9 } } } }), null)
 })
 
 test('the kind fence battery - the tampered books price nothing', () => {

@@ -210,6 +210,24 @@ export function o2TriggerRow (book) {
 // fpClass never leaks onto a death the price did not own. The server
 // verdict stays the authority - the attacker's word is READ, never
 // re-adjudicated (the v0.117.0 doctrine).
+//
+// (v0.889.0) THE MELEE SEAT'S OWN WINDOW JOIN - the anatomy's own
+// next byte (the face-148 read named it: F9's melee seat rode window
+// 20s while the o2 seats rode 40/60s - THE PREDATOR'S RACE IS
+// FASTER). The melee seats join their own window (the perDeath fold's
+// own seconds - never re-computed, the same reuse law): the rescue
+// racing the Drowned's melee must arrive inside the melee seat's own
+// span - HALF the drowning race's own clock. The aggregate rides the
+// window row's own idiom (count/min/max/sum, the same cells); the
+// untimed melee seat (a crossing before the first heartbeat) counts
+// in the seat and rides the honest silence on the clock (the
+// v0.884.0 blind-skin idiom). THE WRONG-DOOR WINDOWS STAY UNJOINED -
+// their pricing question is the wasted rent, not the winnable race;
+// the second split waits for the mass (the honest defer).
+// THE WINDOW JOIN'S OWN FENCE: meleeWindow must be exactly the melee
+// seats' own timed fold - count + the untimed melee seats = the
+// melee seat itself, the cells agree with the perDeath image; a lying
+// cell prices nothing.
 
 // The trigger's own death word - the server's own kind= vocabulary's
 // oxygen death (deathcause.mjs's own bucket, never invented here).
@@ -219,7 +237,7 @@ const emptyKindJoin = () => ({
   o2: 0,
   falsePositive: 0,
   crossedUnknown: 0,
-  fp: { melee: 0, wrongDoor: 0 },
+  fp: { melee: 0, wrongDoor: 0, meleeWindow: { count: 0, min: null, max: null, sum: 0 } },
   noCrossing: {},
   noCrossingUnknown: 0
 })
@@ -261,6 +279,15 @@ export function o2TriggerKindBook (lines) {
       // true wrong door)
       seat.fpClass = parsed && parsed.attacker === DROWNED_ATTACKER ? 'melee' : 'wrongDoor'
       book.kinds.fp[seat.fpClass]++
+      if (seat.fpClass === 'melee' && typeof seat.window === 'number') {
+        // the melee seat's own clock (the perDeath fold's own
+        // seconds, never re-computed) - the race's own price
+        const mw = book.kinds.fp.meleeWindow
+        mw.count++
+        mw.sum += seat.window
+        if (mw.min === null || seat.window < mw.min) mw.min = seat.window
+        if (mw.max === null || seat.window > mw.max) mw.max = seat.window
+      }
     }
   }
   return book
@@ -281,6 +308,13 @@ export function o2TriggerKindConsistent (book) {
   if (!k.fp || typeof k.fp !== 'object' || Array.isArray(k.fp)) return false
   if (![k.fp.melee, k.fp.wrongDoor].every((v) => Number.isInteger(v) && v >= 0)) return false
   if (k.fp.melee + k.fp.wrongDoor !== k.falsePositive) return false
+  // the melee window join's own cells: the melee seats' own timed
+  // fold (count 0 rides the empty cell, the blind-skin idiom)
+  const mw = k.fp.meleeWindow
+  if (!mw || typeof mw !== 'object' || Array.isArray(mw)) return false
+  if (!Number.isInteger(mw.count) || mw.count < 0 || !Number.isInteger(mw.sum) || mw.sum < 0) return false
+  if (mw.count > 0 && (mw.min === null || mw.max === null)) return false
+  if (mw.count === 0 && (mw.min !== null || mw.max !== null || mw.sum !== 0)) return false
   if (!k.noCrossing || typeof k.noCrossing !== 'object' || Array.isArray(k.noCrossing)) return false
   let ncSum = 0
   for (const key of Object.keys(k.noCrossing)) {
@@ -290,6 +324,7 @@ export function o2TriggerKindConsistent (book) {
   }
   if (ncSum + k.noCrossingUnknown !== book.noCrossing) return false
   let o2 = 0, fp = 0, cu = 0, ncu = 0, melee = 0, wrongDoor = 0
+  let mwc = 0, mws = 0, mwm = null, mwM = null
   for (const d of book.perDeath) {
     if (!d || typeof d !== 'object') return false
     if (d.kind !== null && typeof d.kind !== 'string') return false
@@ -308,14 +343,22 @@ export function o2TriggerKindConsistent (book) {
       if (fc !== null) return false
       o2++
     } else {
-      if (fc === 'melee') melee++
-      else if (fc === 'wrongDoor') wrongDoor++
+      if (fc === 'melee') {
+        melee++
+        if (d.window !== null && d.window !== undefined) {
+          if (!Number.isInteger(d.window) || d.window < 0) return false
+          mwc++; mws += d.window
+          if (mwm === null || d.window < mwm) mwm = d.window
+          if (mwM === null || d.window > mwM) mwM = d.window
+        }
+      } else if (fc === 'wrongDoor') wrongDoor++
       else return false // every falsePositive owns exactly one anatomy seat
       fp++
     }
   }
   return o2 === k.o2 && fp === k.falsePositive && cu === k.crossedUnknown && ncu === k.noCrossingUnknown &&
-    melee === k.fp.melee && wrongDoor === k.fp.wrongDoor
+    melee === k.fp.melee && wrongDoor === k.fp.wrongDoor &&
+    mwc === mw.count && mws === mw.sum && mwm === mw.min && mwM === mw.max
 }
 
 /**
@@ -331,9 +374,15 @@ export function o2TriggerKindRow (book) {
   if (book.kinds.o2 > 0) parts.push(`crossed ${O2_DEATH_KIND} ${book.kinds.o2} (the trigger's own)`)
   if (book.kinds.falsePositive > 0) {
     // the anatomy's own clause: only the live seats ride (the
-    // zero-class silence idiom)
+    // zero-class silence idiom); the melee seat's own clock joins the
+    // race's own price (the v0.889.0 window join)
     const anatomy = []
-    if (book.kinds.fp.melee > 0) anatomy.push(`drowned-melee ${book.kinds.fp.melee}`)
+    if (book.kinds.fp.melee > 0) {
+      const mw = book.kinds.fp.meleeWindow
+      let seat = `drowned-melee ${book.kinds.fp.melee}`
+      if (mw.count > 0) seat += ` (window ${mw.min}..${mw.max}s avg ${Math.round(mw.sum / mw.count)}s)`
+      anatomy.push(seat)
+    }
     if (book.kinds.fp.wrongDoor > 0) anatomy.push(`wrong-door ${book.kinds.fp.wrongDoor}`)
     parts.push(`crossed non-o2 ${book.kinds.falsePositive} (the false-positive price: ${anatomy.join(' / ')})`)
   }
@@ -342,5 +391,5 @@ export function o2TriggerKindRow (book) {
   if (nc.length) parts.push(`no-crossing ${nc.map((key) => `${key} ${book.kinds.noCrossing[key]}`).join('/')}`)
   if (book.kinds.noCrossingUnknown > 0) parts.push(`no-crossing unkinded ${book.kinds.noCrossingUnknown}`)
   if (!parts.length) return null
-  return `the o2-low trigger's own kind join (v0.887.0): ${parts.join(', ')} - the kind join prices the trigger's own cost`
+  return `the o2-low trigger's own kind join (v0.889.0): ${parts.join(', ')} - the kind join prices the trigger's own cost`
 }
