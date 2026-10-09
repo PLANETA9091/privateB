@@ -593,3 +593,98 @@ test('funnel probe: resetWalkGovernors keeps the cell seq - an applied verdict i
     resetStormDuck()
   }
 })
+
+// ---------------------------------------------------------------------------
+// (v0.857.0) THE AQUIFER'S OWN ENVELOPE - the near class joins the burst cap.
+// Face 130 (37873436284) froze the main INSIDE the A*: the near monsters over
+// the fresh flood (F1's fuel commons chest walk @-121,404 - region (-2,6),
+// strike-hot by F14's strike (-130,49,396) on the board; F3's next columns
+// beside its own y=57 lid) flew the full 32/2000 boot envelope because the
+// far cap keys on DISTANCE only. The fence: a goal cell on a strike-hot
+// region (the shared WaterTableBoard's tableFor, fed at boot through
+// setFleetStrikeHot) rides the SAME proven pair (24/500). The mock shape is
+// the assist cap's own (climb-rearm.test.mjs).
+// ---------------------------------------------------------------------------
+import { setFleetStrikeHot } from '../../src/lib/jobqueue.mjs'
+import fs from 'node:fs'
+
+function strikeBot (seen) {
+  const bot = {
+    entity: { position: new Vec3(0, 64, 0) },
+    pathfinder: {
+      searchRadius: 32,
+      thinkTimeout: 2000,
+      goto () {
+        seen.radius = bot.pathfinder.searchRadius
+        seen.think = bot.pathfinder.thinkTimeout
+        return Promise.resolve('done')
+      },
+      stop () {},
+      setGoal () {}
+    },
+    waitForTicks: () => Promise.resolve()
+  }
+  return bot
+}
+
+test("THE AQUIFER'S OWN ENVELOPE: a near goal on a strike-hot region rides the capped pair (the boot byte restored after)", async () => {
+  resetWalkGovernors()
+  const seen = {}
+  const bot = strikeBot(seen)
+  setFleetStrikeHot(cell => cell != null && cell.x === 3 && cell.z === 4)
+  try {
+    const r = await gotoSafe(bot, { x: 3, y: 64, z: 4 }, { timeoutMs: 500 }) // d = 5 <= 24 - the near class
+    assert.equal(r, 'done', 'the cap SHRINKS the envelope - it never refuses the walk')
+    assert.equal(seen.radius, 24, 'the strike-hot near walk flies the far-cap PROVEN radius DURING the walk')
+    assert.equal(seen.think, 500, 'the strike-hot near walk flies the far-cap PROVEN think DURING the walk')
+    assert.equal(bot.pathfinder.searchRadius, 32, 'the boot radius is restored after the resolve (the crippled-pathfinder class)')
+    assert.equal(bot.pathfinder.thinkTimeout, 2000, 'the boot think is restored after the resolve')
+  } finally { setFleetStrikeHot(null); resetWalkGovernors() }
+})
+
+test("THE AQUIFER'S OWN ENVELOPE: a near goal on a DRY region keeps the boot byte for byte", async () => {
+  resetWalkGovernors()
+  const seen = {}
+  const bot = strikeBot(seen)
+  setFleetStrikeHot(() => false) // the board reads the region: no strike
+  try {
+    await gotoSafe(bot, { x: 3, y: 64, z: 4 }, { timeoutMs: 500 })
+    assert.equal(seen.radius, 32, 'the dry near walk keeps the boot radius byte for byte')
+    assert.equal(seen.think, 2000, 'the dry near walk keeps the boot think byte for byte')
+  } finally { setFleetStrikeHot(null); resetWalkGovernors() }
+})
+
+test("THE AQUIFER'S OWN ENVELOPE: a throwing reader judges NOTHING - the walk flies the legacy envelope", async () => {
+  resetWalkGovernors()
+  const seen = {}
+  const bot = strikeBot(seen)
+  setFleetStrikeHot(() => { throw new Error('board on fire') })
+  try {
+    const r = await gotoSafe(bot, { x: 3, y: 64, z: 4 }, { timeoutMs: 500 })
+    assert.equal(r, 'done', 'the reader never blocks the walk it precedes (the v0.104.0 reader law)')
+    assert.equal(seen.radius, 32, 'the fail-open walk keeps the boot radius')
+    assert.equal(seen.think, 2000, 'the fail-open walk keeps the boot think')
+  } finally { setFleetStrikeHot(null); resetWalkGovernors() }
+})
+
+test("THE AQUIFER'S OWN ENVELOPE: the far cap keeps precedence - a far goal on a hot region flies the same pair once", async () => {
+  resetWalkGovernors()
+  const seen = {}
+  const bot = strikeBot(seen)
+  setFleetStrikeHot(() => true)
+  try {
+    await gotoSafe(bot, { x: 100, y: 64, z: 100 }, { timeoutMs: 500 }) // d ~ 141 > 24 - the far class
+    assert.equal(seen.radius, 24, 'the far leg and the aquifer leg coincide at the one pair')
+    assert.equal(seen.think, 500, 'no double-shrink - the shapes compose')
+  } finally { setFleetStrikeHot(null); resetWalkGovernors() }
+})
+
+test("THE AQUIFER'S OWN ENVELOPE: the wiring pins (the setter law, the live judgement, the fleet's board feed)", () => {
+  const fleet = fs.readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
+  assert.match(fleet, /setFleetStrikeHot\(pos => waterTableBoard\.tableFor\(pos\) != null\)/, 'the fleet feeds the shared board at boot (junk cell reads null -> not hot)')
+  assert.match(fleet, /import \{ startFleetValveTicker[^}]*setFleetStrikeHot/, 'the import rides the jobqueue family line')
+  const queue = fs.readFileSync(new URL('../../src/lib/jobqueue.mjs', import.meta.url), 'utf8')
+  assert.match(queue, /export function setFleetStrikeHot \(fn\) \{ fleetStrikeHot = typeof fn === 'function' \? fn : null \}/, 'the setter law (a junk fn reads unset)')
+  assert.match(queue, /goalStrikeHot = fleetStrikeHot\(goalCellOf\(goal\)\) === true/, 'the funnel judges the goal cell LIVE at admission')
+  assert.match(queue, /const capThink = \(Number\.isFinite\(farGoal\) && farGoal > ALLOC_VALVE_NEAR_BLOCKS_DEFAULT\) \|\| goalStrikeHot/, 'the cap condition composes the far leg and the aquifer leg')
+})

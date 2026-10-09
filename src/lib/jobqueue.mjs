@@ -531,6 +531,29 @@ const valveStats = { refusals: 0, nearPasses: 0, hazardRefusals: 0, duckRefusals
 let fleetHazardNear = null
 export function setFleetHazardNear (fn) { fleetHazardNear = typeof fn === 'function' ? fn : null }
 
+// (v0.857.0) THE AQUIFER'S OWN ENVELOPE - the walk funnel's second board
+// reader. fleet19 feeds the shared WaterTableBoard's tableFor (the strike
+// regions' own book - the v0.84.0 aquifer ceiling memory, seed-constant, no
+// TTL); a goal cell sitting on a strike-hot region rides the capped burst
+// envelope even when NEAR (the fresh flood's own cost class: the search box
+// over that region contains the water body and the A* branches through it at
+// full boot envelope). MEASURED (face 130 = 37873436284, the freeze storm at
+// t~405s): F14's strike (-130,49,396) put region (-3,6) on the board
+// ('regions 2' - the F19 death-spot region (-2,6) beside it), and the burst
+// ring's monsters were NEAR goals over that flood - F1's fuel commons chest
+// walk @-121,404 (region (-2,6), strike-hot) explored the full 32/2000 boot
+// envelope and died 'No path to the goal!' (a full-box exhausted search),
+// F3's next columns ran beside its own y=57 lid; rss 385M -> 1354M in one 5s
+// window (194MB/s), the main froze INSIDE the A*, and every main-side
+// breaker (valve, brake, duck) lives DOWNSTREAM of that freeze. The far cap
+// (v0.144.0) already bounds the far class; this fence bounds the near class
+// with the SAME proven pair - ~4x fewer nodes, 4x sooner yield, the dynamic
+// pathing walks the partial path and re-plans closer. Null/unset reader =
+// the uncapped legacy byte for byte; a throwing/junk reader judges NOTHING
+// (fail-open - the v0.104.0 reader law).
+let fleetStrikeHot = null
+export function setFleetStrikeHot (fn) { fleetStrikeHot = typeof fn === 'function' ? fn : null }
+
 // (v0.121.0) THE FUNNEL PROBE - the storm sentinel ON the walk funnel.
 // run105 (35903689995) died with the valve never closing: BOTH feeders (the 1s
 // rss ticker + the storm-cell poll inside it) live on the main thread's TIMER
@@ -1223,11 +1246,25 @@ export function gotoSafe (bot, goal, { timeoutMs = 25000, label = 'walk', priori
   // goals keep the boot defaults byte for byte. Restored in finally - a dead
   // walk never leaves its bot's pathfinder crippled.
   const farGoal = walkDistanceOf(bot, goal)
-  const capThink = Number.isFinite(farGoal) && farGoal > ALLOC_VALVE_NEAR_BLOCKS_DEFAULT
+  // (v0.857.0) THE AQUIFER'S OWN ENVELOPE - the near class joins the cap.
+  // The goal's own cell is judged against the strike regions' book (the
+  // fleetStrikeHot reader, fleet19's shared WaterTableBoard): a hit caps
+  // this walk with the SAME proven pair the far class flies (24/500) - the
+  // search box over a strike-hot region contains the water body, and the
+  // boot envelope is the face-130 storm's own fuel. Junk cell, unset reader
+  // and a throwing reader all judge NOTHING (the near cap never invents
+  // knowledge the board does not have - the v0.104.0 reader law).
+  let goalStrikeHot = false
+  if (fleetStrikeHot) {
+    try { goalStrikeHot = fleetStrikeHot(goalCellOf(goal)) === true } catch { goalStrikeHot = false }
+  }
+  const capThink = (Number.isFinite(farGoal) && farGoal > ALLOC_VALVE_NEAR_BLOCKS_DEFAULT) || goalStrikeHot
   // (v0.358.0) THE ASSIST BURST CAP - the caller's explicit burst bound for
   // the near goal it KNOWS is tiny-geometry (the climb rise assist's step
   // cell): the v0.144.0 cap keys on DISTANCE and a near goal keeps the boot
-  // 32/2000 byte for byte - exactly the envelope face 13's wet assist burst
+  // 32/2000 byte for byte (the v0.857.0 aquifer leg later joined the NEAR
+  // class for strike-hot regions - the dry near goal still keeps the boot
+  // byte) - exactly the envelope face 13's wet assist burst
   // died in. The explicit knobs shrink the burst for THIS walk only; junk
   // (NaN, zero, negative) reads uncapped - a missing cap never invents one
   // (the body-guard law). The far cap keeps precedence when both apply (the

@@ -55,7 +55,7 @@ import { snapshotStats, seedStats, sentryAttributionRow, rescueEconomyDecode, re
 import { createServerGuard, isSocketLossLine, isTimeoutKickLine, probeServerPort, PROBE_INTERVAL_MS } from '../src/lib/serverguard.mjs'
 import { resurrectPlan, RESURRECT_FLOOR_MS } from '../src/lib/resurrect.mjs'
 import { startHeartbeat, stopHeartbeat, gapNote } from '../src/lib/heartbeat.mjs'
-import { startFleetValveTicker, allocValveStatsFor, setFleetHazardNear, setFleetValveStormCell, setFunnelProbeLogger, setFleetDuckSweeper, armStormDuck, stormDuckArmLine } from '../src/lib/jobqueue.mjs' // (v0.104.0) the ticker feeds the SINGLETON it consults + the aquifer board; (v0.121.0) the funnel probe wiring; (v0.143.0) the storm duck wiring
+import { startFleetValveTicker, allocValveStatsFor, setFleetHazardNear, setFleetStrikeHot, setFleetValveStormCell, setFunnelProbeLogger, setFleetDuckSweeper, armStormDuck, stormDuckArmLine } from '../src/lib/jobqueue.mjs' // (v0.104.0) the ticker feeds the SINGLETON it consults + the aquifer board; (v0.121.0) the funnel probe wiring; (v0.143.0) the storm duck wiring; (v0.857.0) the strike-region envelope reader
 import { createPulseSab, createLoopPulse } from '../src/lib/looppulse.mjs' // (v0.77.0) the freeze oscilloscope
 import { STORM_CELL_MAGIC, stormCellApply } from '../src/lib/allocvalve.mjs' // (v0.104.0) the storm cell init; (v0.141.0) the lag-probe feeder applies the worker verdict
 import { createSharedBlackBox, noteGlobal } from '../src/lib/blackbox.mjs' // (v0.62.0) the freeze black box
@@ -128,6 +128,12 @@ setFleetHazardNear(pos => hazardLedger.near(pos))
 // for the WHOLE fleet - the aquifer is regional, the old memory was cellular.
 // Seed-constant world -> no TTL, only the LRU region cap bounds it.
 const waterTableBoard = new WaterTableBoard()
+// (v0.857.0) THE AQUIFER'S OWN ENVELOPE - the walk funnel reads the strike
+// regions' book: a goal cell on a strike-hot region (tableFor != null) rides
+// the capped burst pair even when near (the face-130 freeze class - the near
+// monsters over the fresh flood). Junk cell reads null -> not hot (the
+// reader law: the cap never invents knowledge the board does not have).
+setFleetStrikeHot(pos => waterTableBoard.tableFor(pos) != null)
 // (v0.225.0) THE DRAGON DEATH REGISTRY - the fleet-shared log the death
 // handlers ride into (the server verb + the corpse pos, capped by the
 // module's DRAGON_DEATH_LOG_CAP). The zone is WORLD geography - the records
