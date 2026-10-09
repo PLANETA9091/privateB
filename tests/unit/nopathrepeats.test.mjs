@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import { chestNoPathRepeats, chestNoPathRepeatsRow, chestNoPathRepeatsConsistent } from '../../src/lib/chestdoor.mjs'
 
-// The v0.861.0 lens: the no-path refusals' own per-chest repeat fold (the
+// The v0.862.0 lens: the no-path refusals' own per-chest repeat fold (the
 // stuck chest's own book). The motive: the ring (v0.860.0) banded the
 // refusals' d and named the geometry the door's owner (face 134: mid 14
 // of 18) - but the fold rode band-aggregate only: WHICH chest refused,
@@ -83,7 +83,7 @@ assert.deepEqual(book.repeatChests.map(r => r.pos), ['-117,70,414', '-117,70,418
 // line, the candidates seat reads.
 assert.match(
   chestNoPathRepeatsRow(book),
-  /^the no-path repeats' own book \(v0\.861\.0\): 18 refusal\(s\) on 13 distinct chest\(s\) - repeats 3 \(\[-117,70,414\] x4 F1\+F19\+F3 d 14\.\.32 avg 21\.3 mid\+far, \[-117,70,418\] x2 F19\+F3 d 15\.\.38 avg 26\.5 mid\+far, \[-122,70,410\] x2 F1 d 22\.\.25 avg 23\.5 mid\) - walks rented on repeats 8 of 18 \(44%\) - THE EXCLUDE'S OWN CANDIDATES: the twice-refused chest re-rents its walk - the cross-bot repeat names the swap list, the same-bot repeat names the memory hole$/,
+  /^the no-path repeats' own book \(v0\.862\.0\): 18 refusal\(s\) on 13 distinct chest\(s\) - repeats 3 \(\[-117,70,414\] x4 F1\+F19\+F3 d 14\.\.32 avg 21\.3 mid\+far, \[-117,70,418\] x2 F19\+F3 d 15\.\.38 avg 26\.5 mid\+far, \[-122,70,410\] x2 F1 d 22\.\.25 avg 23\.5 mid\) - walks rented on repeats 8 of 18 \(44%\) - THE EXCLUDE'S OWN CANDIDATES: the twice-refused chest re-rents its walk - the cross-bot repeat names the swap list, the same-bot repeat names the memory hole$/,
   'the face-134 row verbatim'
 )
 
@@ -176,6 +176,6 @@ assert.match(src, /if \(cnrpRow\) console\.log\(`  \$\{cnrpRow\}`\)/, "the book'
 
 // The row's own byte lives in the lib.
 const lib = fs.readFileSync(new URL('../../src/lib/chestdoor.mjs', import.meta.url), 'utf8')
-assert.match(lib, /the no-path repeats' own book \(v0\.861\.0\)/, "the row's own byte lives in the lib")
+assert.match(lib, /the no-path repeats' own book \(v0\.862\.0\)/, "the row's own byte lives in the lib")
 
 console.log('nopathrepeats.test.mjs: all green')

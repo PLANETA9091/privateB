@@ -342,7 +342,7 @@ export function chestNoPathRingRow (ring) {
   return `${head} ${seat}`
 }
 
-// (v0.861.0) THE STUCK CHEST'S OWN BOOK - the no-path refusals' own
+// (v0.862.0) THE STUCK CHEST'S OWN BOOK - the no-path refusals' own
 // per-chest repeat fold. The ring (v0.860.0) banded the refusals' d and
 // named the geometry the door's owner (face 134: mid 14 of 18) - but the
 // fold rode band-aggregate only: WHICH chest refused, and WHICH chest
@@ -456,7 +456,7 @@ export function chestNoPathRepeatsConsistent (book) {
   return repeatSum === book.repeatRides
 }
 
-/** The row: 'the no-path repeats' own book (v0.861.0): 18 refusal(s) on
+/** The row: 'the no-path repeats' own book (v0.862.0): 18 refusal(s) on
  * 13 distinct chest(s) - repeats 3 ([-117,70,414] x4 F1+F19+F3 d 14..32
  * avg 21.3 mid+far, ...) - walks rented on repeats 8 of 18 (44%) - THE
  * EXCLUDE'S OWN CANDIDATES: the twice-refused chest re-rents its walk -
@@ -466,7 +466,7 @@ export function chestNoPathRepeatsConsistent (book) {
  * clean face (every chest refused once) reads the honest once. */
 export function chestNoPathRepeatsRow (book) {
   if (!chestNoPathRepeatsConsistent(book)) return null
-  const head = `the no-path repeats' own book (v0.861.0): ${book.n} refusal(s) on ${book.distinctChests} distinct chest(s)`
+  const head = `the no-path repeats' own book (v0.862.0): ${book.n} refusal(s) on ${book.distinctChests} distinct chest(s)`
   const repeatsCell = book.repeatChests.length > 0
     ? `- repeats ${book.repeatChests.length} (${book.repeatChests.map(r => `[${r.pos}] x${r.n} ${Object.keys(r.bots).sort().join('+')} d ${r.d.min}..${r.d.max} avg ${r.d.avg} ${r.bandCell}`).join(', ')})`
     : '- repeats none (every chest refused once)'
