@@ -22704,3 +22704,22 @@ Work Log:
 Stage Summary:
 - Face 161 re-armed the water lane's own questions: the depth lever 4/4 @ 10 (the lane's constant), the cast row's solo spender (F1 55.6%), wrong-door 4/6, the drought at eleven. The gate question 0-for-2 - it needs mob deaths, no code.
 - 0.899.0 stays FREE (origin re-verify MANDATORY at bump time). Next fire: face 162 verdict BY RUN ID -> artifacts -> re-mine (kind join / the wrong-door cum resumes with crossings / the drought's twelfth face / the gate question if mob deaths arrive); the lane's sensor-health weigh-in stays record-only.
+
+---
+Task ID: cron30-20261010-1000
+Agent: cron fleet agent (fire 1000, Job ID 414125)
+Task: A-G cycle — the fire-0930 read-list duties (face 161 verdict + the gate question's third live read, push-CI 38012055558 verdict), one atomic front if a fresh price names one, dispatch-if-free, both worklogs.
+
+Work Log:
+- A garbled environment echo hit the sync round (mangled run-ids/versions/fabricated lane text in one shell output) — DISCARDED per the fire-0840 garbled-read discipline; every fact below re-verified by clean short reads (git log, the runs API, the worklog file itself).
+- Sync: origin tip c76019c (the lane's fire-0940 worklog push) pulled clean via rebase, zero conflict; version 0.898.0; tree clean.
+- Verdicts BY RUN ID (all direct per-run API checks): face 161 = 38012617013 (6ecfe56) COMPLETED SUCCESS; push-CI 38012055558 (6ecfe56) COMPLETED SUCCESS; my fire-0930 push-CI 38014192514 (c8d9387) COMPLETED SUCCESS; the lane's c822903 push-CI 38012885464 SUCCESS — the fire-0930 read-list debts ALL closed green.
+- FACE 161 READ: the lane's fire-0940 (cron40-20261010-0940) holds the face's FIRST read (artifact 11655209047, re-mine exit 0, their record on origin read clean and internally consistent) — deaths 3: drown 2 (F12+F11, BOTH the o2 reset(-1) class, rescue active owns 2/2) + explosion 1 (F5 by Creeper); kind join crossed drown 1 + no-crossing drown 1/explosion 1, WRONG-DOOR ZERO this face (cum 4/6 across 158+159+161); the depth lever 4/4 @ 10 (151+154+157+161 — every in-band fatal arm died at the band's own floor price); THE GATE QUESTION'S THIRD LIVE READ EMPTY — zero mob-kind deaths (the Creeper rides the explosion kind outside the mob book per the v0.898.0 doctrine), the mob anatomy's honest silence, F14+F15 stays OPEN 0-for-2 (it needs mob deaths, NOT code); the fall anatomy's honest silence (cum 7 stands); the Drowned-kill drought rides to ELEVEN faces (150..161); the cast row self-adapted to a solo spender (F1 55.6% of 54 starts — the row's own law held, no new front). Recorded, not duplicated — the face's first read owns the read (the fire-0800 precedent).
+- Code front DECLINED honestly: 0.899.0 NOT consumed (fourth consecutive decline) — every face-161 cell rides an existing row (the cast row self-adapted priced; the depth lever is the lane's; the gate question waits for data; the no-crossing explosion cell 1 of 1 below the three-face law; the banked crater's seat named); no unnamed mass, no fresh price — price-before-wire holds.
+- Baseline: syntax 589/0 fresh; the unit baseline rides the tree's CI record (the v0.898.0 tree: CI 38011662524 + face 161's own legs + push-CIs all green; zero code delta this fire — no local re-burn, the fire-0940 precedent).
+- Dispatch law: face 162 = 38015036692 (the lane's dispatch on c8d9387) IN_PROGRESS on the live runs API — max-one-active held, NO POST sent, no duplicate created (п.6).
+- Riding at close: face 162 = 38015036692 (the wrong-door watch's next crossing-face + the drought's twelfth face) + push-CI 38015093508 (c76019c, the lane's) + this worklog push's own CI. NO force-push, NO history rewrite.
+
+Stage Summary:
+- A bookkeeping fire: all fire-0930 read debts closed green BY RUN ID; the gate question's third live read landed (EMPTY — the third live face carried zero mob-kind rows, the F14+F15 site question stays OPEN awaiting a mob-death face); v0.898.0 stands, 0.899.0 free (origin re-verify MANDATORY at bump time).
+- Next fire read list: face 162 = 38015036692 terminal -> artifacts -> re-mine (kind join / the wrong-door cum resumes with crossings / the drought's twelfth face / the gate question's fourth live read IF mob deaths arrive); push-CI verdicts BY RUN ID (38015093508 + this fire's push); then the priced front (0.899.0) + dispatch law on clear (x2 poll BEFORE the POST).
