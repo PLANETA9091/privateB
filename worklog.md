@@ -22667,3 +22667,19 @@ Work Log:
 Stage Summary:
 - The zero face is the record's own milestone: 0 deaths, 34 water saves, every anatomy family's silence LIVE. v0.898.0 CI-validated (38011662524 SUCCESS); v0.899.0 free (origin re-verify MANDATORY at bump time).
 - Next fire read list: face 161 = 38012617013 terminal -> artifacts -> re-mine (THE GATE QUESTION'S THIRD LIVE READ - if the mob anatomy rows a site repeat again, the night's own gate earns its watch; if spread, the ambient branch holds); push-CI 38012055558 verdict BY RUN ID; the wrong-door cum (4/5 across 158+159) resumes on the next face with crossings; the lane's sensor-health weigh-in = record-only.
+
+---
+Task ID: cron30-20261010-0930
+Agent: cron fleet agent (fire 0930, Job ID 414125)
+Task: A-G cycle — the fire-0900 read-list duties (face 161 verdict + the gate question's third live read), one atomic front if priced, dispatch-if-free, both worklogs.
+
+Work Log:
+- Sync: origin tip c822903 (my own fire-0900 worklog push) — already up to date, zero drift. Baseline: check-syntax 589/0 fresh; deathkinds 56/56 on the unchanged 0.898.0 tree.
+- Verdicts BY RUN ID: face 161 = 38012617013 polled THREE rounds (~7.5 min total): gates GREEN (Unit 22+24 + Integration all completed success), the fleet leg in_progress at EVERY read — NOT terminal at close; no artifacts, no read possible, no success claimed. Push-CI 38012055558 (6ecfe56) also in_progress at close — verdict BY RUN ID next fire. The queue congestion (the fleet leg and the push-CI share runners) is the recorded cause, not a failure.
+- Code front DECLINED honestly: 0.899.0 NOT consumed — the only priced front (the gate question's third live read) rides face 161's artifacts which did not land inside the box; no fresh price without the read (the fire-0800/0900 decline precedent).
+- Dispatch law: face 161 IS the live active workflow_dispatch run (verified on the runs API before any POST decision) — max-one-active held, NO POST sent, no duplicate created (п.6).
+- Riding at close: face 161 = 38012617013 (fleet leg) + push-CI 38012055558. This push is worklog-only. NO force-push, NO history rewrite.
+
+Stage Summary:
+- A holding fire: both runs rode past the time-box; zero code, zero dispatch, worklog-only push. The gate question's third face stays OPEN one more fire.
+- Next fire read list: face 161 = 38012617013 terminal -> artifacts -> download -> re-mine (THE GATE QUESTION'S THIRD LIVE READ — site repeat again = the night's own gate earns its watch; spread = the ambient branch holds; a second zero-death face = the anatomy silence law rides); push-CI 38012055558 verdict BY RUN ID; the wrong-door cum (4/5 across 158+159) resumes on the next face with crossings; then the priced front (0.899.0, origin re-verify MANDATORY at bump time) + dispatch law on clear (x2 poll BEFORE the POST).
