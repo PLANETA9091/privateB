@@ -992,3 +992,53 @@ export function secondLegDecision ({ firstLegError, shouldStopNow = false, hasCa
   if (!hasCandidate) return { leg: 'none', why: 'no-candidate' }
   return { leg: 'second', why: 'candidate-ready' }
 }
+
+// (v0.901.0) THE SECOND LEG'S OWN CENSUS - the debut family's own read. The
+// v0.900.0 law put four new line forms on the wire (the result, the defer,
+// the refusal, the cause); the mapTripCensus counts them as unparsed (the
+// launch and skip shapes stay byte-exact - the tested guard), so the field
+// evidence would ride invisible. The lens parses the family's own shapes -
+// each its own anchored form, junk reads nothing (never a half-count):
+//
+//   `F3 map trip second leg: sand`                        (the delivery landed)
+//   `F3 map trip second leg deferred: deadline`           (the clock refused)
+//   `F3 map trip second leg skipped: no candidate left`   (the map ran dry)
+//   `F3 map trip second leg failed: <msg>`                (the walk died)
+//
+// The delivered share is the v0.900.0 law's own field verdict: did the
+// map's depth actually feed the pocket lane the three faces starved?
+const SECOND_LEG_BOT_RE = /^(F\d+) map trip second leg/
+export const SECOND_LEG_DELIVERED_RE = /^(F\d+) map trip second leg: ([a-z_]+)$/
+export const SECOND_LEG_DEFERRED_RE = /^(F\d+) map trip second leg deferred: deadline$/
+export const SECOND_LEG_REFUSED_RE = /^(F\d+) map trip second leg skipped: no candidate left$/
+export const SECOND_LEG_FAILED_RE = /^(F\d+) map trip second leg failed: (.+)$/
+
+export function secondLegCensus (lines) {
+  const c = { n: 0, delivered: 0, deferred: 0, refused: 0, failed: 0, byBot: {}, byTarget: {}, unparsed: 0 }
+  for (const line of (Array.isArray(lines) ? lines : [])) {
+    if (typeof line !== 'string') continue
+    const m = line.match(SECOND_LEG_BOT_RE)
+    if (!m) continue
+    const bot = m[1]
+    c.byBot[bot] = (c.byBot[bot] || 0) + 1
+    let d = line.match(SECOND_LEG_DELIVERED_RE)
+    if (d) { c.delivered++; c.n++; c.byTarget[d[2]] = (c.byTarget[d[2]] || 0) + 1; continue }
+    if (SECOND_LEG_DEFERRED_RE.test(line)) { c.deferred++; c.n++; continue }
+    if (SECOND_LEG_REFUSED_RE.test(line)) { c.refused++; c.n++; continue }
+    d = line.match(SECOND_LEG_FAILED_RE)
+    if (d) { c.failed++; c.n++; continue }
+    c.unparsed++ // a family line in an unknown shape - the family grew, the lens has not
+  }
+  return c
+}
+
+/**
+ * The row composer: one honest line for the decompose's trip lane section.
+ * null on every empty read (the family never spoke - nothing composed from
+ * nothing), the delivery share named on the family's own numbers.
+ */
+export function secondLegRow (c) {
+  if (!c || c.n === 0) return null
+  const share = c.delivered > 0 ? ` - the delivery share ${((c.delivered / c.n) * 100).toFixed(1)}%` : ' - THE ZERO DELIVERY: the depth answered, the pocket did not move'
+  return `the second leg's own census (v0.900.0's law): delivered ${c.delivered} / deferred ${c.deferred} / refused ${c.refused} / failed ${c.failed} of ${c.n} family line(s)${share}`
+}

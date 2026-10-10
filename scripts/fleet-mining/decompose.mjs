@@ -45,7 +45,7 @@ import { thirdKindSplit, thirdKindRow } from '../../src/lib/thirdkind.mjs' // (v
 import { nopathBill } from '../../src/lib/nopathbill.mjs' // (v0.716.0) the no-path spike's own WHO read - the door family's no-path rides folded per bot per lane (the column's repeats vs the crowd's spread)
 import { decideBook } from '../../src/lib/decidebook.mjs' // (v0.720.0) the decide door's own book - the door leg's decide rides per bot AND per goal (the shared dead chest's cross-bot column vs the bot's rider repeats)
 import { dropWalkCensus, dropWalkVerdict, dropWalkVerdictRow, dropWalkRiders, dropWalkRidersRow } from '../../src/lib/dropwalk.mjs' // (v0.413.0) the vein sweep's per-fail drop-walk line; (v0.777.0) WHICH class owns the book; (v0.785.0) the verdict's silence's own companion
-import { mapTripCensus, parseWorldmapTail, mapTripGap, tripReceipt, tripVoice, pocketDrain, pocketDrainAttr, materialBalance, balanceReconcile, leakClock, pocketPeakClock, pocketPeakClockRow, RECEIPT_WINDOW_SAMPLES, tripAskSeat, tripAskSeatRow, tripAskRiders, tripAskRidersRow } from '../../src/lib/maptrip.mjs' // (v0.415.0) the materials plan's launch economics; (v0.445.0) the knowledge side + the gap composer; (v0.447.0) the delivery leg's yield; (v0.449.0) the window calibration; (v0.450.0) the voice roster; (v0.451.0) the pocket drain ledger; (v0.452.0) the drain attribution; (v0.453.0) the material balance; (v0.455.0) the lenses converge; (v0.458.0) the re-gather share; (v0.460.0) the no-leak's own name; (v0.472.0) the leak clock - the share's third split; (v0.772.0) the pocket's own peak clock
+import { mapTripCensus, parseWorldmapTail, mapTripGap, tripReceipt, tripVoice, pocketDrain, pocketDrainAttr, materialBalance, balanceReconcile, leakClock, pocketPeakClock, pocketPeakClockRow, RECEIPT_WINDOW_SAMPLES, tripAskSeat, tripAskSeatRow, tripAskRiders, tripAskRidersRow, secondLegCensus, secondLegRow } from '../../src/lib/maptrip.mjs' // (v0.415.0) the materials plan's launch economics; (v0.445.0) the knowledge side + the gap composer; (v0.447.0) the delivery leg's yield; (v0.449.0) the window calibration; (v0.450.0) the voice roster; (v0.451.0) the pocket drain ledger; (v0.452.0) the drain attribution; (v0.453.0) the material balance; (v0.455.0) the lenses converge; (v0.458.0) the re-gather share; (v0.460.0) the no-leak's own name; (v0.472.0) the leak clock - the share's third split; (v0.772.0) the pocket's own peak clock
 import { deficitsCensus } from '../../src/lib/deficitrow.mjs' // (v0.417.0) the plan's harvest side (the deficits row's clock)
 import { smeltLedger, clipDebtRow, clipDebtSeat, clipDebtSeatRow, clipPaybackRow, clipDietRow, clockWindowRow, clockAskRow, fuelClipClockVerdict, fuelClipClockRow } from '../../src/lib/smeltledger.mjs' // (v0.461.0) the furnace lane's own words - the batches, the clips, the refusals; (v0.744.0) the clip's own debt - the units the chains left smelting; (v0.764.0) WHICH class owns the debt; (v0.745.0) the re-smelt shadow's payback - did a later chain ever return; (v0.747.0) the clip's own diet - the fuel side's own worth vs the vanilla bar; (v0.748.0) the clock's own window - the clock side's own worth vs the vanilla speed; (v0.749.0) the clock ask's own scale - the batch's own size vs the windows' whole worth; (v0.775.0) WHEN the fuel clips ride
 import { furnacePut } from '../../src/lib/furnaceput.mjs' // (v0.664.0) THE FURNACE PUT'S OWN PAIR - the no-walk opens and the slot read-back's input x fuel pairing (the machine's own diet)
@@ -3031,6 +3031,14 @@ console.log('  plan lines:', count(/materials plan|plan progress/i))
     console.log('--- MAP TRIP GAP (v0.445.0: the stuck resource\'s knowledge-delivery read) ---')
     console.log(`  ${stuck}: demanded by the trip lane ${g.demanded}x (launches ${g.stuckLaunches}, unreachable skips ${g.unreachable}, shaft-locked ${g.shaftLocked}); ${know} - the delivery leg, not the knowledge leg, is the lever`)
   }
+}
+
+// (v0.901.0) THE SECOND LEG'S OWN ROW - the v0.900.0 law's field verdict,
+// parsed from the debut family's own four forms (the lens's honest null
+// keeps a pre-v0.900.0 face silent - nothing composed from nothing).
+{
+  const slr = secondLegRow(secondLegCensus(lines))
+  if (slr) console.log(`--- THE SECOND LEG'S OWN CENSUS (v0.901.0: the same-trip retry's own read) ---\n  ${slr}`)
 }
 
 // (v0.447.0) THE TRIP RECEIPT - the delivery leg's YIELD: did the launches
