@@ -10,7 +10,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
-import { deathKindCensus, deathKindBill, deathKindBillRow, deathKindRiders, deathKindRidersRow, mobAttackerBill, mobAttackerBillRow, mobAttackerRiders, mobAttackerRidersRow, misreadDirectionBill, misreadDirectionBillRow, misreadDirectionRiders, misreadDirectionRidersRow, fallAnatomyBook, fallAnatomyConsistent, fallAnatomyRow, mobAnatomyBook, mobAnatomyConsistent, mobAnatomyRow } from '../../src/lib/deathkinds.mjs' // (v0.897.0) the falls' own anatomy joins the battery; (v0.898.0) the mob book's own anatomy joins too
+import { deathKindCensus, deathKindBill, deathKindBillRow, deathKindRiders, deathKindRidersRow, mobAttackerBill, mobAttackerBillRow, mobAttackerRiders, mobAttackerRidersRow, misreadDirectionBill, misreadDirectionBillRow, misreadDirectionRiders, misreadDirectionRidersRow, fallAnatomyBook, fallAnatomyConsistent, fallAnatomyRow, fallRelayBook, fallRelayConsistent, fallRelayRow, mobAnatomyBook, mobAnatomyConsistent, mobAnatomyRow } from '../../src/lib/deathkinds.mjs' // (v0.897.0) the falls' own anatomy joins the battery; (v0.898.0) the mob book's own anatomy joins too; (v0.899.0) the fall's own relay joins (the time leg)
 
 // the face-27 verbatims (36870593766), byte for byte from the artifact
 const FACE27_FALL = 'F14 [F14] died - respawning (cause: server: fell from a high place [kind=fall] | inferred: fall/env (0s before death at [-132,45,405]) [the inference corroborates the server verdict])'
@@ -114,7 +114,7 @@ test('a non-array input judges nothing (junk-safe by contract)', () => {
 
 test('WIRING: the decompose prints the causes row and the vertical rows (the DEATHS block)', () => {
   const src = fs.readFileSync(new URL('../../scripts/fleet-mining/decompose.mjs', import.meta.url), 'utf8')
-  assert.match(src, /import \{ deathKindCensus, deathKindBill, deathKindBillRow, deathKindRiders, deathKindRidersRow, mobAttackerBill, mobAttackerBillRow, mobAttackerRiders, mobAttackerRidersRow, misreadDirectionBill, misreadDirectionBillRow, misreadDirectionRiders, misreadDirectionRidersRow, fallAnatomyBook, fallAnatomyConsistent, fallAnatomyRow, mobAnatomyBook, mobAnatomyConsistent, mobAnatomyRow \} from '\.\.\/\.\.\/src\/lib\/deathkinds\.mjs'/, 'the census import rides the decompose head (v0.784.0: the kind seat rides too; v0.788.0: the attacker seat rides too; v0.844.0: the direction seat rides too; v0.897.0: the falls\' own anatomy rides too; v0.898.0: the mob book\'s own anatomy rides too)')
+  assert.match(src, /import \{ deathKindCensus, deathKindBill, deathKindBillRow, deathKindRiders, deathKindRidersRow, mobAttackerBill, mobAttackerBillRow, mobAttackerRiders, mobAttackerRidersRow, misreadDirectionBill, misreadDirectionBillRow, misreadDirectionRiders, misreadDirectionRidersRow, fallAnatomyBook, fallAnatomyConsistent, fallAnatomyRow, fallRelayBook, fallRelayConsistent, fallRelayRow, mobAnatomyBook, mobAnatomyConsistent, mobAnatomyRow \} from '\.\.\/\.\.\/src\/lib\/deathkinds\.mjs'/, 'the census import rides the decompose head (v0.784.0: the kind seat rides too; v0.788.0: the attacker seat rides too; v0.844.0: the direction seat rides too; v0.897.0: the falls\' own anatomy rides too; v0.898.0: the mob book\'s own anatomy rides too; v0.899.0: the fall\'s own relay rides too)')
   assert.match(src, /death causes: \$\{causeRow\}\$\{inferredNote\}\$\{unparsedNote\}/, 'the mechanical causes row prints on every face (v0.672.0: the inferred-only note rides too)')
   assert.match(src, /vertical death: \$\{v\.bot\}/, 'the vertical row names the front\'s witness')
 })
@@ -1001,4 +1001,122 @@ test('WIRING: the mob anatomy rides the decompose print beside the mob attacker 
   assert.match(src, /const moab = mobAnatomyBook\(lines\)/, 'the mob anatomy book mounts on the log lines (the o2 family own book-only precedent)')
   assert.match(src, /mobAnatomyConsistent\(moab\)/, 'the fence rides the print')
   assert.match(src, /mobAnatomyRow\(moab\)/, 'the row rides the print site')
+})
+
+// (v0.899.0) THE FALL'S OWN RELAY - the time leg's own battery. The
+// verbatims ride the face-172 field shape byte for byte (the lane's
+// fire-1730 record: 3 falls, ONE block [-114,43,411], one burst
+// window - F3+F15+F17); the heartbeat lines ride the death clock's own
+// grammar (the HB_RE law: 'b] n=N ts=Ts').
+const HB = (n, ts) => `b] n=${n} ts=${ts}s rss=500M late=100ms mainLate=10ms`
+const FALL_AT = (bot, x, y, z) => `${bot} [${bot}] died - respawning (cause: server: fell from a high place [kind=fall] | inferred: fall/env (0s before death at [${x},${y},${z}]) [the inference corroborates the server verdict])`
+
+const FACE172_RELAY_LINES = [
+  HB(1, 500),
+  FALL_AT('F3', -114, 43, 411),
+  HB(2, 507),
+  FALL_AT('F15', -114, 43, 411),
+  HB(3, 519),
+  FALL_AT('F17', -114, 43, 411)
+]
+
+test('the face-172 relay: the cluster prices the time leg (the book, the fence, the row byte-exact)', () => {
+  const b = fallRelayBook(FACE172_RELAY_LINES)
+  assert.equal(b.falls, 3)
+  assert.equal(b.positioned, 3)
+  assert.equal(b.relayed, 2)
+  assert.equal(b.relayClusters, 1)
+  assert.deepEqual(b.sites, [{ anchor: [-114, 411], members: [{ bot: 'F3', ts: 500 }, { bot: 'F15', ts: 507 }, { bot: 'F17', ts: 519 }], relayed: 2, gaps: [7, 12] }])
+  assert.equal(fallRelayConsistent(FACE172_RELAY_LINES, b), true)
+  assert.equal(fallRelayRow(b), "the fall's own relay (v0.899.0): relayed 2 of 3 positioned fall(s) at 1 site - THE RELAY: the first fall named the shaft and 2 still fell within 30s (gaps 7s, 12s; the clusters' bots F3->F15->F17) - the walkers fell into a shaft a death had named")
+})
+
+test('the ts law: the fall rides the last heartbeat BEFORE its line (the log\'s own adjacency)', () => {
+  const lines = [HB(1, 100), FALL_AT('F5', -110, 43, 421), FALL_AT('F2', -100, 44, 405), HB(2, 200), FALL_AT('F3', -107, 66, 418)]
+  const b = fallRelayBook(lines)
+  assert.equal(b.falls, 3)
+  assert.equal(b.positioned, 3)
+  assert.equal(b.relayed, 0)
+  assert.equal(b.relayClusters, 0)
+  assert.deepEqual(b.sites, [])
+  assert.equal(fallRelayConsistent(lines, b), true)
+  assert.equal(fallRelayRow(b), "the fall's own relay (v0.899.0): relayed 0 of 3 positioned fall(s) - the relay held: no fall rode a prior fall's 30s window")
+})
+
+test('the held branch and the boundary: a 45s gap breaks the chain, a 30s gap rides the window (the <= law)', () => {
+  const far = [HB(1, 100), FALL_AT('F5', -110, 43, 421), HB(2, 145), FALL_AT('F3', -107, 66, 418)]
+  const bf = fallRelayBook(far)
+  assert.equal(bf.relayed, 0)
+  assert.equal(bf.relayClusters, 0)
+  assert.equal(fallRelayConsistent(far, bf), true)
+  assert.equal(fallRelayRow(bf), "the fall's own relay (v0.899.0): relayed 0 of 2 positioned fall(s) - the relay held: no fall rode a prior fall's 30s window")
+  const edge = [HB(1, 100), FALL_AT('F5', -110, 43, 421), HB(2, 130), FALL_AT('F3', -107, 66, 418)]
+  const be = fallRelayBook(edge)
+  assert.equal(be.relayed, 1)
+  assert.equal(be.relayClusters, 1)
+  assert.deepEqual(be.sites[0].gaps, [30])
+  assert.equal(fallRelayConsistent(edge, be), true)
+})
+
+test('the chain law: each member rides its PRIOR member\'s window (gaps 7 then 40 then 3 relays the 4th)', () => {
+  const lines = [
+    HB(1, 100), FALL_AT('F3', -114, 43, 411),
+    HB(2, 107), FALL_AT('F15', -114, 43, 411),
+    HB(3, 147), FALL_AT('F17', -114, 43, 411),
+    HB(4, 150), FALL_AT('F10', -114, 43, 411)
+  ]
+  const b = fallRelayBook(lines)
+  assert.equal(b.relayed, 2)
+  assert.deepEqual(b.sites[0].gaps, [7, 3])
+  assert.equal(b.sites[0].members.length, 4)
+  assert.equal(fallRelayConsistent(lines, b), true)
+})
+
+test('the untimed skin and the single-fall silence: no heartbeat before the fall prices nothing', () => {
+  const untimed = [FALL_AT('F3', -114, 43, 411), FALL_AT('F15', -114, 43, 411)]
+  const b = fallRelayBook(untimed)
+  assert.equal(b.falls, 2)
+  assert.equal(b.positioned, 0)
+  assert.equal(b.relayed, 0)
+  assert.equal(b.relayClusters, 0)
+  assert.deepEqual(b.sites, [])
+  assert.equal(fallRelayConsistent(untimed, b), true)
+  assert.equal(fallRelayRow(b), null)
+  const single = [HB(1, 100), FALL_AT('F3', -114, 43, 411)]
+  const b1 = fallRelayBook(single)
+  assert.equal(b1.positioned, 1)
+  assert.equal(fallRelayRow(b1), null)
+})
+
+test('the inferred-only fence: the inference\'s own fall stays OUTSIDE the relay (the server verdict is the authority)', () => {
+  const lines = [HB(1, 100), FALL_AT('F3', -114, 43, 411), 'F16 [F16] died - respawning (cause: fall/env (0s before death at [-114,43,411]))']
+  const b = fallRelayBook(lines)
+  assert.equal(b.falls, 1)
+  assert.equal(b.positioned, 1)
+  assert.equal(fallRelayRow(b), null)
+})
+
+test('the junk fence: a lying cell prices nothing (the mirror recount, the sums)', () => {
+  const truth = fallRelayBook(FACE172_RELAY_LINES)
+  assert.equal(fallRelayConsistent(FACE172_RELAY_LINES, truth), true)
+  assert.equal(fallRelayConsistent(FACE172_RELAY_LINES, { ...truth, falls: 4 }), false)
+  assert.equal(fallRelayConsistent(FACE172_RELAY_LINES, { ...truth, positioned: 2 }), false)
+  assert.equal(fallRelayConsistent(FACE172_RELAY_LINES, { ...truth, relayed: 3 }), false)
+  assert.equal(fallRelayConsistent(FACE172_RELAY_LINES, { ...truth, relayClusters: 0, sites: [] }), false)
+  assert.equal(fallRelayConsistent(FACE172_RELAY_LINES, { ...truth, sites: [{ ...truth.sites[0], gaps: [7, 13] }] }), false)
+  assert.equal(fallRelayConsistent(FACE172_RELAY_LINES, { ...truth, sites: [{ ...truth.sites[0], members: [{ bot: 'F3', ts: 500 }, { bot: 'F15', ts: 508 }, { bot: 'F17', ts: 519 }] }] }), false)
+  assert.equal(fallRelayConsistent(FACE172_RELAY_LINES, null), false)
+  assert.equal(fallRelayRow(null), null)
+  assert.equal(fallRelayRow({ ...truth, positioned: 1 }), null)
+  assert.equal(fallRelayRow({ ...truth, relayClusters: 1, sites: [{ ...truth.sites[0], gaps: [] }] }), null)
+  assert.equal(fallRelayBook([]), null)
+  assert.equal(fallRelayBook('junk'), null)
+})
+
+test('WIRING: the fall relay rides the decompose print beside the fall anatomy (v0.899.0)', () => {
+  const src = fs.readFileSync(new URL('../../scripts/fleet-mining/decompose.mjs', import.meta.url), 'utf8')
+  assert.match(src, /const frb = fallRelayBook\(lines\)/, 'the relay book mounts on the log lines (the v0.898.0 book-only precedent)')
+  assert.match(src, /fallRelayConsistent\(lines, frb\)/, 'the fence rides the print')
+  assert.match(src, /fallRelayRow\(frb\)/, 'the row rides the print site')
+  assert.ok(!src.includes("the walkers fell into a shaft a death had named"), 'the prose stays in the lib')
 })

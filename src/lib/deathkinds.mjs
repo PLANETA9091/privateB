@@ -118,6 +118,12 @@ const INFERRED_NAME_RE = /^([a-z][a-z/]*)(?:@[\d.]+)?/
 // reads the same bytes the death printed, never re-lexes them.
 import { DROWN_CONTEXT_RE } from './o2gap.mjs'
 
+// (v0.899.0) the fall's own relay rides the death clock's own constants
+// (the one-constant law by reuse, the HB_RE law): the heartbeat's stamp
+// names each fall's ts by the log's own adjacency and the burst window
+// prices the relay's own edge - imported, never re-declared.
+import { DEATH_BURST_WINDOW_S, HB_RE } from './sealdeath.mjs'
+
 /** The vertical family: the server's own fall kind, or the vanilla void
  * phrasing riding the honest-'other' bucket today. */
 function isVertical (kind, verb) {
@@ -1026,4 +1032,191 @@ export function mobAnatomyRow (book) {
     siteTail = ' - the sites\' own silence: every kill rode its own ground this face - THE AMBIENT NIGHT\'S OWN SPREAD, not one gate\'s repeat'
   }
   return `the mob book's own anatomy (v0.898.0): mobs ${mobs} - ${verdict.join('/')}, ${band.join('/')}${siteTail}`
+}
+
+// (v0.899.0) THE FALL'S OWN RELAY - the TIME leg the v0.897.0 anatomy
+// does not price: the first fall named the shaft and the walkers behind
+// still fell into it (face 172's own cluster: 3 falls, ONE block
+// [-114,43,411], one burst window - the site's own repeat rode the
+// clock unpriced; the lane's own weigh-in named the front). THE BOOK
+// LAW (the v0.898.0 book-only precedent - zero census shape change):
+// the rows read the LOG LINES directly, server-verdict fall kind only
+// (DEATH_KIND_RE never matches the inferred-only shape - the v0.117.0
+// doctrine rides the grammar); the clock rides the log's own adjacency
+// (the heartbeat's own stamp - the death clock's ts law by reuse: each
+// fall's ts = the last heartbeat ts BEFORE its line; an untimed fall -
+// no heartbeat seen yet - counts and judges nothing, the blind-skin
+// idiom). THE SITE LAW rides the anatomy's own geometry (the anchor =
+// the first member in line order, Chebyshev <= 8 on x/z against
+// FALL_SHAFT_CHEBYSHEV, no transitive drift); the members ride the ts
+// sort (the clock's own order, the bot's own name breaking the tie).
+// THE RELAY LAW (the chain read - the lane's own face-172 print): each
+// member rides its PRIOR member's window (gap = ts[i] - ts[i-1] <=
+// DEATH_BURST_WINDOW_S, the death clock's own burst constant imported -
+// the one-constant law); the first member never relays (no prior to
+// ride); a gap past the window breaks the chain honestly (the walker
+// arrived before the knowledge could rot, not after a death named the
+// shaft). A live site = relayed >= 1; the book carries the LIVE sites
+// only (the row prints the clusters the relay priced). Junk never
+// invents a relay: a fall-less face prices nothing (null); the fence
+// below rides the print (the v0.897.0 fence family, byte-true).
+function fallRelayRows (lines) {
+  const rows = Array.isArray(lines) ? lines : []
+  const out = []
+  let lastTs = null
+  for (const l of rows) {
+    if (typeof l !== 'string' || !l.length) continue // junk-safe: the FATAL face truncates (the v0.358.0 lesson)
+    const hm = HB_RE.exec(l)
+    if (hm) lastTs = Number(hm[1])
+    const m = DEATH_KIND_RE.exec(l)
+    if (!m) continue // the inferred-only and junk shapes stay OUTSIDE (the server verdict is the authority)
+    const [, verb, rawKind, attacker, tail] = m
+    if (rawKind !== 'fall') continue // the fall kind alone is the subject (the v0.897.0 law; the void-'other' phrasing rides its own book)
+    const bot = (l.match(/^(F\d+)\b/) || [])[1] || null
+    const pm = tail ? POS_RE.exec(tail) : null
+    out.push({
+      bot,
+      verb,
+      pos: pm ? [Number(pm[1]), Number(pm[2]), Number(pm[3])] : null,
+      corroboration: corroborationOf(tail),
+      ts: lastTs
+    })
+  }
+  return out
+}
+
+export function fallRelayBook (lines) {
+  const rows = fallRelayRows(lines)
+  if (!rows.length) return null
+  const positioned = rows.filter((r) => fallPosOf(r) && Number.isFinite(r.ts))
+  const sites = []
+  for (const r of positioned) {
+    const pos = fallPosOf(r)
+    const site = sites.find((s) =>
+      Math.max(Math.abs(s.anchor[0] - pos[0]), Math.abs(s.anchor[1] - pos[2])) <= FALL_SHAFT_CHEBYSHEV)
+    if (site) site.members.push({ bot: r.bot, ts: r.ts })
+    else sites.push({ anchor: [pos[0], pos[2]], members: [{ bot: r.bot, ts: r.ts }] })
+  }
+  let relayed = 0
+  const live = []
+  for (const s of sites) {
+    s.members.sort((a, b) => a.ts - b.ts || (a.bot < b.bot ? -1 : a.bot > b.bot ? 1 : 0))
+    s.relayed = 0
+    s.gaps = []
+    for (let i = 1; i < s.members.length; i++) {
+      const gap = s.members[i].ts - s.members[i - 1].ts
+      if (gap <= DEATH_BURST_WINDOW_S) { s.relayed++; s.gaps.push(gap); relayed++ }
+    }
+    if (s.relayed > 0) live.push(s)
+  }
+  live.sort((a, b) => a.members[0].ts - b.members[0].ts || (a.anchor[0] - b.anchor[0]) || (a.anchor[1] - b.anchor[1]))
+  return { falls: rows.length, positioned: positioned.length, relayed, relayClusters: live.length, sites: live }
+}
+
+/** The relay's own fence: every cell integer and non-negative, the
+ * positioned cell rides the falls, the relayed cell rides the
+ * positioned, and the mirror law byte-true: the book's live sites must
+ * be exactly the walk's own live sites (the anchors, the members, the
+ * relayed counts, the gaps - a mirror recount from the rows' own cells,
+ * never the book's word). The unseated law rides the mirror too: a
+ * positioned fall the book never seated either sits outside every live
+ * site's radius or its own relay chain priced nothing (the walk
+ * recomputes both - a seated fall that rode no window or an unseated
+ * fall that rode one lies through the clock). An inconsistent book
+ * prices nothing. */
+export function fallRelayConsistent (lines, book) {
+  const rows = fallRelayRows(lines)
+  if (!book || typeof book !== 'object' || Array.isArray(book)) return false
+  const cells = [book.falls, book.positioned, book.relayed, book.relayClusters]
+  if (!cells.every((v) => Number.isInteger(v) && v >= 0)) return false
+  if (book.falls !== rows.length) return false
+  const positionedRows = rows.filter((r) => fallPosOf(r) && Number.isFinite(r.ts))
+  if (book.positioned !== positionedRows.length) return false
+  if (book.positioned > book.falls) return false
+  if (book.relayed > book.positioned) return false
+  if (!Array.isArray(book.sites)) return false
+  // the mirror walk (the book's own law, recomputed from the rows)
+  const sites = []
+  for (const r of positionedRows) {
+    const pos = fallPosOf(r)
+    const site = sites.find((s) =>
+      Math.max(Math.abs(s.anchor[0] - pos[0]), Math.abs(s.anchor[1] - pos[2])) <= FALL_SHAFT_CHEBYSHEV)
+    if (site) site.members.push({ bot: r.bot, ts: r.ts })
+    else sites.push({ anchor: [pos[0], pos[2]], members: [{ bot: r.bot, ts: r.ts }] })
+  }
+  let relayed = 0
+  const live = []
+  for (const s of sites) {
+    s.members.sort((a, b) => a.ts - b.ts || (a.bot < b.bot ? -1 : a.bot > b.bot ? 1 : 0))
+    s.relayed = 0
+    s.gaps = []
+    for (let i = 1; i < s.members.length; i++) {
+      const gap = s.members[i].ts - s.members[i - 1].ts
+      if (gap <= DEATH_BURST_WINDOW_S) { s.relayed++; s.gaps.push(gap); relayed++ }
+    }
+    if (s.relayed > 0) live.push(s)
+  }
+  live.sort((a, b) => a.members[0].ts - b.members[0].ts || (a.anchor[0] - b.anchor[0]) || (a.anchor[1] - b.anchor[1]))
+  if (book.relayed !== relayed || book.relayClusters !== live.length) return false
+  if (book.sites.length !== live.length) return false
+  for (let i = 0; i < live.length; i++) {
+    const b = book.sites[i]
+    const m = live[i]
+    if (!b || typeof b !== 'object' || Array.isArray(b)) return false
+    if (!Array.isArray(b.anchor) || b.anchor.length !== 2 || !b.anchor.every(Number.isFinite)) return false
+    if (b.anchor[0] !== m.anchor[0] || b.anchor[1] !== m.anchor[1]) return false
+    if (!Array.isArray(b.members) || b.members.length !== m.members.length) return false
+    for (let j = 0; j < m.members.length; j++) {
+      const bm = b.members[j]
+      const mm = m.members[j]
+      if (!bm || typeof bm !== 'object' || Array.isArray(bm)) return false
+      if (bm.bot !== mm.bot || bm.ts !== mm.ts) return false
+    }
+    if (!Array.isArray(b.gaps) || b.gaps.length !== m.gaps.length) return false
+    for (let j = 0; j < m.gaps.length; j++) {
+      if (b.gaps[j] !== m.gaps[j]) return false
+    }
+  }
+  return true
+}
+
+// (v0.899.0) the relay's own row - THE WALKERS FELL INTO A SHAFT A
+// DEATH HAD NAMED: the time leg's own print. The row prints only when
+// the relay question exists (positioned >= 2 - a single positioned fall
+// relays nothing by construction, the honest silence); the branch law
+// (one row never both): the live clusters print the relay's own chain,
+// a relay-free face reads the held branch (the knowledge relayed - no
+// fall rode a prior fall's window). Junk never prints a row.
+export function fallRelayRow (book) {
+  if (!book || typeof book !== 'object' || Array.isArray(book)) return null
+  const { falls, positioned, relayed, relayClusters, sites } = book
+  if (![falls, positioned, relayed, relayClusters].every((v) => Number.isInteger(v) && v >= 0)) return null
+  if (positioned > falls || relayed > positioned) return null
+  if (positioned < 2) return null // the relay question needs a walker behind the first fall
+  if (!Array.isArray(sites)) return null
+  if (relayClusters > 0) {
+    if (!sites.length || sites.length !== relayClusters) return null
+    const gapWords = []
+    const botWords = []
+    for (const s of sites) {
+      if (!s || typeof s !== 'object' || Array.isArray(s)) return null
+      if (!Array.isArray(s.members) || s.members.length < 2) return null
+      if (!Array.isArray(s.gaps) || !s.gaps.length) return null
+      const bots = []
+      for (const m of s.members) {
+        if (!m || typeof m !== 'object' || Array.isArray(m)) return null
+        if (typeof m.bot !== 'string' || !m.bot.length) return null
+        if (!Number.isInteger(m.ts) || m.ts < 0) return null
+        bots.push(m.bot)
+      }
+      for (const g of s.gaps) {
+        if (!Number.isInteger(g) || g < 0) return null
+        gapWords.push(`${g}s`)
+      }
+      botWords.push(bots.join('->'))
+    }
+    return `the fall's own relay (v0.899.0): relayed ${relayed} of ${positioned} positioned fall(s) at ${relayClusters} site${relayClusters === 1 ? '' : 's'} - THE RELAY: the first fall named the shaft and ${relayed} still fell within ${DEATH_BURST_WINDOW_S}s (gaps ${gapWords.join(', ')}; the clusters' bots ${botWords.join(', ')}) - the walkers fell into a shaft a death had named`
+  }
+  if (sites.length) return null // the branch law: one row never both
+  return `the fall's own relay (v0.899.0): relayed 0 of ${positioned} positioned fall(s) - the relay held: no fall rode a prior fall's ${DEATH_BURST_WINDOW_S}s window`
 }
