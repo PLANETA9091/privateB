@@ -11,7 +11,7 @@ const { pathfinder, Movements, goals } = pathfinderPkg
 import { Vec3 } from 'vec3'
 import { installFly } from '../lib/fly.mjs'
 import { installRageFastBreak } from '../lib/fastdig.mjs'
-import { MiningJobQueue, withTimeout, gotoSafe, standGoalNear, inBox, unreachableBatchVerdict, UNREACHABLE_FENCE_BATCHES, ASSIST_BURST_SEARCH_RADIUS, ASSIST_BURST_THINK_TIMEOUT_MS, resetWalkGovernorFor, releaseWalkGoal } from '../lib/jobqueue.mjs'
+import { MiningJobQueue, withTimeout, gotoSafe, standGoalNear, inBox, unreachableBatchVerdict, UNREACHABLE_FENCE_BATCHES, ASSIST_BURST_SEARCH_RADIUS, ASSIST_BURST_THINK_TIMEOUT_MS, resetWalkGovernorFor, releaseWalkGoal, nearDoomedGoal, DOOMED_GOAL_RADIUS } from '../lib/jobqueue.mjs'
 import { walkoutWindowMs, walkoutDisplacement, walkoutVerdict, walkoutEscalation, walkoutStallLine } from '../lib/relogwalkout.mjs' // (v0.425.0) the frozen-after-relog witness - the walk-out promise gets enforced
 import { collectGain, depositToChests, inventoryLoad } from '../lib/deposit.mjs'
 import { stalledButCraftable, TRIP_WALK_MS } from '../lib/woodplan.mjs'
@@ -82,7 +82,7 @@ import { dropTargets, dropGoalRange, dropWalkSkipped, dropGoalAdmission, DROP_AD
 import { chooseTarget } from '../fleet/claims.mjs'
 import { firstUsableRecord } from '../fleet/worldmap.mjs' // (v0.512.0) the fallback's deeper-record law
 import { walkBudgetMs } from '../lib/tripplan.mjs'
-import { secondLegDecision } from '../lib/maptrip.mjs' // (v0.900.0) THE SECOND LEG - the unreachable first leg no longer spends the trip
+import { secondLegDecision, doomVetoRadius, doomVetoVerdict } from '../lib/maptrip.mjs' // (v0.900.0) THE SECOND LEG - the unreachable first leg no longer spends the trip; (v0.902.0) the re-selection reads the doom ledger
 import { noteGlobal } from '../lib/blackbox.mjs' // (v0.62.0) freeze forensics at the rescue/climb sites
 import { createLoginReady } from '../lib/loginfence.mjs' // (v0.546.0) THE LOGIN FENCE - the rebuild's login leg settles on every branch
 
@@ -266,12 +266,25 @@ export function createMiner ({
   // another bot's rescue vets the target for the whole fleet. This is a veto,
   // never a map prune: far/unloaded chunks must not lose their map entries here.
   const wetTrip = pos => waterHazards.near(pos) != null
-  function mapTargetFor (names, { maxDistance = 96, verify = true } = {}) {
+  // (v0.902.0) THE DOOM VETO: the doomed-goal consult refuses a walk whose goal
+  // cell rides a live ledger entry - face 183 priced the second leg's blindness
+  // to it (6 of 9 second legs refused on 0-87s fresh graves while the map held
+  // 656 sand records). A live-doomed candidate is a dead candidate at SELECTION
+  // time (the v0.62.0 wetTrip precedent), so the re-selection spends the map's
+  // depth instead of a guaranteed consult refusal. The radius sums the consult's
+  // own (2) and the stand goal's spread (4) - see maptrip.mjs's radius law.
+  const DOOM_VETO_RADIUS = doomVetoRadius(DOOMED_GOAL_RADIUS, 4)
+  const doomTrip = pos => doomVetoVerdict(nearDoomedGoal({ x: pos.x, y: pos.y, z: pos.z }, Date.now(), { radius: DOOM_VETO_RADIUS })).veto
+  function mapTargetFor (names, { maxDistance = 96, verify = true, extraSkip = null } = {}) {
     if (!map) return null
     // verify=true deletes entries the current chunks can no longer confirm - good
     // for nearby mining targets, harmful for far ones (blockAt nulls unloaded
     // chunks, so a query with verify would WIPE the whole far bucket)
     const verifyWith = verify ? (p => bot.blockAt(p)) : null
+    // (v0.902.0) the blocker composes the caller's own extra veto (the second
+    // leg's doom read) with the standing failedTrips/wetTrip law - the first
+    // leg's call passes none, its shape is untouched
+    const blocked = pos => failedTrips.has(`${pos.x},${pos.y},${pos.z}`) || wetTrip(pos) || (extraSkip ? extraSkip(pos) === true : false)
     // (v0.15.0) claim-aware choice: with a fleet ClaimBoard, k candidates per name are
     // scored distance + penalty for positions another bot is already walking to - the
     // measured "19 bots -> one beach" convergence (38x unreachable, sand=0 @ sand=110).
@@ -284,7 +297,7 @@ export function createMiner ({
         owner: username,
         maxDistance,
         verifyWith,
-        skip: pos => failedTrips.has(`${pos.x},${pos.y},${pos.z}`) || wetTrip(pos)
+        skip: blocked
       })
     }
     let best = null
@@ -296,7 +309,7 @@ export function createMiner ({
     // first usable record IS the name's best.
     for (const name of names) {
       const records = map.nearestK(name, bot.entity.position, { maxDistance, k: 4, verifyWith })
-      const pos = firstUsableRecord(records, { isBlocked: p => failedTrips.has(`${p.x},${p.y},${p.z}`) || wetTrip(p) })
+      const pos = firstUsableRecord(records, { isBlocked: blocked })
       if (pos && (!best || pos.distanceTo(bot.entity.position) < best.pos.distanceTo(bot.entity.position))) best = { name, pos }
     }
     return best
@@ -6433,8 +6446,12 @@ export function createMiner ({
       // board-less path's firstUsableRecord both read the ledger) - the map's
       // own depth answers where the first leg could not. The deadline owns the
       // walk: shouldStop() true means the run cannot afford even one more leg.
+      // (v0.902.0) the re-selection also reads the doomed-goal ledger (extraSkip:
+      // doomTrip) - a live-doomed candidate is a guaranteed consult refusal, and
+      // face 183 priced the blindness at 6 of 9 second legs. All-doomed reads
+      // land the honest refused form ('no candidate left'), never a failed leg.
       const stopNow = shouldStop ? !!shouldStop() : false
-      const next = stopNow ? null : mapTargetFor(findNames, { maxDistance, verify: false })
+      const next = stopNow ? null : mapTargetFor(findNames, { maxDistance, verify: false, extraSkip: doomTrip })
       const decision = secondLegDecision({ firstLegError: 'unreachable', shouldStopNow: stopNow, hasCandidate: !!next })
       if (decision.leg !== 'second') return { error: 'unreachable', firstLeg: key, secondLegWhy: decision.why }
       claimTrip(next)

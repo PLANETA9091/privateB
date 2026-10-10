@@ -1042,3 +1042,47 @@ export function secondLegRow (c) {
   const share = c.delivered > 0 ? ` - the delivery share ${((c.delivered / c.n) * 100).toFixed(1)}%` : ' - THE ZERO DELIVERY: the depth answered, the pocket did not move'
   return `the second leg's own census (v0.900.0's law): delivered ${c.delivered} / deferred ${c.deferred} / refused ${c.refused} / failed ${c.failed} of ${c.n} family line(s)${share}`
 }
+
+// (v0.902.0) THE DOOM-AWARE RE-SELECTION - the second leg's own veto. Face
+// 183 (the debut face) priced the blindness: 6 of 9 second legs died at the
+// doomed-goal consult on 0-87s fresh graves (three bots on the same
+// [-122,44,426] cell) while the map held 656 sand records - the re-selection
+// read failedTrips (the first leg's own grave) but not the fleet's doomed-
+// goal ledger (every OTHER walk's graves). The cure rides the v0.62.0
+// selection-time veto precedent (wetTrip: filtering candidates at SELECTION
+// time keeps the walk in the pocket): a live-doomed candidate is a dead
+// candidate - the map's depth answers where the doom already ruled, and the
+// all-doomed read lands the honest refused form ('no candidate left', the
+// census's own count) instead of a failed leg. NO new log lines: the four
+// anchored forms stand byte-exact, the census reads the failed->refused
+// shift for free.
+//
+// THE RADIUS LAW: the walk never targets the candidate cell itself - the
+// stand goal spreads up to `standRange` blocks around it (standGoalNear's
+// range 4) and the consult refuses when the GOAL cell rides within the
+// ledger's own consult radius (DOOMED_GOAL_RADIUS, 2) of a live entry. The
+// veto sums both: a candidate is only vetoed when the consult could
+// actually refuse a stand cell it spawns. Over-veto costs one candidate of
+// hundreds (the entry expires in <=90s and the cell returns); under-veto
+// costs the priced failed leg. Junk inputs ride the field defaults (the
+// consult's 2, the stand's 4) rather than a zero that would blind the veto.
+export function doomVetoRadius (consultRadius, standRange) {
+  const c = Number.isFinite(consultRadius) && consultRadius >= 0 ? consultRadius : 2
+  const s = Number.isFinite(standRange) && standRange >= 0 ? standRange : 4
+  return c + s
+}
+
+/**
+ * The veto's own verdict on one consult result. Junk-safe by the nopath
+ * law (a chest must never be skipped on garbage - here: a map-trip
+ * candidate must never be skipped on garbage): a non-object consult, a
+ * missing or non-boolean hit all read NO-veto - the walk tries honestly,
+ * exactly the pre-v0.902.0 behavior for any read the ledger cannot own.
+ * @param {{hit?: boolean, ageMs?: number}|null|*} [consult] nearDoomedGoal's result
+ * @returns {{veto: boolean, why: 'doomed'|'clear'|'no-consult'}}
+ */
+export function doomVetoVerdict (consult) {
+  if (!consult || typeof consult !== 'object' || typeof consult.hit !== 'boolean') return { veto: false, why: 'no-consult' }
+  if (consult.hit !== true) return { veto: false, why: 'clear' }
+  return { veto: true, why: 'doomed' }
+}
