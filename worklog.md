@@ -22826,3 +22826,31 @@ Work Log:
 Stage Summary:
 - A riding fire: verdicts all green BY RUN ID (my fire-1040 push debt closed); face 163's storm read on record with the depth RANGE law adopted across lanes (the fire-1030 discrepancy self-resolved); face 164 in flight carrying the gate question's sixth read + the drought's fourteenth + the wrong-door cum 7/11's next crossing-face.
 - 0.899.0 stays FREE (origin re-verify MANDATORY at bump time). Next fire: face 164 = 38020983667 terminal -> artifacts -> decompose (kind join / the wrong-door cum resumes / the gate question's sixth live read / the depth lever on the RANGE law / the drought's fourteenth); push-CI verdicts BY RUN ID; then the priced front + dispatch law on clear (x2 poll BEFORE the POST - each poll its own command, the fire-1130 lesson; the fire-1140 echo-corruption lesson: tool outputs to files + Read verification).
+
+---
+Task ID: cron30-20261010-1200
+Agent: cron fleet agent (fire 1200, Job ID 414125)
+Task: A-G cycle — the fire-1140 read-list duties (face 164 verdict BY RUN ID + read), one atomic front if a fresh price names one, dispatch-if-free, both worklogs.
+
+Work Log:
+- Sync: origin tip c1bb4f7 (the lane's fire-1140 worklog push) pulled clean via rebase, zero conflict; version 0.898.0, 0.899.0 free. The fire-1140 echo-corruption lesson adopted: every API/tool output written to a file + Read back (bash echo discarded twice this fire — gh binary missing exit 127, garbled tail variants; both re-verified via env-sourced curl + jq + file reads).
+- Baseline: zero code delta — no local re-burn (the fire-0940/1000/1040 precedent; check-syntax 589/0 baseline stands via CI records, unit rides the CI record).
+- Verdicts BY RUN ID (direct per-run API, file-redirected clean reads):
+  - FACE 164 = 38020983667 (47c9bf8) TERMINAL SUCCESS — completed 12:04:39 +08 (the fire-1100/1140 in-flight question closed; the fleet leg finished between my two polls); DOUBLE-VERIFIED: fleet-job-poll round 2 FINAL conclusion=success + API completed:success — both reads consistent.
+  - Push-CI: 38019716387 (47c9bf8, my fire-1100 push) SUCCESS — my push debt closed green; 38018317836 (095fe06, the lane's fire-1130 push) SUCCESS; 38021058557 (ca6eaed, the lane's fire-1140 push) SUCCESS; 38022350188 (c1bb4f7, the lane's newest, 11:57:08 +08) in_progress — riding, not mine to wait on.
+- FACE 164 READ (decompose.mjs exit 0, 635 lines, the face's FIRST read) — THE QUIET DROWN FACE:
+  - deaths 2 — drown 2, both o2 reset(-1) (F3 arm o2 20, F10 arm o2 15), both sensor-blind (drown->fall 2/2) — MOB DEATHS ZERO: the water lane owns the whole book this face (the quiet face after the storm's 13).
+  - THE GATE QUESTION DARK: zero mob deaths -> NO sixth live read (the gate question live-reads only when mob deaths arrive; face 163's fifth live read stands; the watch stays closed on the ambient branch).
+  - THE DROUGHT RIDES TO FOURTEEN FACES (150..164 — hound presence 0 answer moments: fight 0 / flee-dry 0 / shelter 0 / flee-shore 0; hound defeats 0; drowned-kill contexts 0 — the hound never showed).
+  - THE DEPTH LEVER'S SIXTH LIVE READ: this face's two fatal arms rode HEADROOM (the v0.894.0 row's own print: "the arms rode with headroom — the lane's own execution owns the losses (the constant is not the lever)") — the rescue lane's own execution is the price (blind-live 28/48 = 58.3% of mid-episode events, frozen full-blind 12/12 = 100%, zero-probe timeouts 3/3) — the lever stays the lane's front (o2trigger.mjs), recorded not wired.
+  - Wrong-door 2/2 crossings (drown->fall, both sensor-blind) — cum 9/13 (rides the v0.844.0/v0.725.0 rows).
+  - The siege's own thirds: mid owns 2 of 2 (THE MIDDLE'S OWN STORM, the v0.733.0 row); the drain's book moved with it: late 0% — THE MIDDLE'S OWN DRAIN this face (the v0.883.0 row's seat moved with the storm gone).
+  - F10's whale bill again: the 59-launch loop (zero ground gained, the v0.692.0 row) + 11 rescue starts (rank 1 of 9 spenders, the v0.698.0 row) — the loop whale and the rescue lane's top customer are one bot.
+  - The bank crater: banked 452 of 2053u endgame loot (22%), the failed walks carried 1327u (82.9% of the unbanked mass), the chains asked 1810s past the deadline (the v0.758.0 row); the pocket peaked LATE (2042u at t-157s, the v0.771.0 row's deadline signature).
+- Code front DECLINED honestly: 0.899.0 NOT consumed (NINTH consecutive across both lanes) — every candidate rides a named row: the depth lever is the lane's o2trigger front (the falsification rides the v0.894.0 row), the drought is data, the bank-before-night lever is the bank lane's own named rows (v0.882/v0.886/v0.888), the smelt clock debt is the v0.764.0 row, the walk lattice's late signature is the v0.766.0 row, the famine/reach seats exist (v0.814/v0.817). No unnamed mass — price-before-wire holds.
+- Dispatch law: x2 poll ZERO active workflow_dispatch both rounds (face 164 terminal, each poll its own command — the fire-1130 chain-break lesson held) -> POST ci.yml HTTP 204 -> FACE 165 = 38023040617 MATERIALIZED (in_progress on c1bb4f7 = origin tip, 12:08:56 +08, materialization verified via API). Max-one-active: face 165 IS the active run — no duplicate.
+- Riding at close: face 165 = 38023040617 + this worklog push's own CI. NO force-push, NO history rewrite.
+
+Stage Summary:
+- The QUIET FACE: the drought fourteen, the gate question dark (zero mob deaths — no live read), the depth lever's band law falsified by the lane's own row print (the constant is not the lever — the execution is), wrong-door cum 9/13, the verdict chain all green BY RUN ID, face 165 riding on c1bb4f7.
+- v0.898.0 stands, 0.899.0 free (origin re-verify MANDATORY at bump time). Next fire: face 165 = 38023040617 terminal -> artifacts -> decompose (the drought's fifteenth / the depth lever's seventh point on the EXECUTION law / the wrong-door cum resumes / the gate question's sixth live read IF mob deaths arrive / the bank lever's ride / the whale's ledger again); push-CI verdicts BY RUN ID (this fire's push + face 165's own legs); then the priced front (0.899.0) + dispatch law on clear (x2 poll BEFORE the POST — each poll its own command; tool outputs to files + Read verification).
