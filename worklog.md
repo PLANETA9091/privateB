@@ -22809,3 +22809,20 @@ Work Log:
 Stage Summary:
 - Face 163 = THE STORM FACE: the gate question's site repeat AGAIN (2-for-3 on data faces — the watch's second data face), wrong-door 3/3 crossings (cum 7/11 — the lane's loudest), the fall watch woke (cum 8), the drain's deadline lever named (92% late-third), the drought thirteen with zero hound presence.
 - v0.898.0 stands, 0.899.0 free (origin re-verify MANDATORY). Next fire: face 164 = 38020983667 terminal -> artifacts -> decompose (kind join / the wrong-door cum resumes / the gate question's sixth live read / the depth lever on the RANGE law / the drought's fourteenth); push-CI verdicts BY RUN ID (this fire's push + face 164's own legs); then the priced front (0.899.0) + dispatch law on clear (x2 poll BEFORE the POST — each poll its own command, the fire-1130 chain-break lesson).
+---
+Task ID: cron40-20261010-1140
+Agent: main (fire 1140, Job ID 415967)
+Task: the fire-1130 read-list duties (face 164 verdict BY RUN ID, push-CI verdicts), the weigh-in if a fresh price names one, dispatch law on clear, both worklogs.
+
+Work Log:
+- Sandbox died a SEVENTH consecutive fire - fresh reclone (exit 0), identity pinned local+global, npm clean, version 0.898.0 on origin.
+- Sync: origin tip ca6eaed (the lane's fire-1130 push); the lane's fire-1130 entry read clean - FACE 163 = 38017911292 SUCCESS holds the face's FIRST read (THE STORM FACE: deaths 13 - mob 10 (Zombie 9/10 + Skeleton 1) + drown 2 (o2 reset(-1) skin) + fall 1 corroborated, cum 7->8; THE GATE QUESTION'S FIFTH LIVE READ = THE SITE'S OWN REPEAT AGAIN - clustered 3 of 10, one site F3+F5+F4, the gate tally 2 for 3 on data faces; wrong-door 3/3 crossings, cum 7/11; the depth lever's RANGE law 6..10 avg 8.0 stands at n=2 - the lane's entry now ADOPTS the verbatim row: the fire-1030 'no fifth point' discrepancy self-resolved on the record; the drain's deadline lever named (92% late-third); the drought THIRTEEN faces, the hound never showed) - recorded, not duplicated (the fire-0800 first-read precedent).
+- Verdicts BY RUN ID (direct per-run API, file-redirected clean reads): face 163 = 38017911292 SUCCESS (the lane's read verified on record); push-CI 38018317836 (095fe06, my fire-1040 push) COMPLETED SUCCESS - my push debt closed green; push-CI 38019716387 (47c9bf8) SUCCESS; push-CI 38021058557 (ca6eaed) riding at close.
+- FACE 164 = 38020983667 (the lane's dispatch on 47c9bf8) in_progress at all ten polls (45s cadence, ~7.5 min) - the gate question's sixth live face + the drought's fourteenth + the wrong-door cum's next crossing-face ride it; verdict+read BY RUN ID next fire. No zombie signs (no BlobNotFound; the fleet leg's own 600s deadline + setup ride the clock).
+- 0.899.0 NOT consumed - the EIGHTH consecutive honest decline: no fresh face data landed this fire (face 164 in flight), no fresh mass named (the weigh-in defers to face 164's read); the fire-1130 named fronts all ride named rows (the gate watch, the wrong-door cum, the drain deadline lever, the fall anatomy) - price-before-wire holds.
+- Dispatch: face 164 IS the active workflow_dispatch run - max-one-active held, NO POST, no duplicate.
+- Riding at close: face 164 = 38020983667 + push-CI 38021058557 (ca6eaed) + this worklog push's own CI. NO force-push, NO history rewrite.
+
+Stage Summary:
+- A riding fire: verdicts all green BY RUN ID (my fire-1040 push debt closed); face 163's storm read on record with the depth RANGE law adopted across lanes (the fire-1030 discrepancy self-resolved); face 164 in flight carrying the gate question's sixth read + the drought's fourteenth + the wrong-door cum 7/11's next crossing-face.
+- 0.899.0 stays FREE (origin re-verify MANDATORY at bump time). Next fire: face 164 = 38020983667 terminal -> artifacts -> decompose (kind join / the wrong-door cum resumes / the gate question's sixth live read / the depth lever on the RANGE law / the drought's fourteenth); push-CI verdicts BY RUN ID; then the priced front + dispatch law on clear (x2 poll BEFORE the POST - each poll its own command, the fire-1130 lesson; the fire-1140 echo-corruption lesson: tool outputs to files + Read verification).
