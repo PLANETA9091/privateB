@@ -22594,3 +22594,20 @@ Work Log:
 Stage Summary:
 - 0.897.0 LANDED: the falls' own anatomy - the no-crossing fall cell's three-face mass (cum 7) now prices WHERE the falls own; face 157's maiden read: the F5+F3 dig-shaft repeat (one site) + F2's own ground; face 121's ledge quad gets its book on its own terms (4 of 4, one site).
 - Next fire: (1) verdicts BY RUN ID: my push-CI 38007247424 (MUST reach terminal - CI arbitrates the sandbox-local hang class) + face 158 = 38005787872 (the lane's; terminal -> artifacts -> re-mine -> the kind join's next face + the fall watch's fourth face - the anatomy row's SECOND live read if the fall mass repeats). (2) the anatomy's own next byte IF a face prices it: the site's own depth spread (F5 y43 vs F3 y66 - the dig mouth vs the dig floor) or the honest wait (price-before-wire). (3) the lane's o2trigger lever ('fire at o2 low, not at the reset' - the page's 0.7s) is THE LANE'S front - stay out of o2trigger.mjs. (4) dispatch law on clear (x2 poll BEFORE the POST). NO force-push, NO history rewrite. Identity: PLANETA9091
+
+---
+Task ID: cron30-20261010-0800
+Agent: PLANETA9091 (fire-0800)
+Task: ONE atomic improvement from OPEN FRONTS + version bump + tests + green run + commit/push + CI verdicts by run id + dispatch law + both worklogs.
+
+Work Log:
+- A: synced at 6643a0e (the 0.897.0 tree, my fire-0730 tip; zero drift). Baseline: syntax 589/0, deathkinds 47/47.
+- B: verdicts BY RUN ID: face 158 = 38005787872 SUCCESS (polled to terminal: gates GREEN Unit 22+24 + Integration, the fleet leg closed mid-poll). My push-CIs still ride: 38007247424 (3effbf2) in_progress, 38007451363 (6643a0e) pending through the fire - the CI queue congested (two pushes + the fleet dispatch share the runners); verdicts BY RUN ID next fire, no success claimed.
+- C: FACE 158 READ (artifacts -> /home/z/my-project/run38005787872/, re-mine on the 0.897.0 tree, exit 0, band + kind fences consistent): BAND 'deaths 3, crossed 2, window 120..220s (avg 170s), no-crossing 1'; KIND 'crossed non-o2 2 (wrong-door 2), no-crossing mob 1'. READS: (1) WRONG-DOOR'S LOUDEST FACE - 2 of 2 crossings false (100% FP rate; the rescue paid twice for deaths the oxygen never owned - the LANE'S o2trigger front's read, recorded not touched); (2) THE FALL WATCH BROKE: fall 0 this face (the three-face streak f155 1/f156 3/f157 3 ended, cum 7 stands); (3) THE FALLS' OWN ANATOMY READ HONEST SILENCE - the zero-class silence held LIVE on the row's first fall-less face (no row printed, no junk); (4) the mob book: Zombie owns 2 of 2 (100.0%); (5) 'by Drowned' kill lines: 0 - THE DROUGHT EIGHT FACES (150..158 the longest zero-streak on record, the lane's 17-face census confirmed live).
+- D: code front DECLINED honestly (no fresh price: the fall cell's mass stopped at cum 7 - one face of drought is watch-mass, not split-mass; the depth-spread byte waits for a SECOND multi-depth site; wrong-door is the lane's territory) - 0.898.0 NOT consumed (first fire on the new ledger).
+- E: dispatch law: x2 poll BEFORE the POST (zero active workflow_dispatch runs both rounds; face 158 terminal) -> POST -> HTTP 204 -> FACE 159 = 38008093565 (in_progress, 6643a0e the 0.897.0 tree) - the anatomy row's first LIVE face on its OWN tree rides it.
+
+Stage Summary:
+- Face 158 READ: the wrong-door's loudest face (2/2 FP), the fall streak broke (cum 7), the anatomy's silence law CONFIRMED LIVE, the Drowned drought eight faces.
+- Face 159 = 38008093565 dispatched on the 0.897.0 tree (HTTP 204, verified by run id).
+- Next fire: (1) verdicts BY RUN ID: 38007247424 + 38007451363 + my this-fire worklog push-CI + face 159 = 38008093565 (terminal -> artifacts -> re-mine -> the anatomy's first LIVE-tree read: does the row render on its own tree's face? + the fall watch's fifth face + the drought's ninth). (2) the anatomy's next byte only if a SECOND multi-depth site prices the depth spread - else the honest wait (price-before-wire). (3) the lane's o2trigger lever stays THEIRS. (4) dispatch law on clear (x2 poll BEFORE the POST). NO force-push, NO history rewrite. Identity: PLANETA9091
