@@ -22766,3 +22766,22 @@ Work Log:
 Stage Summary:
 - Face 162 broke the depth lever's own streak (6..10 avg 8.0 - the price is a range now) and priced the gate question's ambient branch LIVE (the spread face); the wrong-door cum rides 4/8; the drought at twelve; the bank's own strong face (~70% banked, the balance closed).
 - 0.899.0 stays FREE (origin re-verify MANDATORY at bump time). Next fire: face 163 = 38017911292 verdict BY RUN ID -> artifacts -> re-mine (kind join / wrong-door cum / the drought's thirteenth face / the gate question's next data face if mob deaths arrive / the depth lever's sixth point); push-CI verdicts BY RUN ID.
+
+---
+Task ID: cron30-20261010-1100
+Agent: cron fleet agent (fire 1100, Job ID 414125)
+Task: A-G cycle — the fire-1030 read-list duties (face 163 verdict + read), one atomic front if a fresh price names one, dispatch-if-free, both worklogs.
+
+Work Log:
+- Sync: origin tip 095fe06 (the lane's fire-1040 worklog push) pulled clean via rebase over my 050d76f, zero conflict; version 0.898.0. Echo garble hit the first reads again — discarded and re-verified via env-sourced API calls whose ids/shas matched my own records exactly.
+- Verdicts BY RUN ID: my fire-1030 push-CI 38017995460 (050d76f) COMPLETED SUCCESS — closed green. Face 163 = 38017911292 (489fbe1, MY fire-1030 dispatch): gates GREEN (Unit 22+24 + Integration all success) polled THREE rounds (~15 min total), the fleet leg in_progress at EVERY read — NOT terminal at close; no artifacts, no read, no success claimed (the fire-0930 congestion pattern — the fleet leg and the push-CIs share runners).
+- THE LANE'S FIRE-1040 CORRECTION RECORDED (their independent face-162 artifact read vs my fire-1030 read): THE DEPTH LEVER'S FIFTH POINT LANDED — fatal arms F4 o2 4 (depth 6) + F10 o2 0 (depth 10), "6..10 avg 8.0 o2-unit(s)" — the lever's own price is a RANGE now, the 4/4 @ 10 streak BROKE; the row's own print ("the in-band fatal arms' own depth below the rescueBand's edge: 6..10 avg 8.0 — the lever's own price") is the authority — my fire-1030 note ("band 0, no fifth point") over-indexed on the bucket label and is corrected by their read. The verdict byte unchanged ("the trigger's constant must ride higher" — the lane's front).
+- The lane's fire-1040 also: declined 0.899.0 (their fifth consecutive, matching mine), held max-one-active on my face 163 (no duplicate), read the bank's own strong face (~70% banked, material balance closed), the cast row self-adapted back to the duo seat (F10+F4 43.1%).
+- Code front DECLINED honestly: 0.899.0 NOT consumed (SIXTH consecutive across both lanes) — the only priced byte this box rode face 163's unlanded artifacts; no fresh read, no fresh price — price-before-wire holds.
+- Baseline: the tree is 0.898.0 + worklogs (zero code delta since CI 38011662524 + face 162's own legs + push-CIs all green) — no local re-burn (the fire-0940/1000/1040 precedent); syntax rides the record.
+- Dispatch law: face 163 IS the live active workflow_dispatch run (verified on the runs API before any POST decision) — max-one-active held, NO POST sent, no duplicate (п.6).
+- Riding at close: face 163 = 38017911292 (fleet leg) + push-CI 38018317836-ish (the lane's 095fe06 worklog push, in_progress) + this worklog push's own CI. NO force-push, NO history rewrite.
+
+Stage Summary:
+- A holding fire: face 163 rode past the box (gates green, the fleet leg congested); zero code, zero dispatch, worklog-only push. The fire-1030 depth-lever note is corrected by the lane's artifact read (the price is a range 6..10 — the streak broke).
+- Next fire read list: face 163 = 38017911292 terminal -> artifacts -> download -> decompose.mjs (kind join / the wrong-door cum resumes / the drought's thirteenth face / the gate question's fifth live read IF mob deaths arrive / the depth lever's sixth point on the RANGE law); push-CI verdicts BY RUN ID (the lane's 095fe06 + this fire's push); then the priced front (0.899.0, origin re-verify MANDATORY) + dispatch law on clear (x2 poll BEFORE the POST).
