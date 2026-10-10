@@ -10,7 +10,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
-import { deathKindCensus, deathKindBill, deathKindBillRow, deathKindRiders, deathKindRidersRow, mobAttackerBill, mobAttackerBillRow, mobAttackerRiders, mobAttackerRidersRow, misreadDirectionBill, misreadDirectionBillRow, misreadDirectionRiders, misreadDirectionRidersRow, fallAnatomyBook, fallAnatomyConsistent, fallAnatomyRow } from '../../src/lib/deathkinds.mjs' // (v0.897.0) the falls' own anatomy joins the battery
+import { deathKindCensus, deathKindBill, deathKindBillRow, deathKindRiders, deathKindRidersRow, mobAttackerBill, mobAttackerBillRow, mobAttackerRiders, mobAttackerRidersRow, misreadDirectionBill, misreadDirectionBillRow, misreadDirectionRiders, misreadDirectionRidersRow, fallAnatomyBook, fallAnatomyConsistent, fallAnatomyRow, mobAnatomyBook, mobAnatomyConsistent, mobAnatomyRow } from '../../src/lib/deathkinds.mjs' // (v0.897.0) the falls' own anatomy joins the battery; (v0.898.0) the mob book's own anatomy joins too
 
 // the face-27 verbatims (36870593766), byte for byte from the artifact
 const FACE27_FALL = 'F14 [F14] died - respawning (cause: server: fell from a high place [kind=fall] | inferred: fall/env (0s before death at [-132,45,405]) [the inference corroborates the server verdict])'
@@ -114,7 +114,7 @@ test('a non-array input judges nothing (junk-safe by contract)', () => {
 
 test('WIRING: the decompose prints the causes row and the vertical rows (the DEATHS block)', () => {
   const src = fs.readFileSync(new URL('../../scripts/fleet-mining/decompose.mjs', import.meta.url), 'utf8')
-  assert.match(src, /import \{ deathKindCensus, deathKindBill, deathKindBillRow, deathKindRiders, deathKindRidersRow, mobAttackerBill, mobAttackerBillRow, mobAttackerRiders, mobAttackerRidersRow, misreadDirectionBill, misreadDirectionBillRow, misreadDirectionRiders, misreadDirectionRidersRow, fallAnatomyBook, fallAnatomyConsistent, fallAnatomyRow \} from '\.\.\/\.\.\/src\/lib\/deathkinds\.mjs'/, 'the census import rides the decompose head (v0.784.0: the kind seat rides too; v0.788.0: the attacker seat rides too; v0.844.0: the direction seat rides too; v0.897.0: the falls\' own anatomy rides too)')
+  assert.match(src, /import \{ deathKindCensus, deathKindBill, deathKindBillRow, deathKindRiders, deathKindRidersRow, mobAttackerBill, mobAttackerBillRow, mobAttackerRiders, mobAttackerRidersRow, misreadDirectionBill, misreadDirectionBillRow, misreadDirectionRiders, misreadDirectionRidersRow, fallAnatomyBook, fallAnatomyConsistent, fallAnatomyRow, mobAnatomyBook, mobAnatomyConsistent, mobAnatomyRow \} from '\.\.\/\.\.\/src\/lib\/deathkinds\.mjs'/, 'the census import rides the decompose head (v0.784.0: the kind seat rides too; v0.788.0: the attacker seat rides too; v0.844.0: the direction seat rides too; v0.897.0: the falls\' own anatomy rides too; v0.898.0: the mob book\'s own anatomy rides too)')
   assert.match(src, /death causes: \$\{causeRow\}\$\{inferredNote\}\$\{unparsedNote\}/, 'the mechanical causes row prints on every face (v0.672.0: the inferred-only note rides too)')
   assert.match(src, /vertical death: \$\{v\.bot\}/, 'the vertical row names the front\'s witness')
 })
@@ -868,4 +868,137 @@ test('WIRING: the decompose rides the fence and the mount (the prose stays in th
   assert.ok(src.includes('if (fab && fallAnatomyConsistent(kinds, fab)) {'), 'the fence rides the print')
   assert.ok(src.includes('fallAnatomyRow(fab)'), 'the row rides the mount')
   assert.ok(!src.includes("THE SHAFT'S OWN REPEAT: the falls' own site prices"), 'the prose stays in the lib')
+})
+
+// (v0.898.0) THE MOB BOOK'S OWN ANATOMY - the mob kind's own WHERE + HOW
+// book. The verbatims are the face-159 field lines (38008093565), byte
+// for byte from the artifact: nine mob kills (Zombie slain x6, Skeleton
+// shot x3) all rode the surface band (y 61..66) and ONE site repeated
+// live on the family's maiden face (F14+F15 at Chebyshev 8 - the same
+// shaft law the falls priced); the creeper and the drown stay OUTSIDE
+// (their own kinds ride their own books - the mob kind alone is the subject).
+const FACE159_MOB_F10 = 'F10 [F10] died - respawning (cause: server: was shot by Skeleton [kind=mob by Skeleton] | inferred: zombie@10.9 (0s before death at [-123,65,408]) [the inference CONTRADICTS the server verdict - the nearest harm was not the killer (the server kind stays the authority)])'
+const FACE159_MOB_F13 = 'F13 [F13] died - respawning (cause: server: was slain by Zombie [kind=mob by Zombie] | inferred: zombie@1.2 (0s before death at [-128,61,393]) [the inference corroborates the server verdict])'
+const FACE159_MOB_F18 = 'F18 [F18] died - respawning (cause: server: was slain by Zombie [kind=mob by Zombie] | inferred: zombie@1.4 (0s before death at [-147,64,445]) [the inference corroborates the server verdict])'
+const FACE159_MOB_F9 = 'F9 [F9] died - respawning (cause: server: was shot by Skeleton [kind=mob by Skeleton] | inferred: skeleton@10.9 (0s before death at [-134,65,411]) [the inference corroborates the server verdict])'
+const FACE159_MOB_F14 = 'F14 [F14] died - respawning (cause: server: was shot by Skeleton [kind=mob by Skeleton] | inferred: skeleton@2.2 (0s before death at [-136,64,424]) [the inference corroborates the server verdict])'
+const FACE159_MOB_F8 = 'F8 [F8] died - respawning (cause: server: was slain by Zombie [kind=mob by Zombie] | inferred: zombie@1.6 (0s before death at [-99,66,396]) [the inference corroborates the server verdict])'
+const FACE159_MOB_F1 = 'F1 [F1] died - respawning (cause: server: was slain by Zombie [kind=mob by Zombie] | inferred: zombie@1.8 (0s before death at [-157,63,406]) [the inference corroborates the server verdict])'
+const FACE159_MOB_F12 = 'F12 [F12] died - respawning (cause: server: was slain by Zombie [kind=mob by Zombie] | inferred: zombie@0.5 (0s before death at [-165,65,437]) [the inference corroborates the server verdict])'
+const FACE159_MOB_F15 = 'F15 [F15] died - respawning (cause: server: was slain by Zombie [kind=mob by Zombie] | inferred: zombie@1.6 (0s before death at [-131,64,432]) [the inference corroborates the server verdict])'
+const FACE159_MOB_LINES = [FACE159_MOB_F10, FACE159_MOB_F13, FACE159_MOB_F18, FACE159_MOB_F9, FACE159_MOB_F14, FACE159_MOB_F8, FACE159_MOB_F1, FACE159_MOB_F12, FACE159_MOB_F15]
+const FACE159_CREEPER = 'F11 [F11] died - respawning (cause: server: was blown up by Creeper [kind=explosion by Creeper] | inferred: fall/env (0s before death at [-108,66,423]) [the inference is blind to this kind - the hint is noise by construction (the server kind stays the authority)])'
+const FACE159_DROWN = 'F5 [F5] died - respawning (cause: server: drowned [kind=drown] | inferred: fall/env (0s before death at [-146,61,395]) [the inference is blind to this kind - the hint is noise by construction (the server kind stays the authority)])'
+
+test('the face-159 anatomy: the site repeat prices the mob cell live (the book, the fence, the row byte-exact)', () => {
+  const c = deathKindCensus(FACE159_MOB_LINES)
+  assert.equal(c.byKind.mob, 9)
+  assert.equal(c.byAttacker.Zombie, 6)
+  assert.equal(c.byAttacker.Skeleton, 3)
+  const b = mobAnatomyBook(FACE159_MOB_LINES)
+  assert.equal(b.mobs, 9)
+  assert.equal(b.slain, 6)
+  assert.equal(b.shot, 3)
+  assert.deepEqual(b.otherVerbs, {})
+  assert.equal(b.underground, 0)
+  assert.equal(b.surface, 9)
+  assert.equal(b.blind, 0)
+  assert.equal(b.clustered, 2)
+  assert.equal(b.unclustered, 7)
+  assert.deepEqual(b.sites, [{ anchor: [-136, 424], members: ['F14', 'F15'] }])
+  assert.equal(mobAnatomyConsistent(b), true)
+  assert.equal(mobAnatomyRow(b), "the mob book's own anatomy (v0.898.0): mobs 9 - slain 6/shot 3, surface 9, clustered 2 of 9 (1 site: F14+F15) - THE SITE'S OWN REPEAT: the mob kills' own site prices the ground the raw mob bucket rode unnamed - the night's own gate")
+})
+
+test('the site repeat shape: the pair within the radius seats one site (the night gate prices its own repeat)', () => {
+  const mob = (bot, x, y, z) => `${bot} [${bot}] died - respawning (cause: server: was slain by Zombie [kind=mob by Zombie] | inferred: zombie@1.0 (0s before death at [${x},${y},${z}]) [the inference corroborates the server verdict])`
+  const c = deathKindCensus([mob('F13', -128, 61, 393), mob('F20', -124, 64, 397)])
+  const b = mobAnatomyBook([mob('F13', -128, 61, 393), mob('F20', -124, 64, 397)])
+  assert.equal(b.mobs, 2)
+  assert.equal(b.slain, 2)
+  assert.equal(b.surface, 2)
+  assert.equal(b.clustered, 2)
+  assert.equal(b.unclustered, 0)
+  assert.deepEqual(b.sites, [{ anchor: [-128, 393], members: ['F13', 'F20'] }])
+  assert.equal(mobAnatomyConsistent(b), true)
+  assert.equal(mobAnatomyRow(b), "the mob book's own anatomy (v0.898.0): mobs 2 - slain 2, surface 2, clustered 2 of 2 (1 site: F13+F20) - THE SITE'S OWN REPEAT: the mob kills' own site prices the ground the raw mob bucket rode unnamed - the night's own gate")
+})
+
+test('the underground band: a sub-surface mob kill rides the underground cell (the same edge the falls priced)', () => {
+  const mob = (bot, x, y, z) => `${bot} [${bot}] died - respawning (cause: server: was slain by Zombie [kind=mob by Zombie] | inferred: zombie@1.0 (0s before death at [${x},${y},${z}]) [the inference corroborates the server verdict])`
+  const c = deathKindCensus([mob('F21', -128, 43, 393), mob('F22', -124, 44, 397)])
+  const b = mobAnatomyBook([mob('F21', -128, 43, 393), mob('F22', -124, 44, 397)])
+  assert.equal(b.underground, 2)
+  assert.equal(b.surface, 0)
+  assert.equal(b.clustered, 2)
+  assert.equal(mobAnatomyConsistent(b), true)
+  assert.equal(mobAnatomyRow(b), "the mob book's own anatomy (v0.898.0): mobs 2 - slain 2, underground 2, clustered 2 of 2 (1 site: F21+F22) - THE SITE'S OWN REPEAT: the mob kills' own site prices the ground the raw mob bucket rode unnamed - the night's own gate")
+})
+
+test('the explosion fence: the blast and the drown stay OUTSIDE (the mob book subject is the mob kind alone)', () => {
+  const c = deathKindCensus([FACE159_MOB_F10, FACE159_CREEPER, FACE159_DROWN])
+  assert.equal(c.byKind.mob, 1)
+  assert.equal(c.byKind.explosion, 1)
+  assert.equal(c.byKind.drown, 1)
+  const b = mobAnatomyBook([FACE159_MOB_F10, FACE159_CREEPER, FACE159_DROWN])
+  assert.equal(b.mobs, 1)
+  assert.equal(b.shot, 1)
+  assert.equal(mobAnatomyConsistent(b), true)
+})
+
+test('the inferred-only fence: the inference own mob kill stays OUTSIDE (the server verdict is the authority)', () => {
+  const c = deathKindCensus([FACE159_MOB_F13, 'F16 [F16] died - respawning (cause: zombie@0.3 (0s before death at [-122,65,403]))'])
+  assert.equal(c.inferredOnlyCount, 1)
+  const b = mobAnatomyBook([FACE159_MOB_F13, 'F16 [F16] died - respawning (cause: zombie@0.3 (0s before death at [-122,65,403]))'])
+  assert.equal(b.mobs, 1)
+  assert.equal(b.slain, 1)
+  assert.equal(mobAnatomyConsistent(b), true)
+})
+
+test('the blind skin: the pos-less mob row counts and judges nothing (the bands, the sites)', () => {
+  const c = deathKindCensus(['F7 [F7] died - respawning (cause: server: was slain by Zombie [kind=mob by Zombie])'])
+  assert.equal(c.verticalCount, 0) // the mob kind rides the book, not the census's own vertical cell (the falls' own subject)
+  const b = mobAnatomyBook(['F7 [F7] died - respawning (cause: server: was slain by Zombie [kind=mob by Zombie])'])
+  assert.equal(b.mobs, 1)
+  assert.equal(b.slain, 1)
+  assert.equal(b.blind, 1)
+  assert.equal(b.underground, 0)
+  assert.equal(b.surface, 0)
+  assert.equal(b.clustered, 0)
+  assert.equal(b.unclustered, 0)
+  assert.deepEqual(b.sites, [])
+  assert.equal(mobAnatomyConsistent(b), true)
+})
+
+test('the zero-class silence: a mob-less face reads the honest silence (the book null, the row null)', () => {
+  const c = deathKindCensus([FACE159_DROWN, FACE159_CREEPER])
+  assert.equal(mobAnatomyBook([FACE159_DROWN, FACE159_CREEPER]), null)
+  assert.equal(mobAnatomyRow(null), null)
+  assert.equal(mobAnatomyConsistent(null), false)
+  assert.equal(mobAnatomyConsistent({ mobs: 1 }), false)
+})
+
+test('the junk fence: a lying cell prices nothing (the image recount, the sums, the seats, the mirror)', () => {
+  const c = deathKindCensus(FACE159_MOB_LINES)
+  const b = mobAnatomyBook(FACE159_MOB_LINES)
+  assert.equal(mobAnatomyConsistent({ ...b, mobs: 8 }), false)
+  assert.equal(mobAnatomyConsistent({ ...b, slain: 5 }), false)
+  assert.equal(mobAnatomyConsistent({ ...b, shot: 4 }), false)
+  assert.equal(mobAnatomyConsistent({ ...b, surface: 8 }), false)
+  // the radius law: a seat for a pair beyond the anchor radius lies
+  assert.equal(mobAnatomyConsistent({ ...b, clustered: 2, unclustered: 7, sites: [{ anchor: [-123, 408], members: ['F10', 'F9'] }] }), false)
+  // the mirror: a seat for a bot that never sat lies through the geometry
+  assert.equal(mobAnatomyConsistent({ ...b, clustered: 1, unclustered: 8, sites: [{ anchor: [-123, 408], members: ['F10', 'F99'] }] }), false)
+  // the rows' own shape: a junk row lies through the census's own image
+  assert.equal(mobAnatomyConsistent({ ...b, rows: [...b.rows, { bot: 'F99', verb: 'was slain by', attacker: null, pos: null, corroboration: 'corroborates' }] }), false)
+  assert.equal(mobAnatomyRow({ ...b, slain: -1 }), null)
+  assert.equal(mobAnatomyRow({ ...b, mobs: 0 }), null)
+  assert.equal(mobAnatomyRow({ ...b, slain: 7 }), null)
+})
+
+test('WIRING: the mob anatomy rides the decompose print beside the mob attacker (v0.898.0)', () => {
+  const src = fs.readFileSync(new URL('../../scripts/fleet-mining/decompose.mjs', import.meta.url), 'utf8')
+  assert.match(src, /const moab = mobAnatomyBook\(lines\)/, 'the mob anatomy book mounts on the log lines (the o2 family own book-only precedent)')
+  assert.match(src, /mobAnatomyConsistent\(moab\)/, 'the fence rides the print')
+  assert.match(src, /mobAnatomyRow\(moab\)/, 'the row rides the print site')
 })

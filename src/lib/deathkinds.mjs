@@ -796,3 +796,234 @@ export function fallAnatomyRow (book) {
   }
   return `the falls' own anatomy (v0.897.0): falls ${falls} - ${verdict.join('/')}, ${band.join('/')}${siteTail}`
 }
+
+// (v0.898.0) THE MOB BOOK'S OWN ANATOMY - WHERE and HOW the mob kind's
+// own deaths own: the verb's own split (the server's own slain/shot
+// words - the melee-vs-ranged lever the raw mob bucket rode unnamed)
+// + the band's own split (the same surface edge the falls priced -
+// face 159's nine mob kills all rode y 61..66, the surface's own band)
+// + the site's own repeat (the anchor radius law - the first member's
+// x/z, no transitive drift). The book reads the LOG LINES directly (the
+// o2 family's own book-only precedent - the census's vertical cell is
+// the falls' own subject, the mob rows live outside it, zero census
+// shape change). Server-verdict mob rows only (the inferred-only and
+// junk shapes never match the server verdict - the v0.117.0 doctrine);
+// the explosion kind stays OUTSIDE (its own kind rides the o2 family's
+// join - the mob book's subject is the mob kind alone). A mob-less face
+// reads the honest silence (the zero-class law); a pos-less mob row
+// counts and judges nothing (the blind skin - the v0.897.0 law); an
+// inconsistent book prices nothing (the fence rides the print - the
+// v0.897.0 fence family, byte-true).
+const MOB_SITE_CHEBYSHEV = 8
+const MOB_VERB_SLAIN = 'was slain by'
+const MOB_VERB_SHOT = 'was shot by'
+
+function mobAnatomyRows (lines) {
+  const rows = Array.isArray(lines) ? lines : []
+  const out = []
+  for (const l of rows) {
+    if (typeof l !== 'string' || !l.length) continue
+    const m = DEATH_KIND_RE.exec(l)
+    if (!m) continue // the inferred-only and junk shapes stay OUTSIDE (the server verdict is the authority)
+    const [, verb, rawKind, attacker, tail] = m
+    if (rawKind !== 'mob') continue // the mob kind alone is the subject (the blast and the drown ride their own books)
+    const bot = (l.match(/^(F\d+)\b/) || [])[1] || null
+    const pm = tail ? POS_RE.exec(tail) : null
+    out.push({
+      bot,
+      verb,
+      attacker: attacker || null,
+      pos: pm ? [Number(pm[1]), Number(pm[2]), Number(pm[3])] : null,
+      corroboration: corroborationOf(tail)
+    })
+  }
+  return out
+}
+
+const mobPosOf = (r) => Array.isArray(r.pos) && r.pos.length === 3 && r.pos.every(Number.isFinite)
+  ? r.pos
+  : null
+
+export function mobAnatomyBook (lines) {
+  const rows = mobAnatomyRows(lines)
+  if (!rows.length) return null
+  let slain = 0
+  let shot = 0
+  const otherVerbs = {}
+  let underground = 0
+  let surface = 0
+  let blind = 0
+  const sites = []
+  for (const r of rows) {
+    const verb = typeof r.verb === 'string' && r.verb ? r.verb : 'unknown'
+    // the verb's own head rides the split (the server's own phrase 'was
+    // slain by Zombie' - the attacker's own name rides the tail, the
+    // head's own word is the verdict cell - the census's own image)
+    if (verb.startsWith(MOB_VERB_SLAIN)) slain++
+    else if (verb.startsWith(MOB_VERB_SHOT)) shot++
+    else otherVerbs[verb] = (otherVerbs[verb] || 0) + 1
+    const pos = mobPosOf(r)
+    if (!pos) { blind++; continue }
+    if (pos[1] < FALL_SURFACE_Y) underground++
+    else surface++
+    const site = sites.find((s) =>
+      Math.max(Math.abs(s.anchor[0] - pos[0]), Math.abs(s.anchor[1] - pos[2])) <= MOB_SITE_CHEBYSHEV)
+    if (site) site.members.push(r.bot)
+    else sites.push({ anchor: [pos[0], pos[2]], members: [r.bot] })
+  }
+  const live = sites
+    .filter((s) => s.members.length > 1)
+    .sort((a, b) => a.anchor[0] - b.anchor[0] || a.anchor[1] - b.anchor[1])
+  const clustered = live.reduce((n, s) => n + s.members.length, 0)
+  return {
+    mobs: rows.length, slain, shot, otherVerbs,
+    underground, surface, blind,
+    clustered, unclustered: rows.length - blind - clustered,
+    sites: live,
+    rows
+  }
+}
+
+/** The mob anatomy's own fence - the v0.897.0 fence family byte-true:
+ * every cell integer and non-negative, the verdicts' own sum rides the
+ * mobs, the bands' own sum rides the mobs, the seats' own sum rides the
+ * cluster, the seated bots a sub-multiset of the positioned rows' own
+ * bots, the unseated rows OUTSIDE every live radius. The verdict and
+ * band cells byte-verified against the parse's own image (the book's
+ * own rows - the fold's own recount, never the book's word). An
+ * inconsistent book prices nothing. */
+export function mobAnatomyConsistent (book) {
+  if (!book || typeof book !== 'object' || Array.isArray(book)) return false
+  const rows = Array.isArray(book.rows) ? book.rows : []
+  for (const r of rows) {
+    if (!r || typeof r !== 'object' || Array.isArray(r)) return false
+    if (r.bot !== null && typeof r.bot !== 'string') return false
+    if (typeof r.verb !== 'string' || !r.verb) return false
+    if (r.attacker !== null && typeof r.attacker !== 'string') return false
+    if (r.pos !== null && !(Array.isArray(r.pos) && r.pos.length === 3 && r.pos.every(Number.isFinite))) return false
+    if (typeof r.corroboration !== 'string' || !r.corroboration) return false
+  }
+  const cells = [book.mobs, book.slain, book.shot, book.underground, book.surface, book.blind, book.clustered, book.unclustered]
+  if (!cells.every((v) => Number.isInteger(v) && v >= 0)) return false
+  if (book.mobs !== rows.length) return false
+  // the parse's own image: the verdicts' and bands' own recount
+  let slain = 0
+  let shot = 0
+  const otherVerbs = {}
+  let underground = 0
+  let surface = 0
+  let blind = 0
+  for (const r of rows) {
+    const verb = typeof r.verb === 'string' && r.verb ? r.verb : 'unknown'
+    // the verb's own head rides the split (the server's own phrase 'was
+    // slain by Zombie' - the attacker's own name rides the tail, the
+    // head's own word is the verdict cell - the census's own image)
+    if (verb.startsWith(MOB_VERB_SLAIN)) slain++
+    else if (verb.startsWith(MOB_VERB_SHOT)) shot++
+    else otherVerbs[verb] = (otherVerbs[verb] || 0) + 1
+    const pos = mobPosOf(r)
+    if (!pos) { blind++; continue }
+    if (pos[1] < FALL_SURFACE_Y) underground++
+    else surface++
+  }
+  if (book.slain !== slain || book.shot !== shot) return false
+  const ov = book.otherVerbs
+  if (!ov || typeof ov !== 'object' || Array.isArray(ov)) return false
+  const ovKeys = Object.keys(ov)
+  const ovImage = Object.keys(otherVerbs)
+  if (ovKeys.length !== ovImage.length) return false
+  for (const verb of ovImage) {
+    if (ov[verb] !== otherVerbs[verb]) return false
+  }
+  if (book.underground !== underground || book.surface !== surface || book.blind !== blind) return false
+  if (book.slain + book.shot + ovImage.reduce((n, v) => n + otherVerbs[v], 0) !== book.mobs) return false
+  if (book.underground + book.surface + book.blind !== book.mobs) return false
+  if (book.clustered + book.unclustered + book.blind !== book.mobs) return false
+  if (!Array.isArray(book.sites)) return false
+  let members = 0
+  const seated = []
+  for (const s of book.sites) {
+    if (!s || typeof s !== 'object' || Array.isArray(s)) return false
+    if (!Array.isArray(s.anchor) || s.anchor.length !== 2 || !s.anchor.every(Number.isFinite)) return false
+    if (!Array.isArray(s.members) || !s.members.length) return false
+    if (!s.members.every((b) => typeof b === 'string' && b.length)) return false
+    members += s.members.length
+    for (const b of s.members) seated.push(b)
+  }
+  if (members !== book.clustered) return false
+  const positioned = []
+  for (const r of rows) {
+    if (mobPosOf(r)) positioned.push(typeof r.bot === 'string' ? r.bot : '')
+  }
+  if (positioned.length !== book.clustered + book.unclustered) return false
+  const pool = rows.map((r) => ({ bot: typeof r.bot === 'string' ? r.bot : '', pos: mobPosOf(r) })).filter((r) => r.pos)
+  for (const s of book.sites) {
+    for (const b of s.members) {
+      const idx = pool.findIndex((r) => r.bot === b &&
+        Math.max(Math.abs(s.anchor[0] - r.pos[0]), Math.abs(s.anchor[1] - r.pos[2])) <= MOB_SITE_CHEBYSHEV)
+      if (idx < 0) return false
+      pool.splice(idx, 1)
+    }
+  }
+  for (const r of pool) {
+    for (const s of book.sites) {
+      if (Math.max(Math.abs(s.anchor[0] - r.pos[0]), Math.abs(s.anchor[1] - r.pos[2])) <= MOB_SITE_CHEBYSHEV) return false
+    }
+  }
+  const bytewise = (a, b) => (a < b ? -1 : a > b ? 1 : 0)
+  const seatedSorted = [...seated].sort(bytewise)
+  const positionedSorted = [...positioned].sort(bytewise)
+  let pi = 0
+  for (const b of seatedSorted) {
+    while (pi < positionedSorted.length && positionedSorted[pi] !== b) pi++
+    if (pi >= positionedSorted.length) return false
+    pi++
+  }
+  return true
+}
+
+// (v0.898.0) the mob anatomy's own row - THE MELEE'S OWN SEAT: HOW the
+// mob kills own (the verb's own split) + WHERE (the band's own split +
+// the site's own repeat). The zero-class silence: only the live classes
+// ride; the site's own tail prints only on a live cluster - a
+// cluster-free face reads the site's own silence branch (the branch
+// law: one row never both). Junk never prints a row.
+export function mobAnatomyRow (book) {
+  if (!book || typeof book !== 'object' || Array.isArray(book)) return null
+  const { mobs, slain, shot, underground, surface, blind, clustered, sites } = book
+  if (![mobs, slain, shot, underground, surface, blind, clustered].every((v) => Number.isInteger(v) && v >= 0)) return null
+  if (mobs <= 0 || slain + shot > mobs) return null
+  const ov = book.otherVerbs
+  if (!ov || typeof ov !== 'object' || Array.isArray(ov)) return null
+  let otherSum = 0
+  for (const n of Object.values(ov)) {
+    if (!Number.isInteger(n) || n <= 0) return null
+    otherSum += n
+  }
+  if (slain + shot + otherSum !== mobs) return null
+  if (underground + surface + blind !== mobs) return null
+  const verdict = []
+  if (slain) verdict.push(`slain ${slain}`)
+  if (shot) verdict.push(`shot ${shot}`)
+  if (otherSum) verdict.push(`other ${otherSum}`)
+  const band = []
+  if (underground) band.push(`underground ${underground}`)
+  if (surface) band.push(`surface ${surface}`)
+  if (blind) band.push(`blind ${blind}`)
+  let siteTail
+  if (clustered > 0) {
+    if (!Array.isArray(sites) || !sites.length) return null
+    const named = sites
+      .map((s) => (s && typeof s === 'object' && !Array.isArray(s) && Array.isArray(s.members)
+        ? s.members.filter((b) => typeof b === 'string' && b.length).join('+')
+        : ''))
+      .filter(Boolean)
+      .join(', ')
+    if (!named) return null
+    siteTail = `, clustered ${clustered} of ${mobs} (${sites.length} site${sites.length === 1 ? '' : 's'}: ${named}) - THE SITE'S OWN REPEAT: the mob kills' own site prices the ground the raw mob bucket rode unnamed - the night's own gate`
+  } else {
+    if (Array.isArray(sites) && sites.length) return null
+    siteTail = ' - the sites\' own silence: every kill rode its own ground this face - THE AMBIENT NIGHT\'S OWN SPREAD, not one gate\'s repeat'
+  }
+  return `the mob book's own anatomy (v0.898.0): mobs ${mobs} - ${verdict.join('/')}, ${band.join('/')}${siteTail}`
+}
