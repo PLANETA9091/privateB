@@ -10,7 +10,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
-import { deathKindCensus, deathKindBill, deathKindBillRow, deathKindRiders, deathKindRidersRow, mobAttackerBill, mobAttackerBillRow, mobAttackerRiders, mobAttackerRidersRow, misreadDirectionBill, misreadDirectionBillRow, misreadDirectionRiders, misreadDirectionRidersRow } from '../../src/lib/deathkinds.mjs'
+import { deathKindCensus, deathKindBill, deathKindBillRow, deathKindRiders, deathKindRidersRow, mobAttackerBill, mobAttackerBillRow, mobAttackerRiders, mobAttackerRidersRow, misreadDirectionBill, misreadDirectionBillRow, misreadDirectionRiders, misreadDirectionRidersRow, fallAnatomyBook, fallAnatomyConsistent, fallAnatomyRow } from '../../src/lib/deathkinds.mjs' // (v0.897.0) the falls' own anatomy joins the battery
 
 // the face-27 verbatims (36870593766), byte for byte from the artifact
 const FACE27_FALL = 'F14 [F14] died - respawning (cause: server: fell from a high place [kind=fall] | inferred: fall/env (0s before death at [-132,45,405]) [the inference corroborates the server verdict])'
@@ -114,7 +114,7 @@ test('a non-array input judges nothing (junk-safe by contract)', () => {
 
 test('WIRING: the decompose prints the causes row and the vertical rows (the DEATHS block)', () => {
   const src = fs.readFileSync(new URL('../../scripts/fleet-mining/decompose.mjs', import.meta.url), 'utf8')
-  assert.match(src, /import \{ deathKindCensus, deathKindBill, deathKindBillRow, deathKindRiders, deathKindRidersRow, mobAttackerBill, mobAttackerBillRow, mobAttackerRiders, mobAttackerRidersRow, misreadDirectionBill, misreadDirectionBillRow, misreadDirectionRiders, misreadDirectionRidersRow \} from '\.\.\/\.\.\/src\/lib\/deathkinds\.mjs'/, 'the census import rides the decompose head (v0.784.0: the kind seat rides too; v0.788.0: the attacker seat rides too; v0.844.0: the direction seat rides too)')
+  assert.match(src, /import \{ deathKindCensus, deathKindBill, deathKindBillRow, deathKindRiders, deathKindRidersRow, mobAttackerBill, mobAttackerBillRow, mobAttackerRiders, mobAttackerRidersRow, misreadDirectionBill, misreadDirectionBillRow, misreadDirectionRiders, misreadDirectionRidersRow, fallAnatomyBook, fallAnatomyConsistent, fallAnatomyRow \} from '\.\.\/\.\.\/src\/lib\/deathkinds\.mjs'/, 'the census import rides the decompose head (v0.784.0: the kind seat rides too; v0.788.0: the attacker seat rides too; v0.844.0: the direction seat rides too; v0.897.0: the falls\' own anatomy rides too)')
   assert.match(src, /death causes: \$\{causeRow\}\$\{inferredNote\}\$\{unparsedNote\}/, 'the mechanical causes row prints on every face (v0.672.0: the inferred-only note rides too)')
   assert.match(src, /vertical death: \$\{v\.bot\}/, 'the vertical row names the front\'s witness')
 })
@@ -735,4 +735,137 @@ test('the misread direction - the junk battery and the WIRING assert - the decom
   assert.ok(src.includes('if (mdb) console.log(`  ${misreadDirectionBillRow(mdb)}`)'), 'the owner row rides the branch')
   assert.ok(src.includes('const mdr = misreadDirectionRiders(o2b)'), 'the riders ride the same branch law')
   assert.ok(!src.includes("THE DIRECTION'S OWN SEAT"), 'the prose stays in the lib')
+})
+
+// (v0.897.0) THE FALLS' OWN ANATOMY - the fall kind's own site book. The
+// verbatims are the face-157 field lines (38002430103), byte for byte:
+// F5+F3 sit one column apart (x -110/-107, z 421/418 - the dig-shaft's
+// own vertical), F2 rode its own ground.
+const FACE157_FALL_F5 = 'F5 [F5] died - respawning (cause: server: fell from a high place [kind=fall] | inferred: fall/env (0s before death at [-110,43,421]) [the inference corroborates the server verdict])'
+const FACE157_FALL_F2 = 'F2 [F2] died - respawning (cause: server: fell from a high place [kind=fall] | inferred: fall/env (0s before death at [-100,44,405]) [the inference corroborates the server verdict])'
+const FACE157_FALL_F3 = 'F3 [F3] died - respawning (cause: server: hit the ground too hard [kind=fall] | inferred: fall/env (0s before death at [-107,66,418]) [the inference corroborates the server verdict])'
+
+test('the face-157 anatomy: the shaft repeat prices the ledge (the book, the fence, the row byte-exact)', () => {
+  const c = deathKindCensus([FACE157_FALL_F5, FACE157_FALL_F2, FACE157_FALL_F3])
+  assert.equal(c.verticalCount, 3)
+  const b = fallAnatomyBook(c)
+  assert.equal(b.falls, 3)
+  assert.equal(b.fell, 2)
+  assert.equal(b.hit, 1)
+  assert.deepEqual(b.otherVerbs, {})
+  assert.equal(b.underground, 2)
+  assert.equal(b.surface, 1)
+  assert.equal(b.blind, 0)
+  assert.equal(b.clustered, 2)
+  assert.equal(b.unclustered, 1)
+  assert.deepEqual(b.sites, [{ anchor: [-110, 421], members: ['F5', 'F3'] }])
+  assert.equal(fallAnatomyConsistent(c, b), true)
+  assert.equal(fallAnatomyRow(b), "the falls' own anatomy (v0.897.0): falls 3 - fell 2/hit 1, underground 2/surface 1, clustered 2 of 3 (1 site: F5+F3) - THE SHAFT'S OWN REPEAT: the falls' own site prices the ledge the raw split rode unnamed - the dig-shaft's own vertical")
+})
+
+test('the face-121 quad shape: four falls one site (the anchor law holds the radius, dy prices the depth)', () => {
+  const fell = (bot, x, y, z) => `${bot} [${bot}] died - respawning (cause: server: fell from a high place [kind=fall] | inferred: fall/env (0s before death at [${x},${y},${z}]) [the inference corroborates the server verdict])`
+  const c = deathKindCensus([fell('F6', -109, 43, 411), fell('F8', -109, 44, 411), fell('F12', -117, 44, 411), fell('F1', -109, 66, 406)])
+  const b = fallAnatomyBook(c)
+  assert.equal(b.falls, 4)
+  assert.equal(b.fell, 4)
+  assert.equal(b.underground, 3)
+  assert.equal(b.surface, 1)
+  assert.equal(b.clustered, 4)
+  assert.equal(b.unclustered, 0)
+  assert.deepEqual(b.sites, [{ anchor: [-109, 411], members: ['F6', 'F8', 'F12', 'F1'] }])
+  assert.equal(fallAnatomyConsistent(c, b), true)
+  assert.equal(fallAnatomyRow(b), "the falls' own anatomy (v0.897.0): falls 4 - fell 4, underground 3/surface 1, clustered 4 of 4 (1 site: F6+F8+F12+F1) - THE SHAFT'S OWN REPEAT: the falls' own site prices the ledge the raw split rode unnamed - the dig-shaft's own vertical")
+})
+
+test('the inferred-only fence: the inference\'s own fall stays OUTSIDE (the server verdict is the authority)', () => {
+  const c = deathKindCensus([
+    FACE157_FALL_F5,
+    'F16 [F16] died - respawning (cause: fall/env (0s before death at [-122,48,403]))'
+  ])
+  assert.equal(c.verticalCount, 2)
+  assert.equal(c.inferredOnlyCount, 1)
+  const b = fallAnatomyBook(c)
+  assert.equal(b.falls, 1)
+  assert.equal(b.fell, 1)
+  assert.equal(fallAnatomyConsistent(c, b), true)
+})
+
+test('the blind skin: the pos-less fall counts and judges nothing (the bands, the sites)', () => {
+  const c = deathKindCensus(['F7 [F7] died - respawning (cause: server: fell from a high place [kind=fall])'])
+  assert.equal(c.verticalCount, 1)
+  const b = fallAnatomyBook(c)
+  assert.equal(b.falls, 1)
+  assert.equal(b.blind, 1)
+  assert.equal(b.underground, 0)
+  assert.equal(b.surface, 0)
+  assert.equal(b.clustered, 0)
+  assert.equal(b.unclustered, 0)
+  assert.deepEqual(b.sites, [])
+  assert.equal(fallAnatomyConsistent(c, b), true)
+  assert.equal(fallAnatomyRow(b), "the falls' own anatomy (v0.897.0): falls 1 - fell 1, blind 1 - the site's own silence: every fall rode its own ground this face")
+})
+
+test('the zero-cluster branch: falls far apart read the site\'s own silence (one row never both)', () => {
+  const c = deathKindCensus([FACE157_FALL_F5, FACE157_FALL_F2])
+  const b = fallAnatomyBook(c)
+  assert.equal(b.clustered, 0)
+  assert.equal(b.unclustered, 2)
+  assert.equal(fallAnatomyConsistent(c, b), true)
+  assert.equal(fallAnatomyRow(b), "the falls' own anatomy (v0.897.0): falls 2 - fell 2, underground 2 - the site's own silence: every fall rode its own ground this face")
+})
+
+test('the fence battery: a lying cell prices nothing (the sums, the mirror, the junk)', () => {
+  const c = deathKindCensus([FACE157_FALL_F5, FACE157_FALL_F2, FACE157_FALL_F3])
+  const truth = fallAnatomyBook(c)
+  assert.equal(fallAnatomyConsistent(c, truth), true)
+  // the falls' own count lie
+  assert.equal(fallAnatomyConsistent(c, { ...truth, falls: 4 }), false)
+  // the verdicts' own sum lie
+  assert.equal(fallAnatomyConsistent(c, { ...truth, hit: 0, otherVerbs: {} }), false)
+  // the other-verbs' own lie (a zero count)
+  assert.equal(fallAnatomyConsistent(c, { ...truth, hit: 0, otherVerbs: { 'fell off': 1 } }), false)
+  // the bands' own sum lie
+  assert.equal(fallAnatomyConsistent(c, { ...truth, underground: 3 }), false)
+  // the blind's own lie
+  assert.equal(fallAnatomyConsistent(c, { ...truth, blind: 1, surface: 0 }), false)
+  // the seats' own sum lie
+  assert.equal(fallAnatomyConsistent(c, { ...truth, clustered: 3 }), false)
+  // the unclustered's own lie
+  assert.equal(fallAnatomyConsistent(c, { ...truth, unclustered: 2 }), false)
+  // the mirror's own lie - a seat for a bot that never fell
+  assert.equal(fallAnatomyConsistent(c, { ...truth, sites: [{ anchor: [-110, 421], members: ['F5', 'F9'] }] }), false)
+  // the mirror's own lie - a seat for a fall that rode its own ground
+  assert.equal(fallAnatomyConsistent(c, { ...truth, sites: [{ anchor: [-110, 421], members: ['F5', 'F3', 'F2'] }], clustered: 3, unclustered: 0 }), false)
+  // a site with a lone member lies against the live law
+  assert.equal(fallAnatomyConsistent(c, { ...truth, sites: [{ anchor: [-110, 421], members: ['F5'] }], clustered: 1, unclustered: 2 }), false)
+  // the junk law
+  assert.equal(fallAnatomyConsistent(null, truth), false)
+  assert.equal(fallAnatomyConsistent(c, null), false)
+  assert.equal(fallAnatomyConsistent(c, {}), false)
+  assert.equal(fallAnatomyConsistent(c, { ...truth, sites: 'junk' }), false)
+  assert.equal(fallAnatomyConsistent(c, { ...truth, sites: [null] }), false)
+  assert.equal(fallAnatomyConsistent(c, { ...truth, sites: [{ anchor: [-110], members: ['F5', 'F3'] }] }), false)
+})
+
+test('the honest silence: a fall-less face prices nothing, junk never prints a row', () => {
+  const c = deathKindCensus([FACE26_DROWN, FACE26_MOB])
+  assert.equal(fallAnatomyBook(c), null)
+  assert.equal(fallAnatomyBook(null), null)
+  assert.equal(fallAnatomyBook(undefined), null)
+  assert.equal(fallAnatomyBook({ vertical: 'junk' }), null)
+  assert.equal(fallAnatomyBook({ vertical: [null, 42, 'junk'] }), null)
+  assert.equal(fallAnatomyRow(null), null)
+  assert.equal(fallAnatomyRow({}), null)
+  assert.equal(fallAnatomyRow({ falls: 0, fell: 0, hit: 0, otherVerbs: {}, underground: 0, surface: 0, blind: 0, clustered: 0, unclustered: 0, sites: [] }), null)
+  assert.equal(fallAnatomyRow({ falls: 2, fell: 1, hit: 0, otherVerbs: {}, underground: 1, surface: 0, blind: 0, clustered: 0, unclustered: 1, sites: [] }), null)
+  assert.equal(fallAnatomyRow({ falls: 1, fell: 1, hit: 0, otherVerbs: {}, underground: 0, surface: 1, blind: 0, clustered: 1, unclustered: 0, sites: [] }), null)
+})
+
+test('WIRING: the decompose rides the fence and the mount (the prose stays in the lib)', () => {
+  const src = fs.readFileSync(new URL('../../scripts/fleet-mining/decompose.mjs', import.meta.url), 'utf8')
+  assert.ok(src.includes('const fab = fallAnatomyBook(kinds)'), 'the book rides the kinds census')
+  assert.ok(src.includes('if (fab && fallAnatomyConsistent(kinds, fab)) {'), 'the fence rides the print')
+  assert.ok(src.includes('fallAnatomyRow(fab)'), 'the row rides the mount')
+  assert.ok(!src.includes("THE SHAFT'S OWN REPEAT: the falls' own site prices"), 'the prose stays in the lib')
 })

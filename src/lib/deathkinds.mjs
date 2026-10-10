@@ -575,3 +575,224 @@ export function misreadDirectionRidersRow (r) {
       !Number.isFinite(shareOfConfusions)) return null
   return `the misread's own direction riders (v0.844.0): no solo direction owns the majority - ${leader} x${leaderOwns} + ${runner} x${runnerOwns} own ${pairOwns} of ${ofConfusions} sensor-blind confusion(s) (${(shareOfConfusions * 100).toFixed(1)}%) - THE DIRECTION'S OWN MIX: the seat's tie law held, the mix is the shape - the blind sensor's own crowd prices the directions the solo law refused to name`
 }
+
+// (v0.897.0) THE FALLS' OWN ANATOMY - the fall kind's own site book. The
+// o2 trigger's kind join (v0.885.0, the lane's own file) prices WHAT the
+// trigger would have paid for - and its no-crossing FALL cell has owned
+// the unnamed mass three faces running (f155 fall 1, f156 fall 3, f157
+// fall 3 - the largest no-crossing cell on the board); face 121's quad
+// read 'THREE at the same ledge' BY HAND and face 157's F5+F3 pair sits
+// one column apart (x -110/-107, z 421/418 - Chebyshev 3, dy 23 - the
+// dig-shaft's own vertical). No row ever priced WHERE the falls own:
+// the site's own repeat is the ledge's own case. THE BOOK LAW (the
+// census's own vertical cell only, zero re-parsing - the v0.788.0
+// byAttacker precedent): the SERVER-VERDICT fall rows only (the
+// inferred-only rows stay OUTSIDE - their verdict is the inference's
+// own, the v0.117.0 doctrine); the band's own edge is the observed
+// split (the dig level y 43..44 vs the surface y 64..67 - the
+// FALL_SURFACE_Y constant names its own fence); the site's own radius
+// is Chebyshev on x/z against the SITE'S OWN ANCHOR (the first member's
+// own x/z - no transitive drift), the observed repeats sit within 8
+// (face 121's quad spans dx 8, face 157's pair 3). A blind row (the
+// pos-less fall - the tail's own honest absence) counts in the book and
+// judges nothing in the bands or the sites (the blind-skin idiom). Junk
+// never invents a site: a missing or non-object census, a fall-less
+// face, or a lying cell prices nothing (the fence below, the row's own
+// guard).
+const FALL_SURFACE_Y = 50
+const FALL_SHAFT_CHEBYSHEV = 8
+const FALL_VERB_FELL = 'fell from a high place'
+const FALL_VERB_HIT = 'hit the ground too hard'
+
+function fallAnatomyRows (census) {
+  if (!census || typeof census !== 'object' || Array.isArray(census)) return null
+  const vertical = Array.isArray(census.vertical) ? census.vertical : []
+  return vertical.filter((r) =>
+    r && typeof r === 'object' && !Array.isArray(r) &&
+    r.kind === 'fall' && r.corroboration !== 'inferred-only')
+}
+
+function fallPosOf (row) {
+  return Array.isArray(row.pos) && row.pos.length === 3 && row.pos.every(Number.isFinite)
+    ? row.pos
+    : null
+}
+
+export function fallAnatomyBook (census) {
+  const rows = fallAnatomyRows(census)
+  if (!rows || !rows.length) return null
+  let fell = 0
+  let hit = 0
+  const otherVerbs = {}
+  let underground = 0
+  let surface = 0
+  let blind = 0
+  const sites = []
+  for (const r of rows) {
+    const verb = typeof r.verb === 'string' && r.verb ? r.verb : 'unknown'
+    if (verb === FALL_VERB_FELL) fell++
+    else if (verb === FALL_VERB_HIT) hit++
+    else otherVerbs[verb] = (otherVerbs[verb] || 0) + 1
+    const pos = fallPosOf(r)
+    if (!pos) { blind++; continue }
+    if (pos[1] < FALL_SURFACE_Y) underground++
+    else surface++
+    const site = sites.find((s) =>
+      Math.max(Math.abs(s.anchor[0] - pos[0]), Math.abs(s.anchor[1] - pos[2])) <= FALL_SHAFT_CHEBYSHEV)
+    if (site) site.members.push(r.bot)
+    else sites.push({ anchor: [pos[0], pos[2]], members: [r.bot] })
+  }
+  const live = sites
+    .filter((s) => s.members.length > 1)
+    .sort((a, b) => a.anchor[0] - b.anchor[0] || a.anchor[1] - b.anchor[1])
+  const clustered = live.reduce((n, s) => n + s.members.length, 0)
+  return {
+    falls: rows.length, fell, hit, otherVerbs,
+    underground, surface, blind,
+    clustered, unclustered: rows.length - blind - clustered,
+    sites: live
+  }
+}
+
+/** The anatomy's own fence: every cell integer and non-negative, the
+ * verdicts' own sum rides the falls, the bands' own sum rides the falls,
+ * the seats' own sum rides the cluster, and the seated bots must be a
+ * sub-multiset of the positioned rows' own bots (a seat for a bot that
+ * never fell lies through the mirror). The verdict and band cells are
+ * byte-verified against the census's own image (the rows' own verb and
+ * pos cells - the fold's own recount, never the book's word). An
+ * inconsistent book prices nothing. */
+export function fallAnatomyConsistent (census, book) {
+  const rows = fallAnatomyRows(census)
+  if (!rows || !book || typeof book !== 'object' || Array.isArray(book)) return false
+  const cells = [book.falls, book.fell, book.hit, book.underground, book.surface, book.blind, book.clustered, book.unclustered]
+  if (!cells.every((v) => Number.isInteger(v) && v >= 0)) return false
+  if (book.falls !== rows.length) return false
+  // the census's own image: the verdicts' and bands' own recount (the
+  // rows' own cells - the book's word is never the authority)
+  let fell = 0
+  let hit = 0
+  const otherVerbs = {}
+  let underground = 0
+  let surface = 0
+  let blind = 0
+  for (const r of rows) {
+    const verb = typeof r.verb === 'string' && r.verb ? r.verb : 'unknown'
+    if (verb === FALL_VERB_FELL) fell++
+    else if (verb === FALL_VERB_HIT) hit++
+    else otherVerbs[verb] = (otherVerbs[verb] || 0) + 1
+    const pos = fallPosOf(r)
+    if (!pos) blind++
+    else if (pos[1] < FALL_SURFACE_Y) underground++
+    else surface++
+  }
+  if (book.fell !== fell || book.hit !== hit) return false
+  const ov = book.otherVerbs
+  if (!ov || typeof ov !== 'object' || Array.isArray(ov)) return false
+  const ovKeys = Object.keys(ov)
+  const ovImage = Object.keys(otherVerbs)
+  if (ovKeys.length !== ovImage.length) return false
+  for (const verb of ovImage) {
+    if (ov[verb] !== otherVerbs[verb]) return false
+  }
+  if (book.underground !== underground || book.surface !== surface || book.blind !== blind) return false
+  if (book.fell + book.hit + ovImage.reduce((n, v) => n + otherVerbs[v], 0) !== book.falls) return false
+  if (book.underground + book.surface + book.blind !== book.falls) return false
+  if (book.clustered + book.unclustered + book.blind !== book.falls) return false
+  if (!Array.isArray(book.sites)) return false
+  let members = 0
+  const seated = []
+  for (const s of book.sites) {
+    if (!s || typeof s !== 'object' || Array.isArray(s)) return false
+    if (!Array.isArray(s.anchor) || s.anchor.length !== 2 || !s.anchor.every(Number.isFinite)) return false
+    if (!Array.isArray(s.members) || !s.members.length) return false
+    if (!s.members.every((b) => typeof b === 'string' && b.length)) return false
+    members += s.members.length
+    for (const b of s.members) seated.push(b)
+  }
+  if (members !== book.clustered) return false
+  const positioned = []
+  for (const r of rows) {
+    if (fallPosOf(r)) positioned.push(typeof r.bot === 'string' ? r.bot : '')
+  }
+  if (positioned.length !== book.clustered + book.unclustered) return false
+  // the seats' own radius law: every seated member's own pos must sit
+  // within the shaft radius of its site's own anchor (the rows' own pos
+  // cells byte-verified, each positioned row seats once - a seat for a
+  // fall that rode its own ground lies through the geometry)
+  const pool = rows
+    .map((r) => ({ bot: typeof r.bot === 'string' ? r.bot : '', pos: fallPosOf(r) }))
+    .filter((r) => r.pos)
+  for (const s of book.sites) {
+    for (const b of s.members) {
+      const idx = pool.findIndex((r) => r.bot === b &&
+        Math.max(Math.abs(s.anchor[0] - r.pos[0]), Math.abs(s.anchor[1] - r.pos[2])) <= FALL_SHAFT_CHEBYSHEV)
+      if (idx < 0) return false
+      pool.splice(idx, 1)
+    }
+  }
+  // the unseated rows' own law: a positioned row left out of the seats
+  // must sit OUTSIDE every live site's own radius (the walk's own
+  // geometry, byte-verified against the rows' own pos cells)
+  for (const r of pool) {
+    for (const s of book.sites) {
+      if (Math.max(Math.abs(s.anchor[0] - r.pos[0]), Math.abs(s.anchor[1] - r.pos[2])) <= FALL_SHAFT_CHEBYSHEV) return false
+    }
+  }
+  const bytewise = (a, b) => (a < b ? -1 : a > b ? 1 : 0)
+  const seatedSorted = [...seated].sort(bytewise)
+  const positionedSorted = [...positioned].sort(bytewise)
+  let pi = 0
+  for (const b of seatedSorted) {
+    while (pi < positionedSorted.length && positionedSorted[pi] !== b) pi++
+    if (pi >= positionedSorted.length) return false
+    pi++
+  }
+  return true
+}
+
+// (v0.897.0) the anatomy's own row - THE SHAFT'S OWN REPEAT: WHERE the
+// falls own (the band's own split + the site's own repeat). The
+// zero-class silence: only the live classes ride (a silent verdict word,
+// band or site cell reads nothing); the site's own tail prints only on a
+// live cluster - a cluster-free face reads the site's own silence branch
+// (the branch law: one row never both). Junk never prints a row.
+export function fallAnatomyRow (book) {
+  if (!book || typeof book !== 'object' || Array.isArray(book)) return null
+  const { falls, fell, hit, underground, surface, blind, clustered, sites } = book
+  if (![falls, fell, hit, underground, surface, blind, clustered].every((v) => Number.isInteger(v) && v >= 0)) return null
+  if (falls <= 0 || fell + hit > falls) return null
+  const ov = book.otherVerbs
+  if (!ov || typeof ov !== 'object' || Array.isArray(ov)) return null
+  let otherSum = 0
+  for (const n of Object.values(ov)) {
+    if (!Number.isInteger(n) || n <= 0) return null
+    otherSum += n
+  }
+  if (fell + hit + otherSum !== falls) return null
+  if (underground + surface + blind !== falls) return null
+  const verdict = []
+  if (fell) verdict.push(`fell ${fell}`)
+  if (hit) verdict.push(`hit ${hit}`)
+  if (otherSum) verdict.push(`other ${otherSum}`)
+  const band = []
+  if (underground) band.push(`underground ${underground}`)
+  if (surface) band.push(`surface ${surface}`)
+  if (blind) band.push(`blind ${blind}`)
+  let siteTail
+  if (clustered > 0) {
+    if (!Array.isArray(sites) || !sites.length) return null
+    const named = sites
+      .map((s) => (s && typeof s === 'object' && !Array.isArray(s) && Array.isArray(s.members)
+        ? s.members.filter((b) => typeof b === 'string' && b.length).join('+')
+        : ''))
+      .filter(Boolean)
+      .join(', ')
+    if (!named) return null
+    siteTail = `, clustered ${clustered} of ${falls} (${sites.length} site${sites.length === 1 ? '' : 's'}: ${named}) - THE SHAFT'S OWN REPEAT: the falls' own site prices the ledge the raw split rode unnamed - the dig-shaft's own vertical`
+  } else {
+    if (Array.isArray(sites) && sites.length) return null
+    siteTail = ' - the site\'s own silence: every fall rode its own ground this face'
+  }
+  return `the falls' own anatomy (v0.897.0): falls ${falls} - ${verdict.join('/')}, ${band.join('/')}${siteTail}`
+}

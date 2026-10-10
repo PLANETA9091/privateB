@@ -122,7 +122,7 @@ import { stormCensus } from '../../src/lib/stormcensus.mjs' // (v0.409.0) the st
 import { beatRailContinuity, beatRailContinuityRow } from '../../src/lib/beatrail.mjs' // (v0.822.0) the beat rail's own continuity - the n=/ts= series' field verdict (the v0.820.0 rail's own scar read)
 import { gcPoolCensus } from '../../src/lib/gcpool.mjs' // (v0.421.0) the GC Pinned hunt's pool read (the old/ext/ab split)
 import { voidCensus } from '../../src/lib/voidcensus.mjs' // (v0.423.0) the out-of-world stamp's field read
-import { deathKindCensus, deathKindBill, deathKindBillRow, deathKindRiders, deathKindRidersRow, mobAttackerBill, mobAttackerBillRow, mobAttackerRiders, mobAttackerRidersRow, misreadDirectionBill, misreadDirectionBillRow, misreadDirectionRiders, misreadDirectionRidersRow } from '../../src/lib/deathkinds.mjs' // (v0.425.0) the vertical-death front's mechanical leg; (v0.784.0) WHICH kind owns the death book; (v0.788.0) WHICH server-named killer owns the mob book; (v0.844.0) WHICH direction owns the sensor-blind misread book
+import { deathKindCensus, deathKindBill, deathKindBillRow, deathKindRiders, deathKindRidersRow, mobAttackerBill, mobAttackerBillRow, mobAttackerRiders, mobAttackerRidersRow, misreadDirectionBill, misreadDirectionBillRow, misreadDirectionRiders, misreadDirectionRidersRow, fallAnatomyBook, fallAnatomyConsistent, fallAnatomyRow } from '../../src/lib/deathkinds.mjs' // (v0.425.0) the vertical-death front's mechanical leg; (v0.784.0) WHICH kind owns the death book; (v0.788.0) WHICH server-named killer owns the mob book; (v0.844.0) WHICH direction owns the sensor-blind misread book; (v0.897.0) WHERE the fall kind's own deaths own (the band + the site's own repeat)
 import { houndCensus, houndArenaSeat, houndArenaSeatRow, houndArenaRiders, houndArenaRidersRow } from '../../src/lib/houndcensus.mjs' // (v0.433.0) the hound presence's field read; (v0.791.0) WHICH arena owns the hound kill book
 import { faceFate } from '../../src/lib/facefate.mjs' // (v0.546.0) the frozen book's READER side - the face's own fate named before the censuses speak
 
@@ -219,6 +219,17 @@ if (sweep.keywordOnly.length) {
   else {
     const mar = mobAttackerRiders(kinds)
     if (mar) console.log(`  ${mobAttackerRidersRow(mar)}`)
+  }
+  // (v0.897.0) THE FALLS' OWN ANATOMY - WHERE the fall kind's own deaths
+  // own: the band's own split + the site's own repeat (the dig-shaft's
+  // own vertical the raw split rode unnamed; the no-crossing fall cell's
+  // three-face mass named the front - f155 fall 1, f156 fall 3, f157
+  // fall 3). A fall-less face reads the honest silence; an inconsistent
+  // book prices nothing (the fence rides the print).
+  const fab = fallAnatomyBook(kinds)
+  if (fab && fallAnatomyConsistent(kinds, fab)) {
+    const far = fallAnatomyRow(fab)
+    if (far) console.log(`  ${far}`)
   }
   // (v0.713.0) THE INFERENCE'S OWN BILL - the two-way read of the
   // inference's tails across the whole face (the server kind stays the
