@@ -3124,8 +3124,22 @@ async function runBot (name, target, index) {
                 // sideways, and the deadline always wins); digNames is the full stone list
                 // for the ore/stone descent mode
                 const trip = await miner.mapTrip(tripBlocks, { digNames: namesFor(true), direction, walkTimeoutMs: TRIP_WALK_MS, shouldStop: () => Date.now() > deadline })
-                if (trip.name) console.log(`${name} map trip: ${trip.name}`)
-                else if (trip.error === 'unreachable') console.log(`${name} map trip skipped: ${tripBlocks.join(',')} unreachable`)
+                if (trip.name) {
+                  console.log(`${name} map trip: ${trip.name}`)
+                  // (v0.900.0) THE SECOND LEG's own result form - the first leg's
+                  // unreachable no longer spent the trip. Deliberately a SEPARATE
+                  // line: the census's launch shape (^F<N> map trip: <blocks>$)
+                  // must stay byte-exact, the second leg rides /map trip/i via
+                  // its own unparsed-bucket family (the four forms below).
+                  if (trip.secondLeg) console.log(`${name} map trip second leg: ${trip.name}`)
+                } else if (trip.error === 'unreachable') {
+                  console.log(`${name} map trip skipped: ${tripBlocks.join(',')} unreachable`)
+                  // (v0.900.0) the second leg's own defer/refuse/cause forms - the
+                  // walk-failed trip names WHY its second leg never left:
+                  if (trip.secondLegWhy === 'deadline') console.log(`${name} map trip second leg deferred: deadline`)
+                  else if (trip.secondLegWhy === 'no-candidate') console.log(`${name} map trip second leg skipped: no candidate left`)
+                  else if (trip.secondLegWhy === 'failed') console.log(`${name} map trip second leg failed: ${trip.secondLegError || 'walk'}`)
+                }
               } catch (e) { console.log(`${name} map trip failed: ${e.message}`) }
             }
           }

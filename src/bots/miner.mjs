@@ -82,6 +82,7 @@ import { dropTargets, dropGoalRange, dropWalkSkipped, dropGoalAdmission, DROP_AD
 import { chooseTarget } from '../fleet/claims.mjs'
 import { firstUsableRecord } from '../fleet/worldmap.mjs' // (v0.512.0) the fallback's deeper-record law
 import { walkBudgetMs } from '../lib/tripplan.mjs'
+import { secondLegDecision } from '../lib/maptrip.mjs' // (v0.900.0) THE SECOND LEG - the unreachable first leg no longer spends the trip
 import { noteGlobal } from '../lib/blackbox.mjs' // (v0.62.0) freeze forensics at the rescue/climb sites
 import { createLoginReady } from '../lib/loginfence.mjs' // (v0.546.0) THE LOGIN FENCE - the rebuild's login leg settles on every branch
 
@@ -6418,6 +6419,7 @@ export function createMiner ({
     // while the cap keeps the v0.11.2 A*-expansion OOM lesson honoured
     const tripDist = target.pos.distanceTo(bot.entity.position)
     const budget = walkBudgetMs({ dist: tripDist, base: walkTimeoutMs })
+    let walked = target
     try {
       await gotoSafe(bot, standGoalNear(bot, goals, target.pos.x, target.pos.y, target.pos.z, { range: 4 }), { timeoutMs: budget, label: `map trip ${target.name}` })
     } catch {
@@ -6425,7 +6427,27 @@ export function createMiner ({
       // bounded amnesia, same as workOnGround - but drop the OLDEST half, not all:
       // a full clear made bots re-walk the same unreachable shores every few trips
       if (failedTrips.size > 32) for (const k of [...failedTrips].slice(0, 16)) failedTrips.delete(k)
-      return { error: 'unreachable' }
+      // (v0.900.0) THE SECOND LEG: one unreachable walk no longer spends the
+      // trip. The failed cell is already in failedTrips, so the re-selection
+      // refuses it by construction (the board path's chooseTarget skip and the
+      // board-less path's firstUsableRecord both read the ledger) - the map's
+      // own depth answers where the first leg could not. The deadline owns the
+      // walk: shouldStop() true means the run cannot afford even one more leg.
+      const stopNow = shouldStop ? !!shouldStop() : false
+      const next = stopNow ? null : mapTargetFor(findNames, { maxDistance, verify: false })
+      const decision = secondLegDecision({ firstLegError: 'unreachable', shouldStopNow: stopNow, hasCandidate: !!next })
+      if (decision.leg !== 'second') return { error: 'unreachable', firstLeg: key, secondLegWhy: decision.why }
+      claimTrip(next)
+      const nextKey = `${next.pos.x},${next.pos.y},${next.pos.z}`
+      const nextBudget = walkBudgetMs({ dist: next.pos.distanceTo(bot.entity.position), base: walkTimeoutMs })
+      try {
+        await gotoSafe(bot, standGoalNear(bot, goals, next.pos.x, next.pos.y, next.pos.z, { range: 4 }), { timeoutMs: nextBudget, label: `map trip second leg ${next.name}` })
+      } catch (e2) {
+        failedTrips.add(nextKey)
+        if (failedTrips.size > 32) for (const k of [...failedTrips].slice(0, 16)) failedTrips.delete(k)
+        return { error: 'unreachable', firstLeg: key, secondLegWhy: 'failed', secondLegError: e2?.message }
+      }
+      walked = next
     }
     recordToMap({ maxDistance: 32, count: 32 })
     if (findNames.every(n => SURFACE_NAMES.has(n))) {
@@ -6442,14 +6464,14 @@ export function createMiner ({
         direction: direction ?? new Vec3(1, 0, 0),
         shouldStop: shouldStop ?? (() => false)
       })
-      return { name: target.name }
+      return { name: walked.name, secondLeg: walked !== target }
     }
     // eat what we came for: a short descent at the arrival point collects the target
     // block plus whatever sits underneath (a sand column ends in stone - which the
     // plan wants anyway). digNames must be the bot's FULL minable list: a sand-only
     // list would make digShaft sidestep forever once the column turns to stone.
     await digShaft(digNames ?? findNames, { maxBlocks })
-    return { name: target.name }
+    return { name: walked.name, secondLeg: walked !== target }
   }
 
   // Walk to the nearest chest and bank everything but the tool kit. Soft no-op when no

@@ -971,3 +971,24 @@ export function leakClock (lines) {
     clockCenter: centerU > 0 ? Math.round((centerF / centerU) * 100) / 100 : null
   }
 }
+
+// (v0.900.0) THE SECOND LEG - the delivery leg's own same-trip retry. Three
+// consecutive faces priced the break (179/180/181): sand demanded 20x while
+// the map held 262..377 positions and the pocket still read 0 -> 0 - because
+// ONE unreachable walk spent the whole trip (lastTrip is set before the
+// walk, so the next attempt waits the 75s cadence plus a shaft's work). The
+// map's own depth (the v0.512.0 k=4 board-less road, the claims board's own
+// skip law) already knows the next candidate - the trip just never asked.
+// The law: the deadline owns the second leg (v0.17.1's never-start-a-walk-
+// the-run-cannot-finish, now the same-trip twin), the map's depth second,
+// and a first leg that never reached 'unreachable' has no second leg at all.
+// The re-selection is free of the failed cell by construction: the walk's
+// catch adds the key to failedTrips BEFORE this decision runs, so both the
+// board path (chooseTarget skip) and the board-less path (firstUsableRecord)
+// refuse it - the second leg cannot re-walk the first leg's own grave.
+export function secondLegDecision ({ firstLegError, shouldStopNow = false, hasCandidate = false } = {}) {
+  if (firstLegError !== 'unreachable') return { leg: 'none', why: 'not-unreachable' }
+  if (shouldStopNow) return { leg: 'none', why: 'deadline' }
+  if (!hasCandidate) return { leg: 'none', why: 'no-candidate' }
+  return { leg: 'second', why: 'candidate-ready' }
+}
